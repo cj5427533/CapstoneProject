@@ -1734,9 +1734,8 @@ app.get('/api/dangerous-pages', async (req, res) => {
       reportCounts[shopId].reportCount++;
     });
 
-    const topDangerous = Object.values(reportCounts)
+    const allDangerous = Object.values(reportCounts)
       .sort((a, b) => b.reportCount - a.reportCount)
-      .slice(0, 10)
       .map(item => ({
         id: item.shop.id,
         url: item.shop.url,
@@ -1744,7 +1743,7 @@ app.get('/api/dangerous-pages', async (req, res) => {
         reportCount: item.reportCount
       }));
 
-    res.json(topDangerous);
+    res.json(allDangerous);
   } catch (error) {
     console.error('위험 페이지 조회 오류:', error);
     res.status(500).json({ success: false, message: '위험 페이지 조회 실패' });
@@ -1769,7 +1768,7 @@ app.get('/api/top-rated-pages', async (req, res) => {
       ratingData[shopId].ratings.push(rate.rating);
     });
 
-    const topRated = Object.values(ratingData)
+    const allRated = Object.values(ratingData)
       .map(item => {
         const totalRating = item.ratings.reduce((sum, rating) => sum + rating, 0);
         const averageRating = totalRating / item.ratings.length;
@@ -1781,10 +1780,9 @@ app.get('/api/top-rated-pages', async (req, res) => {
           totalRatings: item.ratings.length
         };
       })
-      .sort((a, b) => b.averageRating - a.averageRating)
-      .slice(0, 10);
+      .sort((a, b) => b.averageRating - a.averageRating);
 
-    res.json(topRated);
+    res.json(allRated);
   } catch (error) {
     console.error('고평점 페이지 조회 오류:', error);
     res.status(500).json({ success: false, message: '고평점 페이지 조회 실패' });

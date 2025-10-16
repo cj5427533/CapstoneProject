@@ -15,6 +15,8 @@ import { ReportPage } from './pages/ReportPage';
 import { AdminPage } from './pages/AdminPage';
 import { MyPage } from './pages/MyPage';
 import { CommunityPage } from './pages/CommunityPage';
+import { DangerousPage } from './pages/DangerousPage';
+import { TopRatedPage } from './pages/TopRatedPage';
 
 export function App() {
   return (
@@ -26,6 +28,8 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/community" element={<CommunityPage />} />
+            <Route path="/dangerous" element={<DangerousPage />} />
+            <Route path="/top-rated" element={<TopRatedPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />

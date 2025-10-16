@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   getCommunityPosts,
+  getCommunityPost,
   getCommunityComments,
   createCommunityPost,
   createCommunityComment,
@@ -123,8 +124,21 @@ export function CommunityPage() {
     }
   };
 
-  const handlePostClick = (post: CommunityPost) => {
-    setSelectedPost(post);
+  const handlePostClick = async (post: CommunityPost) => {
+    try {
+      // 게시글 상세 조회 API 호출 (조회수 증가)
+      const detailedPost = await getCommunityPost(post.id);
+      setSelectedPost(detailedPost);
+      
+      // 게시글 목록의 조회수도 업데이트
+      setPosts(posts.map(p => 
+        p.id === post.id ? { ...p, views: detailedPost.views } : p
+      ));
+    } catch (error) {
+      console.error('게시글 상세 조회 오류:', error);
+      // 에러가 발생해도 기존 데이터로 표시
+      setSelectedPost(post);
+    }
   };
 
   const handleLike = async (postId: number) => {

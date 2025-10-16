@@ -212,7 +212,7 @@ export function HomePage() {
                   {dangerousPages.length === 0 ? (
                     <p className="empty-message">아직 데이터가 없습니다</p>
                   ) : (
-                    dangerousPages.map((shop, index) => (
+                    dangerousPages.slice(0, 10).map((shop, index) => (
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
@@ -238,7 +238,7 @@ export function HomePage() {
                   {topRatedPages.length === 0 ? (
                     <p className="empty-message">아직 데이터가 없습니다</p>
                   ) : (
-                    topRatedPages.map((shop, index) => (
+                    topRatedPages.slice(0, 10).map((shop, index) => (
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
