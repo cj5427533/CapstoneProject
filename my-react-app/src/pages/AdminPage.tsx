@@ -10,7 +10,11 @@ import {
   getAdminRatings,
   deleteRating,
   getAdminUsers,
-  mergeShops
+  mergeShops,
+  getAdminCommunityPosts,
+  deleteAdminCommunityPost,
+  getAdminCommunityComments,
+  deleteAdminCommunityComment
 } from '../utils/api';
 
 interface AdminStats {
@@ -62,6 +66,31 @@ interface UserData {
   created_at: string;
 }
 
+interface CommunityPost {
+  id: number;
+  title: string;
+  content: string;
+  author: string;
+  author_email: string;
+  user_id: number;
+  views: number;
+  likes: number;
+  comments_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CommunityComment {
+  id: number;
+  content: string;
+  author: string;
+  author_email: string;
+  user_id: number;
+  post_id: number;
+  post_title: string;
+  created_at: string;
+}
+
 export function AdminPage() {
   const navigate = useNavigate();
   
@@ -74,7 +103,7 @@ export function AdminPage() {
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminKey, setAdminKey] = useState('');
-  const [currentTab, setCurrentTab] = useState<'stats' | 'shops' | 'reports' | 'ratings' | 'users'>('stats');
+  const [currentTab, setCurrentTab] = useState<'stats' | 'shops' | 'reports' | 'ratings' | 'users' | 'community'>('stats');
   
   const [stats, setStats] = useState<AdminStats>({
     totalShops: 0,
@@ -87,6 +116,8 @@ export function AdminPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [ratings, setRatings] = useState<RatingData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
+  const [communityComments, setCommunityComments] = useState<CommunityComment[]>([]);
   const [editingShopId, setEditingShopId] = useState<number | null>(null);
   const [editingShopName, setEditingShopName] = useState('');
   const [mergingShopId, setMergingShopId] = useState<number | null>(null);
@@ -163,6 +194,26 @@ export function AdminPage() {
     }
   };
 
+  // 커뮤니티 게시글 로드
+  const loadCommunityPosts = async () => {
+    try {
+      const postsData = await getAdminCommunityPosts();
+      setCommunityPosts(postsData);
+    } catch (error) {
+      console.error('커뮤니티 게시글 조회 실패:', error);
+    }
+  };
+
+  // 커뮤니티 댓글 로드
+  const loadCommunityComments = async () => {
+    try {
+      const commentsData = await getAdminCommunityComments();
+      setCommunityComments(commentsData);
+    } catch (error) {
+      console.error('커뮤니티 댓글 조회 실패:', error);
+    }
+  };
+
   // 탭 변경
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -172,6 +223,10 @@ export function AdminPage() {
       else if (currentTab === 'reports') await loadReports();
       else if (currentTab === 'ratings') await loadRatings();
       else if (currentTab === 'users') await loadUsers();
+      else if (currentTab === 'community') {
+        await loadCommunityPosts();
+        await loadCommunityComments();
+      }
       else if (currentTab === 'stats') await loadAdminStats();
     };
     
@@ -307,6 +362,38 @@ export function AdminPage() {
     }
   };
 
+  // 커뮤니티 게시글 삭제
+  const handleDeleteCommunityPost = async (postId: number, title: string) => {
+    if (!confirm(`게시글 "${title}"을(를) 삭제하시겠습니까?\n연관된 댓글도 모두 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      await deleteAdminCommunityPost(postId);
+      alert('게시글이 삭제되었습니다.');
+      loadCommunityPosts();
+      loadCommunityComments();
+    } catch (error) {
+      alert('게시글 삭제에 실패했습니다.');
+    }
+  };
+
+  // 커뮤니티 댓글 삭제
+  const handleDeleteCommunityComment = async (commentId: number) => {
+    if (!confirm('이 댓글을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await deleteAdminCommunityComment(commentId);
+      alert('댓글이 삭제되었습니다.');
+      loadCommunityComments();
+      loadCommunityPosts();
+    } catch (error) {
+      alert('댓글 삭제에 실패했습니다.');
+    }
+  };
+
   // localhost가 아닌 경우 접근 차단
   if (!isLocalhost) {
     return (
@@ -395,6 +482,12 @@ export function AdminPage() {
           onClick={() => setCurrentTab('users')}
         >
           👥 사용자 관리
+        </button>
+        <button 
+          className={`tab-button ${currentTab === 'community' ? 'active' : ''}`}
+          onClick={() => setCurrentTab('community')}
+        >
+          💬 커뮤니티 관리
         </button>
       </div>
 
@@ -666,6 +759,111 @@ export function AdminPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* 커뮤니티 관리 탭 */}
+        {currentTab === 'community' && (
+          <div className="admin-section">
+            <h2>💬 커뮤니티 관리</h2>
+            
+            {/* 게시글 관리 */}
+            <div style={{ marginBottom: '3rem' }}>
+              <h3>📝 게시글 관리 ({communityPosts.length}개)</h3>
+              <div className="data-table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>제목</th>
+                      <th>내용 미리보기</th>
+                      <th>작성자</th>
+                      <th>조회수</th>
+                      <th>좋아요</th>
+                      <th>댓글수</th>
+                      <th>작성일</th>
+                      <th>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {communityPosts.map((post) => (
+                      <tr key={post.id}>
+                        <td>{post.id}</td>
+                        <td className="title-cell" title={post.title}>
+                          {post.title.length > 30 ? post.title.substring(0, 30) + '...' : post.title}
+                        </td>
+                        <td className="desc-cell" title={post.content}>
+                          {post.content.length > 50 ? post.content.substring(0, 50) + '...' : post.content}
+                        </td>
+                        <td>
+                          {post.author}
+                          <br />
+                          <span style={{ fontSize: '0.85em', color: '#888' }}>{post.author_email}</span>
+                        </td>
+                        <td>{post.views}</td>
+                        <td>{post.likes}</td>
+                        <td>{post.comments_count}</td>
+                        <td>{new Date(post.created_at).toLocaleString('ko-KR')}</td>
+                        <td>
+                          <button 
+                            onClick={() => handleDeleteCommunityPost(post.id, post.title)}
+                            className="action-btn delete"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 댓글 관리 */}
+            <div>
+              <h3>💭 댓글 관리 ({communityComments.length}개)</h3>
+              <div className="data-table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>댓글 내용</th>
+                      <th>작성자</th>
+                      <th>게시글 제목</th>
+                      <th>작성일</th>
+                      <th>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {communityComments.map((comment) => (
+                      <tr key={comment.id}>
+                        <td>{comment.id}</td>
+                        <td className="desc-cell" title={comment.content}>
+                          {comment.content.length > 50 ? comment.content.substring(0, 50) + '...' : comment.content}
+                        </td>
+                        <td>
+                          {comment.author}
+                          <br />
+                          <span style={{ fontSize: '0.85em', color: '#888' }}>{comment.author_email}</span>
+                        </td>
+                        <td className="title-cell" title={comment.post_title}>
+                          {comment.post_title.length > 30 ? comment.post_title.substring(0, 30) + '...' : comment.post_title}
+                        </td>
+                        <td>{new Date(comment.created_at).toLocaleString('ko-KR')}</td>
+                        <td>
+                          <button 
+                            onClick={() => handleDeleteCommunityComment(comment.id)}
+                            className="action-btn delete"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

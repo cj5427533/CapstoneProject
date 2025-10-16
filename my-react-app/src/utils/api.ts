@@ -1041,3 +1041,79 @@ export const deleteCommunityComment = async (commentId: number, userId: number):
     throw error;
   }
 };
+
+// ==================== 관리자 커뮤니티 API ====================
+
+// 관리자: 모든 게시글 조회
+export const getAdminCommunityPosts = async (): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/community/admin/posts`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.posts || [];
+  } catch (error) {
+    console.error('관리자 게시글 목록 조회 에러:', error);
+    throw error;
+  }
+};
+
+// 관리자: 게시글 삭제
+export const deleteAdminCommunityPost = async (postId: number): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/community/admin/posts/${postId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '게시글 삭제에 실패했습니다.');
+    }
+  } catch (error) {
+    console.error('관리자 게시글 삭제 에러:', error);
+    throw error;
+  }
+};
+
+// 관리자: 모든 댓글 조회
+export const getAdminCommunityComments = async (): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/community/admin/comments`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.comments || [];
+  } catch (error) {
+    console.error('관리자 댓글 목록 조회 에러:', error);
+    throw error;
+  }
+};
+
+// 관리자: 댓글 삭제
+export const deleteAdminCommunityComment = async (commentId: number): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/community/admin/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '댓글 삭제에 실패했습니다.');
+    }
+  } catch (error) {
+    console.error('관리자 댓글 삭제 에러:', error);
+    throw error;
+  }
+};

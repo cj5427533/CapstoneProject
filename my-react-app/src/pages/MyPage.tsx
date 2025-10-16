@@ -196,9 +196,9 @@ export function MyPage() {
       <div className="mypage-header">
         <h1>마이페이지</h1>
         <div className="user-info-box">
-          <p><strong>사용자명:</strong> {user?.username}</p>
-          <p><strong>이메일:</strong> {user?.email}</p>
-          <p><strong>전화번호:</strong> {user?.phoneNumber || '정보 없음'}</p>
+          <p><strong>사용자 :</strong>{user?.username}</p>
+          <p><strong>이메일 :</strong>{user?.email}</p>
+          <p><strong>연락처 :</strong>{user?.phoneNumber || '정보 없음'}</p>
         </div>
       </div>
 

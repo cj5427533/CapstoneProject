@@ -569,5 +569,171 @@ router.delete('/comments/:id', async (req, res) => {
   }
 });
 
+// ==================== 관리자 API ====================
+
+// 관리자: 모든 게시글 조회 (댓글 수 포함)
+router.get('/admin/posts', async (req, res) => {
+  try {
+    const { data: posts, error } = await supabase
+      .from('community_posts')
+      .select(`
+        id,
+        title,
+        content,
+        views,
+        likes,
+        created_at,
+        updated_at,
+        user_id,
+        users!community_posts_user_id_fkey (username, email)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 댓글 수 가져오기
+    const postsWithCommentCount = await Promise.all(
+      posts.map(async (post) => {
+        const { count, error: countError } = await supabase
+          .from('community_comments')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', post.id);
+
+        if (countError) throw countError;
+
+        return {
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          author: post.users.username,
+          author_email: post.users.email,
+          user_id: post.user_id,
+          created_at: post.created_at,
+          updated_at: post.updated_at,
+          views: post.views,
+          likes: post.likes,
+          comments_count: count || 0
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      posts: postsWithCommentCount
+    });
+  } catch (error) {
+    console.error('관리자 게시글 목록 조회 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: '게시글 목록을 불러오는데 실패했습니다.' 
+    });
+  }
+});
+
+// 관리자: 게시글 삭제 (권한 체크 없이)
+router.delete('/admin/posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 먼저 댓글도 삭제 (cascade 방식)
+    await supabase
+      .from('community_comments')
+      .delete()
+      .eq('post_id', id);
+
+    // 좋아요도 삭제
+    await supabase
+      .from('community_post_likes')
+      .delete()
+      .eq('post_id', id);
+
+    // 게시글 삭제
+    const { error } = await supabase
+      .from('community_posts')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: '게시글이 삭제되었습니다.'
+    });
+  } catch (error) {
+    console.error('관리자 게시글 삭제 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: '게시글 삭제에 실패했습니다.' 
+    });
+  }
+});
+
+// 관리자: 모든 댓글 조회
+router.get('/admin/comments', async (req, res) => {
+  try {
+    const { data: comments, error } = await supabase
+      .from('community_comments')
+      .select(`
+        id,
+        content,
+        created_at,
+        post_id,
+        user_id,
+        users!community_comments_user_id_fkey (username, email),
+        community_posts!community_comments_post_id_fkey (title)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const formattedComments = comments.map(comment => ({
+      id: comment.id,
+      content: comment.content,
+      author: comment.users.username,
+      author_email: comment.users.email,
+      user_id: comment.user_id,
+      post_id: comment.post_id,
+      post_title: comment.community_posts.title,
+      created_at: comment.created_at
+    }));
+
+    res.json({
+      success: true,
+      comments: formattedComments
+    });
+  } catch (error) {
+    console.error('관리자 댓글 목록 조회 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: '댓글 목록을 불러오는데 실패했습니다.' 
+    });
+  }
+});
+
+// 관리자: 댓글 삭제 (권한 체크 없이)
+router.delete('/admin/comments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('community_comments')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: '댓글이 삭제되었습니다.'
+    });
+  } catch (error) {
+    console.error('관리자 댓글 삭제 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: '댓글 삭제에 실패했습니다.' 
+    });
+  }
+});
+
 module.exports = router;
 
