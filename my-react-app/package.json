@@ -11,12 +11,7 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-<<<<<<< HEAD
-    "react-router-dom": "^6.26.2",
-    "react-toastify": "^10.0.5"
-=======
     "react-router-dom": "^6.26.2"
->>>>>>> 68e0818b1c51846e6d0600063ee420c80c45d6f9
   },
   "devDependencies": {
     "@types/react": "^18.3.5",

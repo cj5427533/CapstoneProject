@@ -109,7 +109,7 @@ export function ReportPage() {
           categories: formData.categories,
           description: formData.description,
           reporterName: user?.username || '익명',
-          reporterPhone: user?.phone_number || ''
+          reporterPhone: user?.phoneNumber || ''
         });
 
         // 중복 신고인 경우
