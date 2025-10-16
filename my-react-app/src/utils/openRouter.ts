@@ -1,5 +1,5 @@
 // OpenRouter API 클라이언트
-const OPENROUTER_API_KEY = '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';
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
 export interface OpenRouterResponse {
   choices: Array<{

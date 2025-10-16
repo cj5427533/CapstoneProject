@@ -85,7 +85,7 @@ app.use(express.json());
 
 // Supabase 클라이언트 초기화
 const supabaseUrl = process.env.SUPABASE_URL || 'https://tqdvolgachfszomwhlfe.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "sb_secret_c1gfJj9YRkAslPTyH6tQDw_U2z63rWd";
+const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 console.log('=== Supabase 연결 확인 ===');
@@ -95,10 +95,10 @@ console.log('====================');
 
 // SMS 발송을 위한 설정 (SolAPI 사용)
 const SMS_CONFIG = {
-  solApiKey: process.env.SOLAPI_API_KEY || 'NCS1ABHHAUVLBFYU', // 환경변수에서 가져오기
-  solApiSecret: process.env.SOLAPI_API_SECRET || 'VBXVKFTFZ9WGYKSN0UVR6VOWLUFIUP3W', // 환경변수에서 가져오기
-  solApiFromNumber: process.env.SOLAPI_FROM_NUMBER || '01052190930', // 환경변수에서 가져오기
-  smsProvider: process.env.SMS_PROVIDER || 'solapi' // 환경변수에서 가져오기
+  solApiKey: process.env.SOL_API_KEY,
+  solApiSecret: process.env.SOL_API_SECRET,
+  solApiFromNumber: process.env.SOL_API_FROM_NUMBER,
+  smsProvider: process.env.SMS_PROVIDER || 'solapi'
 };
 
 // Gmail SMTP 설정
@@ -116,6 +116,15 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
   console.log('Gmail 계정:', process.env.GMAIL_USER);
   console.log('앱 비밀번호:', process.env.GMAIL_APP_PASSWORD ? '설정됨 ✓' : '미설정');
   console.log('====================');
+  
+  // Gmail 연결 테스트
+  emailTransporter.verify(function(error, success) {
+    if (error) {
+      console.error('❌ Gmail SMTP 연결 실패:', error.message);
+    } else {
+      console.log('✅ Gmail SMTP 서버 연결 성공!');
+    }
+  });
 } else {
   console.warn('⚠️  Gmail SMTP 설정이 완료되지 않았습니다. .env 파일을 확인하세요.');
 }
@@ -2111,6 +2120,32 @@ app.use('/api/ai', aiAnalysisRoutes);
 
 // 커뮤니티 라우터 등록
 app.use('/api/community', communityRoutes);
+
+// 테스트 이메일 발송 API (개발용)
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: '이메일 주소를 입력해주세요.' });
+    }
+    
+    console.log(`\n=== 테스트 이메일 발송 시작 ===`);
+    console.log(`받는 사람: ${email}`);
+    console.log(`발신자: ${process.env.GMAIL_USER}`);
+    
+    const testResetLink = 'http://localhost:5173/reset-password?token=test123';
+    await sendPasswordResetEmail(email, testResetLink);
+    
+    console.log(`✅ 테스트 이메일 전송 완료`);
+    console.log(`===============================\n`);
+    
+    res.json({ success: true, message: '테스트 이메일이 발송되었습니다.' });
+  } catch (error) {
+    console.error(`❌ 테스트 이메일 전송 실패:`, error);
+    res.status(500).json({ error: `이메일 전송 실패: ${error.message}` });
+  }
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
