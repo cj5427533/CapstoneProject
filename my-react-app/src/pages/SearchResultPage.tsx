@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Rating } from '../components/Rating';
-import { FakeReviewAnalysis } from '../components/FakeReviewAnalysis';
 import { AdvancedAIAnalysis } from '../components/AdvancedAIAnalysis';
 import { searchOrCreateShop, getShopReports, getShopRatings, createRating, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -416,16 +415,7 @@ export function SearchResultPage() {
         </div>
       )}
 
-      {/* 기존 AI 리뷰 분석 섹션 (호환성 유지) */}
-      {shop && shopRating.totalRatings > 0 && (
-        <div className="ai-analysis-section">
-          <FakeReviewAnalysis 
-            reviews={[]} // 실제 리뷰 데이터는 백엔드에서 가져옴
-            shopType={{ type: 'real' }} // 실제 쇼핑몰로 설정
-            shopUrl={url}
-          />
-        </div>
-      )}
+      {/* AI 리뷰 분석은 이제 고급 AI 분석 시스템에 통합됨 */}
 
     </div>
   );
