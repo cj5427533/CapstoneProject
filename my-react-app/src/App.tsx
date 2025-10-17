@@ -15,6 +15,8 @@ import { ReportPage } from './pages/ReportPage';
 import { AdminPage } from './pages/AdminPage';
 import { MyPage } from './pages/MyPage';
 import { CommunityPage } from './pages/CommunityPage';
+import { DangerousShopsPage } from './pages/DangerousShopsPage';
+import { RecommendedShopsPage } from './pages/RecommendedShopsPage';
 
 export function App() {
   return (
@@ -34,6 +36,8 @@ export function App() {
             <Route path="/report" element={<ReportPage />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/dangerous-shops" element={<DangerousShopsPage />} />
+            <Route path="/recommended-shops" element={<RecommendedShopsPage />} />
           </Routes>
         </main>
         <Footer />

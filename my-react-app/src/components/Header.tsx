@@ -30,10 +30,10 @@ export function Header() {
           <Link to="/community" className="nav-link">
             커뮤니티
           </Link>
-          <Link to="/dangerous" className="nav-link">
+          <Link to="/dangerous-shops" className="nav-link">
             위험 쇼핑몰
           </Link>
-          <Link to="/top-rated" className="nav-link">
+          <Link to="/recommended-shops" className="nav-link">
             추천 쇼핑몰
           </Link>
         </nav>

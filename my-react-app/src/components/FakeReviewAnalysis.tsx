@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { FakeReviewDetector, FakeReviewResult, ShopType } from '../services/fakeReviewDetector';
 import { Review } from '../utils/openRouter';
@@ -6,7 +6,6 @@ import { Review } from '../utils/openRouter';
 interface FakeReviewAnalysisProps {
   reviews: Review[];
   shopType: ShopType;
-  shopUrl: string;
 }
 
 interface AnalysisStatistics {
@@ -22,8 +21,7 @@ interface AnalysisStatistics {
 
 export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
   reviews,
-  shopType,
-  shopUrl
+  shopType
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [fakeReviews, setFakeReviews] = useState<FakeReviewResult[]>([]);
@@ -63,15 +61,6 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
     }
   };
 
-  const getRiskLevelColor = (level: string) => {
-    switch (level) {
-      case 'LOW': return 'text-green-600 bg-green-100';
-      case 'MEDIUM': return 'text-yellow-600 bg-yellow-100';
-      case 'HIGH': return 'text-orange-600 bg-orange-100';
-      case 'CRITICAL': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   const getRiskLevelText = (level: string) => {
     switch (level) {
