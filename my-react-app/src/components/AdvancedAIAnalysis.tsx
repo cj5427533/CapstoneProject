@@ -38,7 +38,6 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
     phishingAlert: PhishingAlert | null;
   } | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [monitoringEnabled, setMonitoringEnabled] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   
   // AI 리뷰 분석 관련 상태
@@ -54,19 +53,13 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   const advancedSystem = AdvancedFakeReviewSystem.getInstance();
   const basicFakeReviewDetector = FakeReviewDetector.getInstance();
 
-  useEffect(() => {
-    // 실시간 모니터링 상태 확인
-    const status = advancedSystem.getSystemStatus();
-    setMonitoringEnabled(status.monitoringShops > 0);
-  }, []);
-
   const runAdvancedAnalysis = async () => {
     setIsAnalyzing(true);
     try {
       // 1. 고급 가짜 리뷰 탐지
       const fakeReviewResults = await fakeReviewDetector.detectFakeReviews([]);
       
-      // 2. 쇼핑몰 위험도 분석
+      // 2. 쇼핑몰 주의도 분석
       const shopRiskResult = await shopRiskAnalyzer.analyzeShopRisk(shop, reports, ratings);
       
       // 3. 실시간 피싱 탐지
@@ -85,30 +78,19 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
       setShowAnalysisModal(true);
       
       if (fakeReviewResults.length > 0 || shopRiskResult.riskScore >= 70 || phishingAlert) {
-        toast.success('고급 AI 분석이 완료되었습니다. 주의가 필요한 항목이 발견되었습니다.');
+        toast.success('피싱 사이트 검사가 완료되었습니다. 주의가 필요한 항목이 발견되었습니다.');
       } else {
-        toast.info('고급 AI 분석이 완료되었습니다. 특별한 문제가 발견되지 않았습니다.');
+        toast.info('피싱 사이트 검사가 완료되었습니다. 특별한 문제가 발견되지 않았습니다.');
       }
       
     } catch (error) {
-      console.error('고급 AI 분석 오류:', error);
-      toast.error('AI 분석 중 오류가 발생했습니다.');
+      console.error('피싱 사이트 검사 오류:', error);
+      toast.error('사이트 검사 중 오류가 발생했습니다.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const toggleRealTimeMonitoring = () => {
-    if (monitoringEnabled) {
-      advancedSystem.stopRealTimeMonitoring(shop.id);
-      setMonitoringEnabled(false);
-      toast.info('실시간 모니터링이 중지되었습니다.');
-    } else {
-      advancedSystem.startRealTimeMonitoring(shop.id);
-      setMonitoringEnabled(true);
-      toast.success('실시간 모니터링이 시작되었습니다.');
-    }
-  };
 
   const runReviewAnalysis = async () => {
     if (ratings.length === 0) {
@@ -147,7 +129,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
         toast.info('의심스러운 리뷰 패턴이 발견되지 않았습니다.');
       }
     } catch (error) {
-      console.error('가짜 리뷰 분석 오류:', error);
+      console.error('리뷰 신뢰도 분석 오류:', error);
       toast.error('리뷰 분석 중 오류가 발생했습니다.');
     } finally {
       setIsReviewAnalyzing(false);
@@ -177,41 +159,35 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
       <div className="analysis-criteria-container">
         <div className="criteria-header">
           <div className="criteria-title">
-            <h5>고급 AI 분석 시스템 구체적 기준 기반</h5>
+            <h5>피싱 사이트 검사 시스템 구체적 기준 기반</h5>
           </div>
           
           <div className="action-buttons">
-            <button 
-              className={`monitor-btn ${monitoringEnabled ? 'active' : ''}`}
-              onClick={toggleRealTimeMonitoring}
-            >
-              {monitoringEnabled ? '모니터링 중지' : '실시간 모니터링'}
-            </button>
             <button 
               className="review-analyze-btn"
               onClick={runReviewAnalysis}
               disabled={isReviewAnalyzing}
             >
-              {isReviewAnalyzing ? '분석 중...' : 'AI 리뷰 분석'}
+              {isReviewAnalyzing ? '분석 중...' : '리뷰 신뢰도 분석하기'}
             </button>
             <button 
               className="analyze-btn"
               onClick={runAdvancedAnalysis}
               disabled={isAnalyzing}
             >
-              {isAnalyzing ? '분석 중...' : '고급 AI 분석 시작'}
+              {isAnalyzing ? '분석 중...' : '피싱 사이트 검사 시작'}
             </button>
           </div>
         </div>
 
         <div className="criteria-subtitle">
           <span className="triangle-icon">▲</span>
-          <span>우리만의 구체적 분석 기준</span>
+          <span>우리만의 구체적 검사 기준</span>
         </div>
 
         <div className="criteria-grid">
           <div className="criteria-section">
-            <h6 className="section-title fake-review">가짜 리뷰 탐지:</h6>
+            <h6 className="section-title fake-review">리뷰 신뢰도 분석:</h6>
             <ul className="criteria-list">
               <li>과도한 긍정 표현 2개 이상 사용</li>
               <li>5분 내 3개 이상 연속 리뷰</li>
@@ -221,7 +197,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
           </div>
 
           <div className="criteria-section">
-            <h6 className="section-title phishing">피싱 사이트 탐지:</h6>
+            <h6 className="section-title phishing">피싱 사이트 검사:</h6>
             <ul className="criteria-list">
               <li>유명 사이트와 85% 이상 유사한 도메인</li>
               <li>긴급성 강조 표현 3개 이상</li>
@@ -232,7 +208,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
         </div>
 
         <div className="disclaimer">
-          <span>면책 조항: AI 분석 결과는 참고용이며, 최종 판단은 사용자에게 있습니다. 모든 분석은 구체적인 기준에 따라 객관적으로 수행됩니다.</span>
+          <span>면책 조항: 검사 결과는 참고용이며, 최종 판단은 사용자에게 있습니다. 모든 검사는 구체적인 기준에 따라 객관적으로 수행됩니다.</span>
         </div>
       </div>
 
@@ -242,7 +218,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
           <div className="analysis-modal-content">
             <div className="analysis-modal-header">
               <h3 className="analysis-modal-title">
-                고급 AI 분석 결과
+                피싱 사이트 검사 결과
               </h3>
               <button 
                 className="analysis-modal-close"
@@ -258,7 +234,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                 {analysisResults.fakeReviews.length > 0 && (
                   <div className="analysis-result-section fake-review">
                     <h4 className="analysis-result-title">
-                      가짜 리뷰 탐지 결과 (구체적 기준)
+                      리뷰 신뢰도 분석 결과 (구체적 기준)
                     </h4>
                     <div className="analysis-stats-grid">
                       <div className="analysis-stat-card">
@@ -321,7 +297,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   </div>
                 )}
 
-                {/* 2. 쇼핑몰 위험도 분석 결과 */}
+                {/* 2. 쇼핑몰 주의도 분석 결과 */}
                 {analysisResults.shopRisk && (
                   <div className="analysis-result-section shop-risk">
                     <h4 className="analysis-result-title">
@@ -329,7 +305,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     </h4>
                     <div className="analysis-stats-grid">
                       <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">종합 위험도</h5>
+                        <h5 className="analysis-stat-title">종합 주의도</h5>
                         <p className="analysis-stat-value">{analysisResults.shopRisk.riskScore}점</p>
                         <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>
                           {getRiskLevelText(analysisResults.shopRisk.riskLevel)}
@@ -338,7 +314,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                       <div className="analysis-stat-card">
                         <h5 className="analysis-stat-title">분석 세부사항</h5>
                         <div className="analysis-detail-scores">
-                          <div>신고 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
+                          <div>피해 사례 제보 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
                           <div>평점 분석: {Math.round(analysisResults.shopRisk.analysis.ratingAnalysis)}점</div>
                           <div>도메인 분석: {Math.round(analysisResults.shopRisk.analysis.domainAnalysis)}점</div>
                           <div>사업자 분석: {Math.round(analysisResults.shopRisk.analysis.businessAnalysis)}점</div>
@@ -348,7 +324,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     
                     <div className="analysis-recommendations">
                       <div className="analysis-recommendation-section">
-                        <h6 className="analysis-recommendation-title">발견된 위험 요소:</h6>
+                        <h6 className="analysis-recommendation-title">발견된 주의 요소:</h6>
                         <ul className="analysis-recommendation-list">
                           {analysisResults.shopRisk.reasons.map((reason, index) => (
                             <li key={index}>{reason}</li>
@@ -372,7 +348,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                 {analysisResults.phishingAlert && (
                   <div className="analysis-result-section phishing">
                     <h4 className="analysis-result-title">
-                      🚨 실시간 피싱 탐지 결과
+                      🚨 실시간 피싱 사이트 검사 결과
                     </h4>
                     <div className="analysis-stats-grid">
                       <div className="analysis-stat-card">
@@ -393,7 +369,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     </div>
                     
                     <div className="analysis-phishing-details">
-                      <h6 className="analysis-phishing-title">탐지된 위험 요소:</h6>
+                      <h6 className="analysis-phishing-title">탐지된 주의 요소:</h6>
                       <ul className="analysis-phishing-list">
                         {analysisResults.phishingAlert.reasons.map((reason, index) => (
                           <li key={index}>{reason}</li>
@@ -415,7 +391,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
           <div className="analysis-modal-content">
             <div className="analysis-modal-header">
               <h3 className="analysis-modal-title">
-                AI 리뷰 신뢰도 분석 결과
+                리뷰 신뢰도 분석 결과
               </h3>
               <button 
                 className="analysis-modal-close"
@@ -442,7 +418,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     </div>
                     
                     <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">위험도</h5>
+                      <h5 className="analysis-stat-title">주의도</h5>
                       <p className="analysis-stat-value">
                         <span className={`analysis-risk-badge ${reviewStatistics.riskLevel.toLowerCase()}`}>
                           {getRiskLevelText(reviewStatistics.riskLevel)}
@@ -514,7 +490,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                 {/* 면책 조항 */}
                 <div className="analysis-disclaimer">
                   <p className="analysis-disclaimer-text">
-                    * AI 분석 결과는 참고용이며, 모든 리뷰가 가짜라는 의미는 아닙니다.
+                    * 리뷰 신뢰도 분석 결과는 참고용이며, 모든 리뷰가 가짜라는 의미는 아닙니다.
                   </p>
                 </div>
               </div>

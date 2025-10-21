@@ -442,7 +442,7 @@ export class PhishingDetector {
         technicalAnalysis.score * weights.technicalAnalysis
       );
       
-      // 5. 위험도 레벨 결정
+      // 5. 주의도 레벨 결정
       const riskLevel = this.getRiskLevel(phishingScore);
       
       // 6. 모든 이유 합치기
@@ -484,7 +484,7 @@ export class PhishingDetector {
   }
 
   /**
-   * 위험도 레벨 결정
+   * 주의도 레벨 결정
    */
   private getRiskLevel(phishingScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (phishingScore >= 90) return 'CRITICAL';

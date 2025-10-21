@@ -1716,7 +1716,7 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// 위험 페이지 조회
+// 주의가 필요한 페이지 조회
 app.get('/api/dangerous-pages', async (req, res) => {
   try {
     const { data: shopReports, error } = await supabase
@@ -1746,8 +1746,8 @@ app.get('/api/dangerous-pages', async (req, res) => {
 
     res.json(topDangerous);
   } catch (error) {
-    console.error('위험 페이지 조회 오류:', error);
-    res.status(500).json({ success: false, message: '위험 페이지 조회 실패' });
+    console.error('주의가 필요한 페이지 조회 오류:', error);
+    res.status(500).json({ success: false, message: '주의가 필요한 페이지 조회 실패' });
   }
 });
 
@@ -2121,7 +2121,7 @@ app.use('/api/ai', aiAnalysisRoutes);
 // 커뮤니티 라우터 등록
 app.use('/api/community', communityRoutes);
 
-// 위험 쇼핑몰 목록 조회 (신고 많은 순)
+// 주의가 필요한 쇼핑몰 목록 조회 (신고 많은 순)
 app.get('/api/dangerous-shops', async (req, res) => {
   try {
     // 검색된 쇼핑몰만 조회 (search_count > 0)
@@ -2166,8 +2166,8 @@ app.get('/api/dangerous-shops', async (req, res) => {
 
     res.json({ success: true, shops: sortedShops });
   } catch (error) {
-    console.error('위험 쇼핑몰 조회 오류:', error);
-    res.status(500).json({ error: '위험 쇼핑몰 조회 실패: ' + error.message });
+    console.error('주의가 필요한 쇼핑몰 조회 오류:', error);
+    res.status(500).json({ error: '주의가 필요한 쇼핑몰 조회 실패: ' + error.message });
   }
 });
 

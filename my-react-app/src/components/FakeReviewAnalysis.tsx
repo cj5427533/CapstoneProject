@@ -54,7 +54,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
         toast.info('의심스러운 리뷰 패턴이 발견되지 않았습니다.');
       }
     } catch (error) {
-      console.error('가짜 리뷰 분석 오류:', error);
+      console.error('리뷰 신뢰도 분석 오류:', error);
       toast.error('리뷰 분석 중 오류가 발생했습니다.');
     } finally {
       setIsAnalyzing(false);
@@ -76,7 +76,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
     <div className="fake-review-analysis bg-white rounded-lg shadow-md p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-          🔍 AI 리뷰 신뢰도 분석
+          🔍 리뷰 신뢰도 분석
           {shopType.type === 'mock' && (
             <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
               목업
@@ -95,7 +95,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
       {shopType.type === 'mock' && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 text-sm">
-            ⚠️ 이 쇼핑몰은 교육용 목업입니다. AI 분석 결과는 가짜 리뷰 패턴 학습을 위한 것입니다.
+            ⚠️ 이 쇼핑몰은 교육용 목업입니다. 분석 결과는 리뷰 신뢰도 패턴 학습을 위한 것입니다.
           </p>
         </div>
       )}
@@ -119,7 +119,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
           <div className="analysis-modal-content">
             <div className="analysis-modal-header">
               <h3 className="analysis-modal-title">
-                AI 리뷰 신뢰도 분석 결과
+                리뷰 신뢰도 분석 결과
               </h3>
               <button 
                 className="analysis-modal-close"
@@ -146,7 +146,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
                     </div>
                     
                     <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">위험도</h5>
+                      <h5 className="analysis-stat-title">주의도</h5>
                       <p className="analysis-stat-value">
                         <span className={`analysis-risk-badge ${statistics.riskLevel.toLowerCase()}`}>
                           {getRiskLevelText(statistics.riskLevel)}

@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Rating } from '../components/Rating';
 import { AdvancedAIAnalysis } from '../components/AdvancedAIAnalysis';
+import { ReviewForm } from '../components/ReviewForm';
+import { ReviewsList } from '../components/ReviewsList';
 import { searchOrCreateShop, getShopReports, getShopRatings, createRating, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -21,6 +23,8 @@ export function SearchResultPage() {
   });
   const [userRating, setUserRating] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [refreshReviews, setRefreshReviews] = useState(0);
 
   useEffect(() => {
     const searchUrl = searchParams.get('url');
@@ -84,7 +88,7 @@ export function SearchResultPage() {
   const handleNewReport = () => {
     // 로그인 체크
     if (!isAuthenticated) {
-      if (confirm('신고하기 위해서는 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
+      if (confirm('피해 사례 제보를 위해서는 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
         navigate('/login');
       }
       return;
@@ -99,6 +103,14 @@ export function SearchResultPage() {
     if (newSearchUrl.trim()) {
       const trimmedUrl = newSearchUrl.trim();
       navigate(`/search?url=${encodeURIComponent(trimmedUrl)}`);
+    }
+  };
+
+  const handleReviewSubmitted = () => {
+    setRefreshReviews(prev => prev + 1);
+    // 평점 데이터도 새로고침
+    if (shop?.id) {
+      loadShopData(url);
     }
   };
 
@@ -179,7 +191,7 @@ export function SearchResultPage() {
               </form>
             </div>
           </div>
-          <p>신고 및 평점 정보를 불러오고 있습니다...</p>
+          <p>피해 사례 제보 및 평점 정보를 불러오고 있습니다...</p>
         </div>
       </div>
     );
@@ -258,7 +270,7 @@ export function SearchResultPage() {
 
       <div className="result-summary">
         <div className="summary-card">
-          <h3>총 신고 건수</h3>
+          <h3>총 피해 사례 제보 건수</h3>
           <span className="count">{reports.length}건</span>
         </div>
         <div className="summary-card">
@@ -270,7 +282,7 @@ export function SearchResultPage() {
           </div>
         </div>
         <div className="summary-card">
-          <h3>최근 신고</h3>
+          <h3>최근 피해 사례 제보</h3>
           <span className="date">
             {reports.length > 0 ? new Date(reports[0].created_at).toLocaleDateString('ko-KR') : '없음'}
           </span>
@@ -360,20 +372,20 @@ export function SearchResultPage() {
 
       <div className="reports-section">
         <div className="section-header">
-          <h2>신고 목록</h2>
+          <h2>피해 사례 제보 목록</h2>
           <button onClick={handleNewReport} className="report-button">
-            신고하기
+            피해 사례 제보
           </button>
         </div>
 
         {reports.length === 0 ? (
           <div className="no-reports">
             <div className="no-reports-content">
-              <h3>아직 신고된 내용이 없습니다</h3>
-              <p>이 쇼핑몰에 대한 첫 번째 신고를 작성해보세요!</p>
+              <h3>아직 피해 사례 제보된 내용이 없습니다</h3>
+              <p>이 쇼핑몰에 대한 첫 번째 피해 사례 제보를 작성해보세요!</p>
               <div className="no-reports-actions">
                 <button onClick={handleNewReport} className="report-button primary">
-                  첫 번째 신고하기
+                  첫 번째 피해 사례 제보
                 </button>
               </div>
             </div>
@@ -411,6 +423,36 @@ export function SearchResultPage() {
             reports={reports}
             ratings={[]} // 실제 리뷰 데이터는 백엔드에서 가져옴
             shopUrl={url}
+          />
+        </div>
+      )}
+
+      {/* 리뷰 섹션 */}
+      {shop && shop.id > 0 && (
+        <div className="reviews-section">
+          <div className="section-header">
+            <h2>사용자 리뷰</h2>
+            {isAuthenticated && (
+              <button 
+                className="write-review-button"
+                onClick={() => setShowReviewForm(!showReviewForm)}
+              >
+                {showReviewForm ? '리뷰 작성 취소' : '리뷰 작성하기'}
+              </button>
+            )}
+          </div>
+
+          {showReviewForm && (
+            <ReviewForm 
+              shopId={shop.id}
+              shopUrl={url}
+              onReviewSubmitted={handleReviewSubmitted}
+            />
+          )}
+
+          <ReviewsList 
+            shopId={shop.id}
+            onReviewAdded={handleReviewSubmitted}
           />
         </div>
       )}

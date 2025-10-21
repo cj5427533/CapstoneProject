@@ -1,4 +1,4 @@
-// 쇼핑몰 위험도 분석 서비스 - 구체적 기준 기반
+// 쇼핑몰 주의도 분석 서비스 - 구체적 기준 기반
 export interface Shop {
   id: number;
   url: string;
@@ -38,25 +38,25 @@ export interface ShopRiskResult {
   disclaimer: string;
 }
 
-// 우리만의 구체적인 쇼핑몰 위험도 기준
+// 우리만의 구체적인 쇼핑몰 주의도 기준
 export const SHOP_RISK_CRITERIA = {
-  // 신고 분석 기준
+  // 피해 사례 제보 분석 기준
   reportAnalysis: {
-    // 중요 신고 카테고리
+    // 중요 피해 사례 제보 카테고리
     criticalCategories: {
       categories: ['사기', '가짜리뷰', '배송지연', '환불거부', '개인정보유출'],
       threshold: 2, // 2건 이상
       penalty: 70 // 70점 감점
     },
     
-    // 신고 증가율
+    // 피해 사례 제보 증가율
     reportIncrease: {
       threshold: 0.5, // 50% 이상 증가
       timeWindow: 7, // 7일 내
       penalty: 60 // 60점 감점
     },
     
-    // 신고 밀도
+    // 피해 사례 제보 밀도
     reportDensity: {
       threshold: 5, // 하루에 5건 이상
       timeWindow: 1, // 1일
@@ -101,9 +101,9 @@ export const SHOP_RISK_CRITERIA = {
       penalty: 70 // 70점 감점
     },
     
-    // 도메인 연령과 신고 비율
+    // 도메인 연령과 피해 사례 제보 비율
     ageReportRatio: {
-      threshold: 0.1, // 도메인 연령 대비 신고 비율 10% 이상
+      threshold: 0.1, // 도메인 연령 대비 피해 사례 제보 비율 10% 이상
       penalty: 80 // 80점 감점
     }
   },
@@ -137,17 +137,17 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 신고 분석 (구체적 기준)
+   * 피해 사례 제보 분석 (구체적 기준)
    */
   private analyzeReports(reports: Report[]): { score: number; reasons: string[] } {
     let score = 0;
     const reasons: string[] = [];
     
     if (reports.length === 0) {
-      return { score: 0, reasons: ['신고가 없어 안전합니다'] };
+      return { score: 0, reasons: ['피해 사례 제보가 없어 안전합니다'] };
     }
     
-    // 1. 중요 신고 카테고리 검사
+    // 1. 중요 피해 사례 제보 카테고리 검사
     const criticalCategories = SHOP_RISK_CRITERIA.reportAnalysis.criticalCategories;
     const criticalReports = reports.filter(report => {
       const categories = JSON.parse(report.categories);
@@ -158,21 +158,21 @@ export class ShopRiskAnalyzer {
     
     if (criticalReports.length >= criticalCategories.threshold) {
       score += criticalCategories.penalty;
-      reasons.push(`중요 신고 카테고리 ${criticalReports.length}건 발견`);
+      reasons.push(`중요 피해 사례 제보 카테고리 ${criticalReports.length}건 발견`);
     }
     
-    // 2. 신고 증가율 검사
+    // 2. 피해 사례 제보 증가율 검사
     const reportIncrease = this.calculateReportIncrease(reports);
     if (reportIncrease >= SHOP_RISK_CRITERIA.reportAnalysis.reportIncrease.threshold) {
       score += SHOP_RISK_CRITERIA.reportAnalysis.reportIncrease.penalty;
-      reasons.push(`신고가 ${Math.round(reportIncrease * 100)}% 증가`);
+      reasons.push(`피해 사례 제보가 ${Math.round(reportIncrease * 100)}% 증가`);
     }
     
-    // 3. 신고 밀도 검사
+    // 3. 피해 사례 제보 밀도 검사
     const reportDensity = this.calculateReportDensity(reports);
     if (reportDensity >= SHOP_RISK_CRITERIA.reportAnalysis.reportDensity.threshold) {
       score += SHOP_RISK_CRITERIA.reportAnalysis.reportDensity.penalty;
-      reasons.push(`하루에 ${reportDensity}건의 신고로 비정상적 밀도`);
+      reasons.push(`하루에 ${reportDensity}건의 피해 사례 제보로 비정상적 밀도`);
     }
     
     return { 
@@ -297,7 +297,7 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 신고 증가율 계산
+   * 피해 사례 제보 증가율 계산
    */
   private calculateReportIncrease(reports: Report[]): number {
     if (reports.length < 2) return 0;
@@ -322,7 +322,7 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 신고 밀도 계산
+   * 피해 사례 제보 밀도 계산
    */
   private calculateReportDensity(reports: Report[]): number {
     if (reports.length === 0) return 0;
@@ -426,7 +426,7 @@ export class ShopRiskAnalyzer {
       recommendations.push('이 쇼핑몰은 즉시 이용을 중단하세요');
       recommendations.push('개인정보 입력을 절대 하지 마세요');
       recommendations.push('신용카드 정보를 입력하지 마세요');
-      recommendations.push('관련 기관에 신고를 고려하세요');
+      recommendations.push('관련 기관에 피해 사례 제보를 고려하세요');
     } else if (riskLevel === 'HIGH') {
       recommendations.push('추가적인 사업자 정보 확인이 필요합니다');
       recommendations.push('실제 구매 후기를 더 찾아보시기 바랍니다');
@@ -445,11 +445,11 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 메인 쇼핑몰 위험도 분석 함수
+   * 메인 쇼핑몰 주의도 분석 함수
    */
   async analyzeShopRisk(shop: Shop, reports: Report[], ratings: Rating[]): Promise<ShopRiskResult> {
     try {
-      // 1. 신고 분석
+      // 1. 피해 사례 제보 분석
       const reportAnalysis = this.analyzeReports(reports);
       
       // 2. 평점 분석
@@ -475,7 +475,7 @@ export class ShopRiskAnalyzer {
         businessAnalysis.score * weights.businessAnalysis
       );
       
-      // 6. 위험도 레벨 결정
+      // 6. 주의도 레벨 결정
       const riskLevel = this.getRiskLevel(riskScore);
       
       // 7. 모든 이유 합치기
@@ -504,7 +504,7 @@ export class ShopRiskAnalyzer {
       };
       
     } catch (error) {
-      console.error('쇼핑몰 위험도 분석 오류:', error);
+      console.error('쇼핑몰 주의도 분석 오류:', error);
       return {
         riskScore: 0,
         riskLevel: 'LOW',
@@ -522,7 +522,7 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 위험도 레벨 결정
+   * 주의도 레벨 결정
    */
   private getRiskLevel(riskScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (riskScore >= 90) return 'CRITICAL';

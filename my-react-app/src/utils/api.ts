@@ -194,30 +194,30 @@ export async function searchOrCreateShop(url: string): Promise<{ shop: Shop; isN
   }
 }
 
-// 쇼핑몰 신고 목록 조회
+// 쇼핑몰 피해 사례 제보 목록 조회
 export async function getShopReports(shopId: number): Promise<Report[]> {
   try {
-    console.log('신고 목록 조회:', `${API_BASE_URL}/shops/${shopId}/reports`);
+    console.log('피해 사례 제보 목록 조회:', `${API_BASE_URL}/shops/${shopId}/reports`);
     
     const response = await fetch(`${API_BASE_URL}/shops/${shopId}/reports`);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('신고 목록 조회 에러:', errorText);
+      console.error('피해 사례 제보 목록 조회 에러:', errorText);
       throw new Error(`Failed to fetch reports: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('신고 목록 데이터:', data);
+    console.log('피해 사례 제보 목록 데이터:', data);
     return data;
   } catch (error) {
-    console.error('신고 목록 조회 에러:', error);
+    console.error('피해 사례 제보 목록 조회 에러:', error);
     // 에러 시 빈 배열 반환
     return [];
   }
 }
 
-// 특정 사용자의 모든 신고 조회
+// 특정 사용자의 모든 피해 사례 제보 조회
 export async function getUserReports(reporterName: string): Promise<Report[]> {
   try {
     const encodedName = encodeURIComponent(reporterName);
@@ -231,12 +231,12 @@ export async function getUserReports(reporterName: string): Promise<Report[]> {
     const data = await response.json();
     return data.reports || [];
   } catch (error) {
-    console.error('사용자 신고 목록 조회 에러:', error);
+    console.error('사용자 피해 사례 제보 목록 조회 에러:', error);
     return [];
   }
 }
 
-// 특정 사용자의 특정 쇼핑몰 신고 조회
+// 특정 사용자의 특정 쇼핑몰 피해 사례 제보 조회
 export async function getUserShopReport(reporterName: string, shopUrl: string): Promise<Report | null> {
   try {
     const encodedName = encodeURIComponent(reporterName);
@@ -251,12 +251,12 @@ export async function getUserShopReport(reporterName: string, shopUrl: string): 
     const data = await response.json();
     return data.report;
   } catch (error) {
-    console.error('사용자 신고 조회 에러:', error);
+    console.error('사용자 피해 사례 제보 조회 에러:', error);
     return null;
   }
 }
 
-// 사용자 신고 삭제 (본인만 가능)
+// 사용자 피해 사례 제보 삭제 (본인만 가능)
 export async function deleteUserReport(reportId: number, reporterName: string): Promise<{ success: boolean; message: string }> {
   try {
     const encodedName = encodeURIComponent(reporterName);
@@ -273,12 +273,12 @@ export async function deleteUserReport(reportId: number, reporterName: string): 
 
     return data;
   } catch (error) {
-    console.error('신고 삭제 에러:', error);
+    console.error('피해 사례 제보 삭제 에러:', error);
     throw error;
   }
 }
 
-// 신고 생성
+// 피해 사례 제보 생성
 export async function createReport(data: CreateReportData): Promise<{ id: number; message: string; isDuplicate?: boolean; existingReportId?: number }> {
   const response = await fetch(`${API_BASE_URL}/reports`, {
     method: 'POST',
@@ -289,7 +289,7 @@ export async function createReport(data: CreateReportData): Promise<{ id: number
   const responseData = await response.json();
 
   if (!response.ok) {
-    // 중복 신고인 경우
+    // 중복 피해 사례 제보인 경우
     if (response.status === 409 && responseData.isDuplicate) {
       return {
         id: responseData.existingReportId,
@@ -304,7 +304,61 @@ export async function createReport(data: CreateReportData): Promise<{ id: number
   return responseData;
 }
 
-// 신고 수정
+// 리뷰 관련 API 함수들
+export const createRating = async (ratingData: {
+  shop_id: number;
+  rating: number;
+  review_text: string;
+}): Promise<{ success: boolean; ratingId?: number; message?: string }> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('로그인이 필요합니다.');
+    }
+
+    const formData = new FormData();
+    formData.append('shop_id', ratingData.shop_id.toString());
+    formData.append('rating', ratingData.rating.toString());
+    formData.append('review_text', ratingData.review_text);
+
+    const response = await fetch(`${API_BASE_URL}/ratings`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || '리뷰 등록에 실패했습니다.');
+    }
+
+    return { success: true, ratingId: result.ratingId, message: result.message };
+  } catch (error) {
+    console.error('리뷰 등록 오류:', error);
+    throw error;
+  }
+};
+
+export const getReports = async (): Promise<Report[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reports`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || '피해사례 목록을 불러오는데 실패했습니다.');
+    }
+    
+    return data.reports || [];
+  } catch (error) {
+    console.error('피해사례 목록 로드 오류:', error);
+    throw error;
+  }
+};
+
+// 피해 사례 제보 수정
 export async function updateReport(reportId: number, data: { categories: string[]; description: string; reporterName: string }): Promise<{ success: boolean; report: Report }> {
   const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
     method: 'PUT',
@@ -516,19 +570,19 @@ export async function resetPassword(token: string, newPassword: string): Promise
   }
 }
 
-// 위험 페이지 Top 10 조회
+// 주의가 필요한 페이지 Top 10 조회
 export async function getDangerousPages(): Promise<DangerousShop[]> {
   try {
     const response = await fetch(`${API_BASE_URL}/dangerous-pages`);
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || '위험 페이지 조회에 실패했습니다.');
+      throw new Error(errorData.message || '주의가 필요한 페이지 조회에 실패했습니다.');
     }
 
     return response.json();
   } catch (error) {
-    console.error('위험 페이지 조회 에러:', error);
+    console.error('주의가 필요한 페이지 조회 에러:', error);
     return [];
   }
 }
@@ -660,24 +714,24 @@ export async function deleteShop(shopId: number) {
   }
 }
 
-// 전체 신고 조회
+// 전체 피해 사례 제보 조회
 export async function getAdminReports() {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/reports`);
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '신고 조회에 실패했습니다.');
+      throw new Error(data.message || '피해 사례 제보 조회에 실패했습니다.');
     }
     
     return data.reports;
   } catch (error) {
-    console.error('신고 조회 에러:', error);
+    console.error('피해 사례 제보 조회 에러:', error);
     throw error;
   }
 }
 
-// 신고 삭제
+// 피해 사례 제보 삭제
 export async function deleteReport(reportId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/reports/${reportId}`, {
@@ -687,12 +741,194 @@ export async function deleteReport(reportId: number) {
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '신고 삭제에 실패했습니다.');
+      throw new Error(data.message || '피해 사례 제보 삭제에 실패했습니다.');
     }
     
     return data;
   } catch (error) {
-    console.error('신고 삭제 에러:', error);
+    console.error('피해 사례 제보 삭제 에러:', error);
+    throw error;
+  }
+}
+
+// 파일 업로드
+export async function uploadEvidenceFiles(
+  reportId: number, 
+  files: File[]
+): Promise<{ success: boolean; fileIds: number[]; message: string }> {
+  try {
+    const formData = new FormData();
+    
+    files.forEach((file, index) => {
+      formData.append(`files`, file);
+    });
+    
+    formData.append('reportId', reportId.toString());
+
+    const response = await fetch(`${API_BASE_URL}/reports/${reportId}/files`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || '파일 업로드에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('파일 업로드 에러:', error);
+    throw error;
+  }
+}
+
+// 파일 삭제
+export async function deleteEvidenceFile(fileId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/files/${fileId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || '파일 삭제에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('파일 삭제 에러:', error);
+    throw error;
+  }
+}
+
+// 사업자 등록 정보 조회/생성
+export async function getOrCreateBusinessRegistration(
+  shopId: number,
+  businessData?: {
+    businessNumber?: string;
+    businessName?: string;
+    representativeName?: string;
+    businessAddress?: string;
+    phoneNumber?: string;
+    email?: string;
+  }
+): Promise<{ businessRegistration: any; isNew: boolean }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/business-registrations/${shopId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(businessData || {})
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || '사업자 등록 정보 처리에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('사업자 등록 정보 에러:', error);
+    throw error;
+  }
+}
+
+// 웹 분석 결과 저장
+export async function storeWebAnalysis(
+  shopId: number,
+  webAnalysis: any
+): Promise<{ success: boolean; analysisId: number }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/web-analysis/${shopId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(webAnalysis)
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || '웹 분석 결과 저장에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('웹 분석 결과 저장 에러:', error);
+    throw error;
+  }
+}
+
+// AI 분석 캐시 조회
+export async function getAIAnalysisCache(
+  shopId: number,
+  analysisType: string
+): Promise<{ analysisResult: any; isExpired: boolean } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ai-analysis-cache/${shopId}/${analysisType}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (response.status === 404) {
+      return null; // 캐시 없음
+    }
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'AI 분석 캐시 조회에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('AI 분석 캐시 조회 에러:', error);
+    return null;
+  }
+}
+
+// AI 분석 캐시 저장
+export async function storeAIAnalysisCache(
+  shopId: number,
+  analysisType: string,
+  analysisResult: any,
+  expiresInHours: number = 24
+): Promise<{ success: boolean; cacheId: number }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ai-analysis-cache`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        shopId,
+        analysisType,
+        analysisResult,
+        expiresInHours
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'AI 분석 캐시 저장에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('AI 분석 캐시 저장 에러:', error);
     throw error;
   }
 }
@@ -833,7 +1069,7 @@ export const analyzeShopRisk = async (shopUrl: string, shopType: 'real' | 'mock'
 
     return await response.json();
   } catch (error) {
-    console.error('쇼핑몰 위험도 분석 에러:', error);
+    console.error('쇼핑몰 주의도 분석 에러:', error);
     throw error;
   }
 };

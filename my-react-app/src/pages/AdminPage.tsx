@@ -164,13 +164,13 @@ export function AdminPage() {
     }
   };
 
-  // 신고 데이터 로드
+  // 피해 사례 제보 데이터 로드
   const loadReports = async () => {
     try {
       const reportsData = await getAdminReports();
       setReports(reportsData);
     } catch (error) {
-      console.error('신고 조회 실패:', error);
+      console.error('피해 사례 제보 조회 실패:', error);
     }
   };
 
@@ -272,7 +272,7 @@ export function AdminPage() {
 
   // 쇼핑몰 삭제
   const handleDeleteShop = async (shopId: number, shopName: string) => {
-    if (!confirm(`'${shopName}' 쇼핑몰을 삭제하시겠습니까?\n연관된 신고와 평점도 모두 삭제됩니다.`)) {
+    if (!confirm(`'${shopName}' 쇼핑몰을 삭제하시겠습니까?\n연관된 피해 사례 제보와 평점도 모두 삭제됩니다.`)) {
       return;
     }
 
@@ -286,19 +286,19 @@ export function AdminPage() {
     }
   };
 
-  // 신고 삭제
+  // 피해 사례 제보 삭제
   const handleDeleteReport = async (reportId: number) => {
-    if (!confirm('이 신고를 삭제하시겠습니까?')) {
+    if (!confirm('이 피해 사례 제보를 삭제하시겠습니까?')) {
       return;
     }
 
     try {
       await deleteReport(reportId);
-      alert('신고가 삭제되었습니다.');
+      alert('피해 사례 제보가 삭제되었습니다.');
       loadReports();
       loadAdminStats();
     } catch (error) {
-      alert('신고 삭제에 실패했습니다.');
+      alert('피해 사례 제보 삭제에 실패했습니다.');
     }
   };
 
@@ -343,7 +343,7 @@ export function AdminPage() {
     if (!confirm(
       `'${childShop?.name || childShop?.url}'를\n` +
       `'${targetShop.name || targetShop.url}' (ID: ${targetId})와 병합하시겠습니까?\n\n` +
-      `✅ 양방향 병합: 두 쇼핑몰의 모든 데이터(신고, 평점)가 통합됩니다.\n` +
+      `✅ 양방향 병합: 두 쇼핑몰의 모든 데이터(피해 사례 제보, 평점)가 통합됩니다.\n` +
       `✅ 어느 URL로 접속해도 통합된 데이터를 볼 수 있습니다.\n` +
       `✅ 데이터는 삭제되지 않고 병합됩니다.`
     )) {
@@ -469,7 +469,7 @@ export function AdminPage() {
           className={`tab-button ${currentTab === 'reports' ? 'active' : ''}`}
           onClick={() => setCurrentTab('reports')}
         >
-          ⚠️ 신고 관리
+          ⚠️ 피해 사례 제보 관리
         </button>
         <button 
           className={`tab-button ${currentTab === 'ratings' ? 'active' : ''}`}
@@ -502,7 +502,7 @@ export function AdminPage() {
                 <span className="stat-number">{stats.totalShops}</span>
               </div>
               <div className="stat-card">
-                <h3>총 신고 수</h3>
+                <h3>총 피해 사례 제보 수</h3>
                 <span className="stat-number">{stats.totalReports}</span>
               </div>
               <div className="stat-card">
@@ -650,7 +650,7 @@ export function AdminPage() {
         {/* 신고 관리 탭 */}
         {currentTab === 'reports' && (
           <div className="admin-section">
-            <h2>⚠️ 신고 관리 ({reports.length}개)</h2>
+            <h2>⚠️ 피해 사례 제보 관리 ({reports.length}개)</h2>
             <div className="data-table-container">
               <table className="admin-table">
                 <thead>
@@ -659,8 +659,8 @@ export function AdminPage() {
                     <th>쇼핑몰</th>
                     <th>카테고리</th>
                     <th>설명</th>
-                    <th>신고자</th>
-                    <th>신고일</th>
+                    <th>제보자</th>
+                    <th>제보일</th>
                     <th>관리</th>
                   </tr>
                 </thead>

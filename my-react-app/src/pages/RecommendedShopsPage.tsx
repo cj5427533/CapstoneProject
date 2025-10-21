@@ -175,7 +175,7 @@ export function RecommendedShopsPage() {
                         </div>
                         <div className="stat-item">
                           <div className="stat-value text-gray-600">{shop.reportCount}</div>
-                          <div className="stat-label">신고 건수</div>
+                          <div className="stat-label">피해 사례 제보 건수</div>
                         </div>
                       </div>
                       

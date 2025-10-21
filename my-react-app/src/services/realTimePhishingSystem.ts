@@ -7,7 +7,7 @@ export interface RealTimePhishingConfig {
   alertThreshold: number; // 0-100점
   autoBlock: boolean;
   whitelist: string[]; // 신뢰할 수 있는 도메인
-  blacklist: string[]; // 확실히 위험한 도메인
+  blacklist: string[]; // 확실히 주의가 필요한 도메인
 }
 
 export interface PhishingAlert {
@@ -90,7 +90,7 @@ export class RealTimePhishingSystem {
       
       // 2. 블랙리스트 체크
       if (this.isBlacklisted(url)) {
-        return this.createAlert(url, 100, 'CRITICAL', ['확실히 위험한 사이트로 분류됨']);
+        return this.createAlert(url, 100, 'CRITICAL', ['확실히 주의가 필요한 사이트로 분류됨']);
       }
       
       // 3. 도메인 평판 체크
@@ -197,7 +197,7 @@ export class RealTimePhishingSystem {
         reputation: 'MALICIOUS',
         score: 95,
         lastChecked: new Date().toISOString(),
-        sources: ['내부 블랙리스트', '사용자 신고']
+        sources: ['내부 블랙리스트', '사용자 피해 사례 제보']
       };
     }
     
@@ -257,7 +257,7 @@ export class RealTimePhishingSystem {
   private async sendRealTimeAlert(alert: PhishingAlert): Promise<void> {
     console.log(`🚨 실시간 피싱 알림: ${alert.url}`);
     console.log(`   - 피싱 점수: ${alert.phishingScore}점`);
-    console.log(`   - 위험도: ${alert.riskLevel}`);
+    console.log(`   - 주의도: ${alert.riskLevel}`);
     console.log(`   - 액션: ${alert.action}`);
     console.log(`   - 이유: ${alert.reasons.join(', ')}`);
     
@@ -265,7 +265,7 @@ export class RealTimePhishingSystem {
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         new Notification('피싱 사이트 탐지', {
-          body: `위험한 사이트가 탐지되었습니다. (${alert.phishingScore}점)`,
+          body: `주의가 필요한 사이트가 탐지되었습니다. (${alert.phishingScore}점)`,
           icon: '/favicon.ico',
           tag: alert.id
         });
@@ -273,7 +273,7 @@ export class RealTimePhishingSystem {
         Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
             new Notification('피싱 사이트 탐지', {
-              body: `위험한 사이트가 탐지되었습니다. (${alert.phishingScore}점)`,
+              body: `주의가 필요한 사이트가 탐지되었습니다. (${alert.phishingScore}점)`,
               icon: '/favicon.ico',
               tag: alert.id
             });
