@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchOrCreateShop, getShopReports, getShopRatings, getDangerousPages, getTopRatedPages } from '../utils/api';
 import type { DangerousShop, TopRatedShop } from '../utils/api';
-import { MockShopSelector } from '../components/MockShopSelector';
-import { MockShopAnalysis } from '../components/MockShopAnalysis';
 
 // 디바운싱 유틸리티 함수
 function debounce<T extends (...args: any[]) => any>(
@@ -30,8 +28,12 @@ export function HomePage() {
   const [dangerousPages, setDangerousPages] = useState<DangerousShop[]>([]);
   const [topRatedPages, setTopRatedPages] = useState<TopRatedShop[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [selectedMockShopId, setSelectedMockShopId] = useState<string>('');
   const navigate = useNavigate();
+
+  // 목업 쇼핑몰인지 확인하는 함수
+  const isMockShop = (shop: DangerousShop | TopRatedShop): boolean => {
+    return shop.id >= 1000; // 목업 쇼핑몰은 1000 이상의 ID를 가짐
+  };
 
   // 디바운싱된 미리보기 검색 함수를 useRef로 관리
   const debouncedPreviewSearchRef = useRef<((searchUrl: string) => void) | null>(null);
@@ -298,7 +300,15 @@ export function HomePage() {
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
-                        onClick={() => navigate(`/search?url=${encodeURIComponent(shop.url)}`)}
+                        onClick={() => {
+                          if (isMockShop(shop)) {
+                            // 목업 쇼핑몰인 경우 분석 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
+                          } else {
+                            // 실제 쇼핑몰인 경우 일반 검색 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}`);
+                          }
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <span className="rank">#{index + 1}</span>
@@ -324,7 +334,15 @@ export function HomePage() {
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
-                        onClick={() => navigate(`/search?url=${encodeURIComponent(shop.url)}`)}
+                        onClick={() => {
+                          if (isMockShop(shop)) {
+                            // 목업 쇼핑몰인 경우 분석 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
+                          } else {
+                            // 실제 쇼핑몰인 경우 일반 검색 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}`);
+                          }
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <span className="rank">#{index + 1}</span>
@@ -346,27 +364,6 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* 교육용 목업 쇼핑몰 섹션 */}
-        <div className="mock-shop-section">
-          <div className="section-header">
-            <h2 className="section-title">🎓 교육용 목업 쇼핑몰 AI 분석</h2>
-            <p className="section-subtitle">
-              다양한 리스크 레벨의 목업 쇼핑몰로 AI 분석 기능을 체험해보세요
-            </p>
-          </div>
-          
-          <MockShopSelector 
-            onShopSelect={setSelectedMockShopId}
-            selectedShopId={selectedMockShopId}
-          />
-          
-          {selectedMockShopId && (
-            <MockShopAnalysis 
-              shopUrl="mock-shop"
-              selectedShopId={selectedMockShopId}
-            />
-          )}
-        </div>
       </div>
     </div>
   );

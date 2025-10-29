@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { AdvancedFakeReviewDetector, FakeReviewResult } from '../services/advancedFakeReviewDetector';
 import { ShopRiskAnalyzer, Shop, Report, Rating, ShopRiskResult } from '../services/shopRiskAnalyzer';
 import { RealTimePhishingSystem, PhishingAlert } from '../services/realTimePhishingSystem';
-import { AdvancedFakeReviewSystem } from '../services/advancedFakeReviewSystem';
 import { FakeReviewDetector, ShopType } from '../services/fakeReviewDetector';
 import { Review } from '../utils/openRouter';
 
@@ -50,7 +49,6 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   const fakeReviewDetector = AdvancedFakeReviewDetector.getInstance();
   const shopRiskAnalyzer = ShopRiskAnalyzer.getInstance();
   const phishingSystem = RealTimePhishingSystem.getInstance();
-  const advancedSystem = AdvancedFakeReviewSystem.getInstance();
   const basicFakeReviewDetector = FakeReviewDetector.getInstance();
 
   const runAdvancedAnalysis = async () => {
@@ -59,7 +57,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
       // 1. 고급 가짜 리뷰 탐지
       const fakeReviewResults = await fakeReviewDetector.detectFakeReviews([]);
       
-      // 2. 쇼핑몰 주의도 분석
+      // 2. 쇼핑몰 신뢰도 분석
       const shopRiskResult = await shopRiskAnalyzer.analyzeShopRisk(shop, reports, ratings);
       
       // 3. 실시간 피싱 탐지
@@ -139,10 +137,10 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
 
   const getRiskLevelText = (level: string) => {
     switch (level) {
-      case 'LOW': return '낮음';
-      case 'MEDIUM': return '보통';
-      case 'HIGH': return '높음';
-      case 'CRITICAL': return '매우 높음';
+      case 'LOW': return '신뢰도 매우 높음';
+      case 'MEDIUM': return '신뢰도 높음';
+      case 'HIGH': return '신뢰도 보통';
+      case 'CRITICAL': return '신뢰도 낮음';
       default: return '알 수 없음';
     }
   };
@@ -297,16 +295,26 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   </div>
                 )}
 
-                {/* 2. 쇼핑몰 주의도 분석 결과 */}
+                {/* 2. 쇼핑몰 신뢰도 분석 결과 */}
                 {analysisResults.shopRisk && (
                   <div className="analysis-result-section shop-risk">
                     <h4 className="analysis-result-title">
-                      쇼핑몰 위험도 분석 (구체적 기준)
+                      쇼핑몰 신뢰도 분석 (구체적 기준)
                     </h4>
                     <div className="analysis-stats-grid">
                       <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">종합 주의도</h5>
-                        <p className="analysis-stat-value">{analysisResults.shopRisk.riskScore}점</p>
+                        <h5 className="analysis-stat-title">종합 신뢰도</h5>
+                        <p className="analysis-stat-value">{100 - analysisResults.shopRisk.riskScore}점</p>
+                        <div className="trust-score-gauge" style={{ 
+                          background: '#f3f4f6' 
+                        }}>
+                          <div className="gauge-bar" style={{
+                            width: `${100 - analysisResults.shopRisk.riskScore}%`,
+                            background: analysisResults.shopRisk.riskScore >= 80 ? '#ef4444' : 
+                                       analysisResults.shopRisk.riskScore >= 60 ? '#f59e0b' : 
+                                       analysisResults.shopRisk.riskScore >= 30 ? '#84cc16' : '#10b981'
+                          }}></div>
+                        </div>
                         <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>
                           {getRiskLevelText(analysisResults.shopRisk.riskLevel)}
                         </span>
@@ -324,7 +332,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     
                     <div className="analysis-recommendations">
                       <div className="analysis-recommendation-section">
-                        <h6 className="analysis-recommendation-title">발견된 주의 요소:</h6>
+                        <h6 className="analysis-recommendation-title">발견된 신뢰도 요소:</h6>
                         <ul className="analysis-recommendation-list">
                           {analysisResults.shopRisk.reasons.map((reason, index) => (
                             <li key={index}>{reason}</li>
@@ -418,7 +426,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     </div>
                     
                     <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">주의도</h5>
+                      <h5 className="analysis-stat-title">신뢰도</h5>
                       <p className="analysis-stat-value">
                         <span className={`analysis-risk-badge ${reviewStatistics.riskLevel.toLowerCase()}`}>
                           {getRiskLevelText(reviewStatistics.riskLevel)}

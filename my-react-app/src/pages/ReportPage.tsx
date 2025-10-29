@@ -40,7 +40,10 @@ export function ReportPage() {
               shopUrl: formData.shopUrl,
               categories: JSON.parse(existingReport.categories),
               description: existingReport.description,
-              agreeToTerms: true
+              agreeToTerms: true,
+              evidenceType: 'NONE',
+              evidenceFiles: [],
+              reportType: 'GENERAL_REVIEW'
             });
           }
         } catch (error) {
@@ -187,11 +190,7 @@ export function ReportPage() {
           categories: formData.categories,
           description: formData.description,
           reporterName: user?.username || '익명',
-          reporterPhone: user?.phoneNumber || '',
-          // 증빙 관련 정보 추가
-          evidenceType: formData.evidenceType,
-          evidenceFiles: formData.evidenceFiles,
-          reportType: formData.reportType
+          reporterPhone: user?.phoneNumber || ''
         });
 
         // 중복 신고인 경우
@@ -210,7 +209,10 @@ export function ReportPage() {
                 shopUrl: formData.shopUrl,
                 categories: JSON.parse(existingReport.categories),
                 description: existingReport.description,
-                agreeToTerms: true
+                agreeToTerms: true,
+                evidenceType: 'NONE',
+                evidenceFiles: [],
+                reportType: 'GENERAL_REVIEW'
               });
             }
             return;
@@ -397,7 +399,7 @@ export function ReportPage() {
               <div className="evidence-benefits">
                 <span>✅ 증빙된 제보는 높은 신뢰도로 평가됩니다</span>
                 <span>✅ 다른 사용자들에게 더욱 신뢰할 수 있는 정보 제공</span>
-                <span>✅ 쇼핑몰 위험도 평가에 중요한 역할</span>
+                <span>✅ 쇼핑몰 신뢰도 평가에 중요한 역할</span>
               </div>
             </div>
             

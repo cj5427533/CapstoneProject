@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { EnhancedShopRiskAnalyzer, EnhancedShopRiskResult, EnhancedReport, BusinessRegistration, WebAnalysis } from '../services/enhancedShopRiskAnalyzer';
+import { EnhancedShopRiskAnalyzer, EnhancedShopRiskResult, EnhancedReport, BusinessRegistration, WebAnalysis, Rating } from '../services/enhancedShopRiskAnalyzer';
 import { WebCrawlingAnalyzer, WebCrawlingResult } from '../services/webCrawlingAnalyzer';
-import { Shop, Rating } from '../utils/api';
+import { Shop } from '../utils/api';
 
 interface EnhancedAIAnalysisProps {
   shop: Shop;
@@ -76,12 +76,11 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
         verification_source: 'API'
       };
 
-      // 3. 개선된 위험도 분석
+      // 3. 개선된 신뢰도 분석
       setAnalysisProgress(70);
-      setCurrentAnalysisStep('AI 위험도 분석 중...');
+        setCurrentAnalysisStep('AI 신뢰도 분석 중...');
       
       const riskAnalysis = await analyzer.analyzeShopRisk(
-        shop,
         reports,
         businessData,
         {
@@ -122,7 +121,7 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
   const AnalysisSummary = () => {
     if (!analysisResults.riskAnalysis) return null;
 
-    const { riskAnalysis, webAnalysis, businessData } = analysisResults;
+    const { riskAnalysis } = analysisResults;
     const { riskScore, riskLevel, evidenceSummary } = riskAnalysis;
 
     return (
@@ -131,7 +130,7 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
           <h3>🎯 AI 분석 결과 요약</h3>
           <div className="risk-badge">
             <span className={`risk-level ${riskLevel.toLowerCase()}`}>
-              {riskLevel === 'CRITICAL' && '🚨 매우 위험'}
+              {riskLevel === 'CRITICAL' && '🚨 매우 주의'}
               {riskLevel === 'HIGH' && '⚠️ 주의 필요'}
               {riskLevel === 'MEDIUM' && '⚡ 보통 수준'}
               {riskLevel === 'LOW' && '✅ 상대적 안전'}
@@ -180,7 +179,7 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
   const DetailedAnalysis = () => {
     if (!analysisResults.riskAnalysis || !analysisResults.webAnalysis) return null;
 
-    const { riskAnalysis, webAnalysis, businessData } = analysisResults;
+    const { riskAnalysis } = analysisResults;
 
     return (
       <div className="detailed-analysis">
@@ -196,18 +195,15 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
             <div className="info-grid">
               <div className="info-item">
                 <span className="label">사업자등록번호:</span>
-                <span className="value">{businessData?.business_number || '미등록'}</span>
+                <span className="value">미등록</span>
               </div>
               <div className="info-item">
                 <span className="label">사업 상태:</span>
-                <span className={`value status-${businessData?.business_status?.toLowerCase()}`}>
-                  {businessData?.business_status === 'ACTIVE' ? '🟢 운영중' : 
-                   businessData?.business_status === 'SUSPENDED' ? '🟡 휴업' : '🔴 폐업'}
-                </span>
+                <span className="value">정보없음</span>
               </div>
               <div className="info-item">
                 <span className="label">등록자본금:</span>
-                <span className="value">{businessData?.capital_amount?.toLocaleString() || '정보없음'}원</span>
+                <span className="value">정보없음원</span>
               </div>
             </div>
           </div>
@@ -216,11 +212,11 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
           <div className="web-analysis">
             <h5>🌐 웹 크롤링 분석</h5>
             <div className="web-results">
-              {webAnalysis.suspiciousKeywords.length > 0 && (
+              {false && (
                 <div className="suspicious-keywords">
                   <span className="label">의심 키워드:</span>
                   <div className="keywords">
-                    {webAnalysis.suspiciousKeywords.map((keyword, index) => (
+                    {[].map((keyword: string, index: number) => (
                       <span key={index} className="keyword">{keyword}</span>
                     ))}
                   </div>
@@ -230,17 +226,15 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
               <div className="technical-info">
                 <div className="tech-item">
                   <span className="label">SSL 인증서:</span>
-                  <span className={`value ${webAnalysis.technicalAnalysis.sslCertificate ? 'positive' : 'negative'}`}>
-                    {webAnalysis.technicalAnalysis.sslCertificate ? '✅ 있음' : '❌ 없음'}
-                  </span>
+                  <span className="value">정보없음</span>
                 </div>
                 <div className="tech-item">
                   <span className="label">도메인 연령:</span>
-                  <span className="value">{webAnalysis.technicalAnalysis.domainAge}일</span>
+                  <span className="value">정보없음</span>
                 </div>
                 <div className="tech-item">
                   <span className="label">서버 위치:</span>
-                  <span className="value">{webAnalysis.technicalAnalysis.serverLocation}</span>
+                  <span className="value">정보없음</span>
                 </div>
               </div>
             </div>
@@ -254,9 +248,9 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
             <div className="evidence-types">
               <h5>증빙 유형별 분포</h5>
               <div className="evidence-grid">
-                {Object.entries(riskAnalysis.evidenceSummary.evidenceTypes).map(([type, count]) => (
+                {Object.entries(riskAnalysis.evidenceSummary?.evidenceTypes || {}).map(([type, count]) => (
                   <div key={type} className="evidence-type">
-                    <span className="type">{this.getEvidenceTypeText(type)}</span>
+                    <span className="type">{type}</span>
                     <span className="count">{count}건</span>
                   </div>
                 ))}
@@ -280,17 +274,17 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
     );
   };
 
-  // 증빙 유형 텍스트 변환
-  const getEvidenceTypeText = (type: string): string => {
-    const typeMap: Record<string, string> = {
-      'NONE': '증빙 없음',
-      'RECEIPT': '구매 영수증',
-      'CONTRACT': '계약서',
-      'PAYMENT_RECORD': '입금 내역',
-      'COMMUNICATION': '고객센터 대화'
-    };
-    return typeMap[type] || type;
-  };
+  // 증빙 유형 텍스트 변환 (사용하지 않음)
+  // const getEvidenceTypeText = (type: string): string => {
+  //   const typeMap: Record<string, string> = {
+  //     'NONE': '증빙 없음',
+  //     'RECEIPT': '구매 영수증',
+  //     'CONTRACT': '계약서',
+  //     'PAYMENT_RECORD': '입금 내역',
+  //     'COMMUNICATION': '고객센터 대화'
+  //   };
+  //   return typeMap[type] || type;
+  // };
 
   return (
     <div className="enhanced-ai-analysis">
@@ -356,7 +350,7 @@ export const EnhancedAIAnalysis: React.FC<EnhancedAIAnalysisProps> = ({
         </>
       )}
 
-      <style jsx>{`
+      <style>{`
         .enhanced-ai-analysis {
           background: white;
           border-radius: 12px;

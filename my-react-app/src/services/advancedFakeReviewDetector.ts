@@ -457,7 +457,7 @@ export class AdvancedFakeReviewDetector {
   }
 
   /**
-   * 주의도 레벨 결정
+   * 신뢰도 레벨 결정
    */
   private getRiskLevel(fakePercentage: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (fakePercentage < 10) return 'LOW';

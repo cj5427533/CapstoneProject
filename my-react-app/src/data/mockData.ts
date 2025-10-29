@@ -36,7 +36,7 @@ export const mockShops = [
     riskScore: 60
   },
   
-  // 위험한 쇼핑몰 (높은 리스크)
+  // 신뢰도가 낮은 쇼핑몰
   {
     id: 'dangerous-shop-1',
     url: 'fake-shop-example.com',
@@ -191,7 +191,7 @@ export const mockReviews = {
     }
   ],
   
-  // 위험한 쇼핑몰 리뷰 (명백한 페이크 패턴)
+  // 신뢰도가 낮은 쇼핑몰 리뷰 (명백한 페이크 패턴)
   'dangerous-shop-1': [
     {
       id: 'danger-review-1',
@@ -379,7 +379,7 @@ export const mockReports = {
     }
   ],
   
-  // 위험한 쇼핑몰 신고 (많은 수의 심각한 신고)
+  // 신뢰도가 낮은 쇼핑몰 신고 (많은 수의 심각한 신고)
   'dangerous-shop-1': [
     {
       id: 'danger-report-1',
@@ -486,7 +486,7 @@ export const mockReports = {
   ]
 };
 
-// 목업 쇼핑몰 주의도 분석 결과 (쇼핑몰별로 분류)
+// 목업 쇼핑몰 신뢰도 분석 결과 (쇼핑몰별로 분류)
 export const mockRiskAnalysis = {
   // 안전한 쇼핑몰 분석 결과
   'safe-shop-1': {
@@ -554,7 +554,7 @@ export const mockRiskAnalysis = {
     disclaimer: 'AI 분석 결과는 참고용이며, 최종 판단은 사용자에게 있습니다.'
   },
   
-  // 위험한 쇼핑몰 분석 결과
+  // 신뢰도가 낮은 쇼핑몰 분석 결과
   'dangerous-shop-1': {
     riskScore: 85,
     riskLevel: 'HIGH' as const,

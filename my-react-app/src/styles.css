@@ -3144,6 +3144,22 @@ a:hover {
   color: #9ca3af;
 }
 
+/* 신뢰도 게이지 스타일 */
+.trust-score-gauge {
+  width: 100%;
+  background: #f3f4f6;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.gauge-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
 .analysis-details-button {
   background: #2563eb;
   color: white;

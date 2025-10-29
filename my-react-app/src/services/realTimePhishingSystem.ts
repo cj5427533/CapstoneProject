@@ -257,7 +257,7 @@ export class RealTimePhishingSystem {
   private async sendRealTimeAlert(alert: PhishingAlert): Promise<void> {
     console.log(`🚨 실시간 피싱 알림: ${alert.url}`);
     console.log(`   - 피싱 점수: ${alert.phishingScore}점`);
-    console.log(`   - 주의도: ${alert.riskLevel}`);
+    console.log(`   - 신뢰도: ${alert.riskLevel}`);
     console.log(`   - 액션: ${alert.action}`);
     console.log(`   - 이유: ${alert.reasons.join(', ')}`);
     

@@ -100,7 +100,7 @@ export class AdvancedFakeReviewSystem {
   private async checkNewReviews(shopId: number): Promise<void> {
     try {
       // 실제 구현에서는 최근 리뷰들을 가져와야 함
-      const recentReviews = await this.getRecentReviews(shopId);
+      const recentReviews = await this.getRecentReviews();
       
       for (const review of recentReviews) {
         const analysis = await this.detector.detectFakeReviews([review]);
@@ -198,7 +198,7 @@ export class AdvancedFakeReviewSystem {
   /**
    * 최근 리뷰 가져오기 (시뮬레이션)
    */
-  private async getRecentReviews(shopId: number): Promise<Review[]> {
+  private async getRecentReviews(): Promise<Review[]> {
     // 실제 구현에서는 API 호출
     // 여기서는 시뮬레이션으로 빈 배열 반환
     return [];

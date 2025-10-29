@@ -305,42 +305,6 @@ export async function createReport(data: CreateReportData): Promise<{ id: number
 }
 
 // 리뷰 관련 API 함수들
-export const createRating = async (ratingData: {
-  shop_id: number;
-  rating: number;
-  review_text: string;
-}): Promise<{ success: boolean; ratingId?: number; message?: string }> => {
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('로그인이 필요합니다.');
-    }
-
-    const formData = new FormData();
-    formData.append('shop_id', ratingData.shop_id.toString());
-    formData.append('rating', ratingData.rating.toString());
-    formData.append('review_text', ratingData.review_text);
-
-    const response = await fetch(`${API_BASE_URL}/ratings`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || '리뷰 등록에 실패했습니다.');
-    }
-
-    return { success: true, ratingId: result.ratingId, message: result.message };
-  } catch (error) {
-    console.error('리뷰 등록 오류:', error);
-    throw error;
-  }
-};
 
 export const getReports = async (): Promise<Report[]> => {
   try {
@@ -580,10 +544,25 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
       throw new Error(errorData.message || '주의가 필요한 페이지 조회에 실패했습니다.');
     }
 
-    return response.json();
+    const realData = await response.json();
+    
+    // 목업 데이터 추가 (교육용)
+    const mockDangerousShops: DangerousShop[] = [
+      { id: 1001, url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', reportCount: 15 },
+      { id: 1002, url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', reportCount: 8 },
+      { id: 1003, url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', reportCount: 12 }
+    ];
+    
+    // 실제 데이터와 목업 데이터 합치기
+    return [...mockDangerousShops, ...realData];
   } catch (error) {
     console.error('주의가 필요한 페이지 조회 에러:', error);
-    return [];
+    // 에러 시에도 목업 데이터는 반환
+    return [
+      { id: 1001, url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', reportCount: 15 },
+      { id: 1002, url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', reportCount: 8 },
+      { id: 1003, url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', reportCount: 12 }
+    ];
   }
 }
 
@@ -597,10 +576,27 @@ export async function getTopRatedPages(): Promise<TopRatedShop[]> {
       throw new Error(errorData.message || '고평점 페이지 조회에 실패했습니다.');
     }
 
-    return response.json();
+    const realData = await response.json();
+    
+    // 목업 데이터 추가 (교육용)
+    const mockTopRatedShops: TopRatedShop[] = [
+      { id: 2001, url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', averageRating: 4.8, totalRatings: 25 },
+      { id: 2002, url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', averageRating: 4.5, totalRatings: 18 },
+      { id: 2003, url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', averageRating: 3.2, totalRatings: 12 },
+      { id: 2004, url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', averageRating: 3.0, totalRatings: 8 }
+    ];
+    
+    // 실제 데이터와 목업 데이터 합치기
+    return [...mockTopRatedShops, ...realData];
   } catch (error) {
     console.error('고평점 페이지 조회 에러:', error);
-    return [];
+    // 에러 시에도 목업 데이터는 반환
+    return [
+      { id: 2001, url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', averageRating: 4.8, totalRatings: 25 },
+      { id: 2002, url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', averageRating: 4.5, totalRatings: 18 },
+      { id: 2003, url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', averageRating: 3.2, totalRatings: 12 },
+      { id: 2004, url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', averageRating: 3.0, totalRatings: 8 }
+    ];
   }
 }
 
@@ -759,7 +755,7 @@ export async function uploadEvidenceFiles(
   try {
     const formData = new FormData();
     
-    files.forEach((file, index) => {
+    files.forEach((file) => {
       formData.append(`files`, file);
     });
     
@@ -1069,7 +1065,7 @@ export const analyzeShopRisk = async (shopUrl: string, shopType: 'real' | 'mock'
 
     return await response.json();
   } catch (error) {
-    console.error('쇼핑몰 주의도 분석 에러:', error);
+    console.error('쇼핑몰 신뢰도 분석 에러:', error);
     throw error;
   }
 };

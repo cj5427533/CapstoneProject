@@ -1,4 +1,4 @@
-// 쇼핑몰 주의도 분석 서비스 - 구체적 기준 기반
+// 쇼핑몰 신뢰도 분석 서비스 - 구체적 기준 기반
 export interface Shop {
   id: number;
   url: string;
@@ -38,7 +38,7 @@ export interface ShopRiskResult {
   disclaimer: string;
 }
 
-// 우리만의 구체적인 쇼핑몰 주의도 기준
+// 우리만의 구체적인 쇼핑몰 신뢰도 기준
 export const SHOP_RISK_CRITERIA = {
   // 피해 사례 제보 분석 기준
   reportAnalysis: {
@@ -262,13 +262,13 @@ export class ShopRiskAnalyzer {
   /**
    * 사업자 정보 분석 (구체적 기준)
    */
-  private analyzeBusinessInfo(shop: Shop): { score: number; reasons: string[] } {
+  private analyzeBusinessInfo(): { score: number; reasons: string[] } {
     let score = 0;
     const reasons: string[] = [];
     
     // 실제 구현에서는 사업자 정보를 별도로 저장해야 하지만,
     // 여기서는 시뮬레이션으로 구현
-    const businessInfo = this.getBusinessInfo(shop.url);
+    const businessInfo = this.getBusinessInfo();
     
     // 1. 사업자 정보 부족 검사
     const missingInfo = SHOP_RISK_CRITERIA.businessAnalysis.missingInfo;
@@ -410,7 +410,7 @@ export class ShopRiskAnalyzer {
   /**
    * 사업자 정보 가져오기 (시뮬레이션)
    */
-  private getBusinessInfo(url: string): string {
+  private getBusinessInfo(): string {
     // 실제 구현에서는 사업자 정보를 별도로 저장해야 함
     // 여기서는 시뮬레이션으로 샘플 정보 반환
     return '사업자등록번호 대표자명 사업장주소 전화번호 이메일';
@@ -419,7 +419,7 @@ export class ShopRiskAnalyzer {
   /**
    * 권장사항 생성
    */
-  private generateRecommendations(riskLevel: string, reasons: string[]): string[] {
+  private generateRecommendations(riskLevel: string): string[] {
     const recommendations: string[] = [];
     
     if (riskLevel === 'CRITICAL') {
@@ -445,7 +445,7 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 메인 쇼핑몰 주의도 분석 함수
+   * 메인 쇼핑몰 신뢰도 분석 함수
    */
   async analyzeShopRisk(shop: Shop, reports: Report[], ratings: Rating[]): Promise<ShopRiskResult> {
     try {
@@ -459,7 +459,7 @@ export class ShopRiskAnalyzer {
       const domainAnalysis = this.analyzeDomain(shop);
       
       // 4. 사업자 정보 분석
-      const businessAnalysis = this.analyzeBusinessInfo(shop);
+      const businessAnalysis = this.analyzeBusinessInfo();
       
       // 5. 종합 점수 계산 (가중치 적용)
       const weights = { 
@@ -475,7 +475,7 @@ export class ShopRiskAnalyzer {
         businessAnalysis.score * weights.businessAnalysis
       );
       
-      // 6. 주의도 레벨 결정
+      // 6. 신뢰도 레벨 결정
       const riskLevel = this.getRiskLevel(riskScore);
       
       // 7. 모든 이유 합치기
@@ -487,7 +487,7 @@ export class ShopRiskAnalyzer {
       ];
       
       // 8. 권장사항 생성
-      const recommendations = this.generateRecommendations(riskLevel, allReasons);
+      const recommendations = this.generateRecommendations(riskLevel);
       
       return {
         riskScore,
@@ -504,7 +504,7 @@ export class ShopRiskAnalyzer {
       };
       
     } catch (error) {
-      console.error('쇼핑몰 주의도 분석 오류:', error);
+      console.error('쇼핑몰 신뢰도 분석 오류:', error);
       return {
         riskScore: 0,
         riskLevel: 'LOW',
@@ -522,7 +522,7 @@ export class ShopRiskAnalyzer {
   }
 
   /**
-   * 주의도 레벨 결정
+   * 신뢰도 레벨 결정
    */
   private getRiskLevel(riskScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (riskScore >= 90) return 'CRITICAL';

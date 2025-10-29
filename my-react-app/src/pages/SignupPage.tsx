@@ -14,14 +14,6 @@ export function SignupPage() {
     verificationCode: ''
   });
   
-  const [formErrors, setFormErrors] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    phoneNumber: '',
-    verificationCode: ''
-  });
   
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationVerified, setVerificationVerified] = useState(false);
@@ -33,41 +25,41 @@ export function SignupPage() {
   const [usernameAvailable, setUsernameAvailable] = useState(false);
   const [usernameMessage, setUsernameMessage] = useState('');
 
-  // 검증 함수들
-  const validateUsername = (username: string): string => {
-    if (!username) return '사용자명을 입력해주세요.';
-    if (username.length < 3) return '사용자명은 최소 3자 이상이어야 합니다.';
-    if (username.length > 20) return '사용자명은 최대 20자까지 가능합니다.';
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) return '사용자명은 영문, 숫자, 언더스코어(_)만 사용 가능합니다.';
-    return '';
-  };
+  // 검증 함수들 (사용하지 않음)
+  // const validateUsername = (username: string): string => {
+  //   if (!username) return '사용자명을 입력해주세요.';
+  //   if (username.length < 3) return '사용자명은 최소 3자 이상이어야 합니다.';
+  //   if (username.length > 20) return '사용자명은 최대 20자까지 가능합니다.';
+  //   if (!/^[a-zA-Z0-9_]+$/.test(username)) return '사용자명은 영문, 숫자, 언더스코어(_)만 사용 가능합니다.';
+  //   return '';
+  // };
 
-  const validateEmail = (email: string): string => {
-    if (!email) return '이메일을 입력해주세요.';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return '올바른 이메일 형식을 입력해주세요.';
-    return '';
-  };
+  // const validateEmail = (email: string): string => {
+  //   if (!email) return '이메일을 입력해주세요.';
+  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //   if (!emailRegex.test(email)) return '올바른 이메일 형식을 입력해주세요.';
+  //   return '';
+  // };
 
-  const validatePassword = (password: string): string => {
-    if (!password) return '비밀번호를 입력해주세요.';
-    if (password.length < 8) return '비밀번호는 최소 8자 이상이어야 합니다.';
-    if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(password)) return '비밀번호는 영문과 숫자를 포함해야 합니다.';
-    return '';
-  };
+  // const validatePassword = (password: string): string => {
+  //   if (!password) return '비밀번호를 입력해주세요.';
+  //   if (password.length < 8) return '비밀번호는 최소 8자 이상이어야 합니다.';
+  //   if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(password)) return '비밀번호는 영문과 숫자를 포함해야 합니다.';
+  //   return '';
+  // };
 
-  const validateConfirmPassword = (password: string, confirmPassword: string): string => {
-    if (!confirmPassword) return '비밀번호 확인을 입력해주세요.';
-    if (password !== confirmPassword) return '비밀번호가 일치하지 않습니다.';
-    return '';
-  };
+  // const validateConfirmPassword = (password: string, confirmPassword: string): string => {
+  //   if (!confirmPassword) return '비밀번호 확인을 입력해주세요.';
+  //   if (password !== confirmPassword) return '비밀번호가 일치하지 않습니다.';
+  //   return '';
+  // };
 
-  const validatePhoneNumber = (phoneNumber: string): string => {
-    if (!phoneNumber) return '전화번호를 입력해주세요.';
-    const phoneRegex = /^01[0-9]-?[0-9]{4}-?[0-9]{4}$/;
-    if (!phoneRegex.test(phoneNumber)) return '올바른 전화번호 형식을 입력해주세요. (예: 010-1234-5678)';
-    return '';
-  };
+  // const validatePhoneNumber = (phoneNumber: string): string => {
+  //   if (!phoneNumber) return '전화번호를 입력해주세요.';
+  //   const phoneRegex = /^01[0-9]-?[0-9]{4}-?[0-9]{4}$/;
+  //   if (!phoneRegex.test(phoneNumber)) return '올바른 전화번호 형식을 입력해주세요. (예: 010-1234-5678)';
+  //   return '';
+  // };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -85,31 +77,9 @@ export function SignupPage() {
     });
 
     // 실시간 검증
-    let error = '';
-    if (name === 'username') {
-      error = validateUsername(value);
-    } else if (name === 'email') {
-      error = validateEmail(value);
-    } else if (name === 'password') {
-      error = validatePassword(value);
-      // 비밀번호가 변경되면 확인 비밀번호도 다시 검증
-      if (formData.confirmPassword) {
-        const confirmError = validateConfirmPassword(value, formData.confirmPassword);
-        setFormErrors(prev => ({
-          ...prev,
-          confirmPassword: confirmError
-        }));
-      }
-    } else if (name === 'confirmPassword') {
-      error = validateConfirmPassword(formData.password, value);
-    } else if (name === 'phoneNumber') {
-      error = validatePhoneNumber(value);
-    }
+    // 검증 로직 제거됨
 
-    setFormErrors(prev => ({
-      ...prev,
-      [name]: error
-    }));
+    // 폼 에러 검증 로직 제거됨
   };
 
   // 사용자명 중복 확인

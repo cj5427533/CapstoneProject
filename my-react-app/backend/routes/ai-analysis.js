@@ -278,7 +278,7 @@ router.post('/detect-fake-reviews', async (req, res) => {
   }
 });
 
-// AI 기반 쇼핑몰 주의도 분석 API
+// AI 기반 쇼핑몰 신뢰도 분석 API
 router.post('/analyze-shop-risk', async (req, res) => {
   try {
     const { shopUrl, shopType = 'real' } = req.body;
@@ -312,9 +312,9 @@ router.post('/analyze-shop-risk', async (req, res) => {
       throw reportsError;
     }
 
-    // AI 주의도 분석
+    // AI 신뢰도 분석
     const prompt = `
-다음 쇼핑몰 정보를 바탕으로 주의도를 분석해주세요.
+다음 쇼핑몰 정보를 바탕으로 신뢰도를 분석해주세요.
 
 쇼핑몰 정보:
 - URL: ${shopUrl}
@@ -327,8 +327,8 @@ router.post('/analyze-shop-risk', async (req, res) => {
 - 법적 책임을 피하기 위해 참고용임을 명시하세요
 
 다음 형식으로 응답해주세요:
-주의도 점수: 0-100 (숫자만)
-주의 등급: LOW/MEDIUM/HIGH/CRITICAL
+신뢰도 점수: 0-100 (숫자만)
+신뢰 등급: LOW/MEDIUM/HIGH/CRITICAL
 주요 우려사항: 3가지
 권장사항: 3가지
 `;
@@ -338,8 +338,8 @@ router.post('/analyze-shop-risk', async (req, res) => {
     
     // 응답 파싱
     const lines = content.split('\n').filter(line => line.trim());
-    const riskScore = parseInt(lines.find(line => line.includes('주의도 점수'))?.match(/\d+/)?.[0] || '0');
-    const riskLevel = lines.find(line => line.includes('주의 등급'))?.split(':')[1]?.trim() || 'LOW';
+    const riskScore = parseInt(lines.find(line => line.includes('신뢰도 점수'))?.match(/\d+/)?.[0] || '0');
+    const riskLevel = lines.find(line => line.includes('신뢰 등급'))?.split(':')[1]?.trim() || 'LOW';
     const concerns = lines.filter(line => line.includes('우려사항') || line.includes('주의')).slice(0, 3);
     const recommendations = lines.filter(line => line.includes('권장') || line.includes('추천')).slice(0, 3);
 
@@ -357,7 +357,7 @@ router.post('/analyze-shop-risk', async (req, res) => {
   } catch (error) {
     console.error('Shop risk analysis error:', error);
     res.status(500).json({ 
-      error: `쇼핑몰 주의도 분석 중 오류가 발생했습니다. ${error.message}` 
+      error: `쇼핑몰 신뢰도 분석 중 오류가 발생했습니다. ${error.message}` 
     });
   }
 });

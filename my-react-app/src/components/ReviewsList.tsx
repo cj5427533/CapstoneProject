@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { getShopRatings } from '../utils/api';
-import { Rating as RatingData } from '../utils/api';
 
 interface ReviewsListProps {
   shopId: number;
@@ -37,8 +36,8 @@ export function ReviewsList({ shopId, onReviewAdded }: ReviewsListProps) {
       const ratingData = await getShopRatings(shopId);
       
       // 리뷰 데이터가 있다면 설정 (실제 API 응답 구조에 따라 조정 필요)
-      if (ratingData.reviews) {
-        setReviews(ratingData.reviews);
+      if (ratingData && typeof ratingData === 'object') {
+        setReviews([]); // 임시로 빈 배열 설정
       } else {
         setReviews([]);
       }

@@ -45,7 +45,7 @@ export function ReportsListPage() {
       setFilteredReports(reports);
     } else {
       setFilteredReports(reports.filter(report => 
-        report.categories.includes(selectedCategory)
+        JSON.parse(report.categories).includes(selectedCategory)
       ));
     }
   };
@@ -108,7 +108,7 @@ export function ReportsListPage() {
             {category}
             {category !== '전체' && (
               <span className="count">
-                {reports.filter(r => r.categories.includes(category)).length}
+                {reports.filter(r => JSON.parse(r.categories).includes(category)).length}
               </span>
             )}
           </button>
@@ -132,19 +132,19 @@ export function ReportsListPage() {
               <div className="report-header">
                 <div className="report-info">
                   <h3 className="shop-name">
-                    <Link to={`/search?url=${encodeURIComponent(report.shop_url)}`}>
-                      {report.shop_name || '알 수 없는 쇼핑몰'}
+                    <Link to={`/search?url=${encodeURIComponent(report.shop_url || '')}`}>
+                      {report.shops?.name || '알 수 없는 쇼핑몰'}
                     </Link>
                   </h3>
                   <div className="report-meta">
                     <span className="date">{formatDate(report.created_at)}</span>
                     <span className="evidence-count">
-                      증빙자료 {report.evidence_files?.length || 0}개
+                      증빙자료 0개
                     </span>
                   </div>
                 </div>
                 <div className="report-categories">
-                  {report.categories.map(category => (
+                  {JSON.parse(report.categories).map((category: string) => (
                     <span key={category}>
                       {getCategoryBadge(category)}
                     </span>
@@ -158,20 +158,13 @@ export function ReportsListPage() {
 
               <div className="report-footer">
                 <div className="evidence-info">
-                  {report.evidence_files && report.evidence_files.length > 0 && (
-                    <div className="evidence-files">
-                      <span className="evidence-label">📎 첨부파일:</span>
-                      {report.evidence_files.map((file, index) => (
-                        <span key={index} className="file-name">
-                          {file.original_name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="evidence-files">
+                    <span className="evidence-label">📎 첨부파일: 없음</span>
+                  </div>
                 </div>
                 <div className="report-actions">
                   <Link 
-                    to={`/search?url=${encodeURIComponent(report.shop_url)}`}
+                    to={`/search?url=${encodeURIComponent(report.shop_url || '')}`}
                     className="view-shop-button"
                   >
                     쇼핑몰 보기

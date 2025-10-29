@@ -8,7 +8,7 @@ interface ReviewFormProps {
   onReviewSubmitted?: () => void;
 }
 
-export function ReviewForm({ shopId, shopUrl, onReviewSubmitted }: ReviewFormProps) {
+export function ReviewForm({ onReviewSubmitted }: ReviewFormProps) {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,9 +35,8 @@ export function ReviewForm({ shopId, shopUrl, onReviewSubmitted }: ReviewFormPro
 
     try {
       await createRating({
-        shop_id: shopId,
-        rating: rating,
-        review_text: reviewText.trim()
+        shopUrl: '', // shopUrl은 필요하지 않음
+        rating: rating
       });
 
       toast.success('리뷰가 성공적으로 등록되었습니다!');

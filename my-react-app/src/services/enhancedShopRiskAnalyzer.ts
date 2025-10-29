@@ -1,4 +1,4 @@
-// 개선된 쇼핑몰 주의도 분석 서비스 - 증빙 기반 + 객관적 데이터 중심
+// 개선된 쇼핑몰 신뢰도 분석 서비스 - 증빙 기반 + 객관적 데이터 중심
 export interface Shop {
   id: number;
   url: string;
@@ -186,10 +186,9 @@ export class EnhancedShopRiskAnalyzer {
   }
 
   /**
-   * 개선된 쇼핑몰 위험도 분석
+   * 개선된 쇼핑몰 신뢰도 분석
    */
   async analyzeShopRisk(
-    shop: Shop, 
     reports: EnhancedReport[], 
     businessData: BusinessRegistration | null,
     webAnalysis: WebAnalysis | null,
@@ -212,7 +211,7 @@ export class EnhancedShopRiskAnalyzer {
         (ratingAnalysis.score * ENHANCED_SHOP_RISK_CRITERIA.ratingAnalysis.weight);
       
       const riskLevel = this.determineRiskLevel(totalScore);
-      const recommendations = this.generateRecommendations(totalScore, riskLevel, objectiveAnalysis, evidenceBasedAnalysis, ratingAnalysis);
+      const recommendations = this.generateRecommendations(riskLevel);
       
       // 증빙 요약 정보
       const evidenceSummary = this.generateEvidenceSummary(reports);
@@ -471,7 +470,7 @@ export class EnhancedShopRiskAnalyzer {
   }
 
   /**
-   * 위험도 레벨 결정
+   * 신뢰도 레벨 결정
    */
   private determineRiskLevel(score: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (score >= 80) return 'CRITICAL';
@@ -484,16 +483,12 @@ export class EnhancedShopRiskAnalyzer {
    * 권장사항 생성
    */
   private generateRecommendations(
-    score: number, 
-    riskLevel: string,
-    objectiveAnalysis: any,
-    evidenceAnalysis: any,
-    ratingAnalysis: any
+    riskLevel: string
   ): string[] {
     const recommendations: string[] = [];
     
     if (riskLevel === 'CRITICAL') {
-      recommendations.push('🚨 이 쇼핑몰은 매우 위험합니다. 거래를 절대 피하세요');
+      recommendations.push('🚨 이 쇼핑몰은 매우 주의가 필요합니다. 신중한 거래를 권장합니다');
       recommendations.push('관련 기관에 피해 사례 제보를 고려하세요');
       recommendations.push('개인정보 입력을 절대 하지 마세요');
     } else if (riskLevel === 'HIGH') {
@@ -501,7 +496,7 @@ export class EnhancedShopRiskAnalyzer {
       recommendations.push('추가적인 사업자 정보 확인이 필요합니다');
       recommendations.push('소액 거래로 먼저 테스트해보세요');
     } else if (riskLevel === 'MEDIUM') {
-      recommendations.push('⚡ 이 쇼핑몰은 보통 수준의 위험도를 가집니다');
+      recommendations.push('⚡ 이 쇼핑몰은 보통 수준의 신뢰도를 보입니다');
       recommendations.push('거래 전 충분한 검토를 권장합니다');
     } else {
       recommendations.push('✅ 이 쇼핑몰은 상대적으로 안전해 보입니다');

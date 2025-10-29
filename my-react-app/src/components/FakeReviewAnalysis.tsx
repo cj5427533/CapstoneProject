@@ -146,7 +146,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
                     </div>
                     
                     <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">주의도</h5>
+                      <h5 className="analysis-stat-title">신뢰도</h5>
                       <p className="analysis-stat-value">
                         <span className={`analysis-risk-badge ${statistics.riskLevel.toLowerCase()}`}>
                           {getRiskLevelText(statistics.riskLevel)}

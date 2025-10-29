@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { detectFakeReviews, analyzeShopRisk } from '../utils/api';
 import { mockShops, mockReviews, mockReports, mockRiskAnalysis } from '../data/mockData';
 
 interface MockShopAnalysisProps {
@@ -9,7 +8,6 @@ interface MockShopAnalysisProps {
 }
 
 export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
-  shopUrl,
   selectedShopId
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -30,7 +28,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
     try {
       // 목업 데이터 기반 분석 결과 생성
       const mockAnalysisResults = {
-        fakeReviews: shopReviews.map((review, index) => ({
+        fakeReviews: shopReviews.map((review) => ({
           review,
           fakeScore: selectedShop?.riskLevel === 'HIGH' ? 0.8 + Math.random() * 0.2 : 
                     selectedShop?.riskLevel === 'MEDIUM' ? 0.4 + Math.random() * 0.3 : 
@@ -156,7 +154,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
       {/* 분석 결과 */}
       {analysisResults && (
         <div className="space-y-4">
-          {/* 쇼핑몰 주의도 분석 결과 */}
+          {/* 쇼핑몰 신뢰도 분석 결과 */}
           {analysisResults.shopRisk && (
             <div className={`border rounded-lg p-4 ${
               analysisResults.shopRisk.riskLevel === 'LOW' ? 'bg-green-50 border-green-200' :
@@ -170,7 +168,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
               }`}>
                 {analysisResults.shopRisk.riskLevel === 'LOW' ? '✅' : 
                  analysisResults.shopRisk.riskLevel === 'MEDIUM' ? '⚠️' : '🚨'} 
-                쇼핑몰 주의도 분석 결과
+                쇼핑몰 신뢰도 분석 결과
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -179,7 +177,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
                     analysisResults.shopRisk.riskLevel === 'MEDIUM' ? 'text-yellow-700' :
                     'text-red-700'
                   }`}>
-                    <strong>주의도 점수:</strong> {analysisResults.shopRisk.riskScore}/100
+                    <strong>신뢰도 점수:</strong> {100 - analysisResults.shopRisk.riskScore}/100
                   </p>
                   <p className={`text-sm mb-2 ${
                     analysisResults.shopRisk.riskLevel === 'LOW' ? 'text-green-700' :
@@ -209,7 +207,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
                     analysisResults.shopRisk.riskLevel === 'MEDIUM' ? 'text-yellow-600' :
                     'text-red-600'
                   }`}>
-                    {analysisResults.shopRisk.concerns.slice(0, 2).map((concern, index) => (
+                    {analysisResults.shopRisk.concerns.slice(0, 2).map((concern: string, index: number) => (
                       <li key={index}>{concern}</li>
                     ))}
                   </ul>
@@ -230,7 +228,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
                   analysisResults.shopRisk.riskLevel === 'MEDIUM' ? 'text-yellow-600' :
                   'text-red-600'
                 }`}>
-                  {analysisResults.shopRisk.recommendations.slice(0, 3).map((recommendation, index) => (
+                  {analysisResults.shopRisk.recommendations.slice(0, 3).map((recommendation: string, index: number) => (
                     <li key={index}>{recommendation}</li>
                   ))}
                 </ul>
@@ -262,7 +260,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
                     <div className="text-xs text-red-600">
                       <strong>발견된 패턴:</strong>
                       <ul className="list-disc list-inside mt-1">
-                        {result.reasons.slice(0, 2).map((reason, reasonIndex) => (
+                        {result.reasons.slice(0, 2).map((reason: string, reasonIndex: number) => (
                           <li key={reasonIndex}>{reason}</li>
                         ))}
                       </ul>

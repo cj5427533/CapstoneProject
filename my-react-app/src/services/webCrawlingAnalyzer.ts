@@ -81,8 +81,8 @@ export class WebCrawlingAnalyzer {
         technicalAnalysis,
         suspiciousKeywords
       ] = await Promise.all([
-        this.analyzeContent(normalizedUrl),
-        this.analyzePricing(normalizedUrl),
+        this.analyzeContent(),
+        this.analyzePricing(),
         this.analyzeTechnical(normalizedUrl),
         this.detectSuspiciousKeywords(normalizedUrl)
       ]);
@@ -100,7 +100,7 @@ export class WebCrawlingAnalyzer {
         priceAnalysis,
         technicalAnalysis: {
           ...technicalAnalysis,
-          domainAge: await this.getDomainAge(normalizedUrl)
+          domainAge: await this.getDomainAge()
         },
         contentAnalysis,
         confidenceScore
@@ -149,7 +149,7 @@ export class WebCrawlingAnalyzer {
   /**
    * 가격 분석
    */
-  private async analyzePricing(url: string): Promise<WebCrawlingResult['priceAnalysis']> {
+  private async analyzePricing(): Promise<WebCrawlingResult['priceAnalysis']> {
     try {
       // 모의 가격 분석 데이터
       const mockPrices = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000];
@@ -242,7 +242,7 @@ export class WebCrawlingAnalyzer {
   /**
    * 콘텐츠 분석
    */
-  private async analyzeContent(url: string): Promise<WebCrawlingResult['contentAnalysis']> {
+  private async analyzeContent(): Promise<WebCrawlingResult['contentAnalysis']> {
     try {
       // 모의 콘텐츠 분석 데이터
       const hasSuspiciousContent = Math.random() > 0.8; // 20% 확률
@@ -274,11 +274,8 @@ export class WebCrawlingAnalyzer {
   /**
    * 도메인 연령 계산
    */
-  private async getDomainAge(url: string): Promise<number> {
+  private async getDomainAge(): Promise<number> {
     try {
-      const urlObj = new URL(url);
-      const domain = urlObj.hostname;
-      
       // 실제 구현에서는 WHOIS API를 사용하여 도메인 등록일 확인
       // 현재는 모의 데이터
       const mockAges = [1, 7, 30, 90, 180, 365, 730, 1095]; // 일 단위

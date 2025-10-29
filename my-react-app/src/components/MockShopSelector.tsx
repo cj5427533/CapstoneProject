@@ -121,7 +121,7 @@ export const MockShopSelector: React.FC<MockShopSelectorProps> = ({
           <ul className="text-blue-700 text-xs mt-1 space-y-1">
             <li>• <strong>LOW (안전):</strong> 정상적인 리뷰 패턴과 적은 신고 수</li>
             <li>• <strong>MEDIUM (주의):</strong> 일부 의심스러운 패턴과 중간 수준의 신고</li>
-            <li>• <strong>HIGH (위험):</strong> 명백한 페이크 리뷰와 심각한 신고 다수</li>
+            <li>• <strong>HIGH (주의):</strong> 명백한 페이크 리뷰와 심각한 신고 다수</li>
           </ul>
         </div>
       </div>
