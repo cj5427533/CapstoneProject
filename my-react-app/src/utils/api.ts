@@ -1,5 +1,5 @@
 // 동적 API URL 설정 (윈도우 객체 이용)
-let API_BASE_URL = 'http://localhost:3001/api';
+let API_BASE_URL = '/api';
 
 // 브라우저 환경에서 동적으로 API URL 설정
 if (typeof window !== 'undefined') {
@@ -7,7 +7,7 @@ if (typeof window !== 'undefined') {
   const protocol = window.location.protocol; // http: 또는 https:
   
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    API_BASE_URL = 'http://localhost:3001/api';
+    API_BASE_URL = '/api';
   } else if (hostname.includes('ygmk.app')) {
     // 프로덕션 도메인: ygmk.app 또는 www.ygmk.app
     // API는 api.ygmk.app 서브도메인 또는 동일 호스트 사용
