@@ -24,7 +24,7 @@ export function DangerousShopsPage() {
   const fetchDangerousShops = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/dangerous-shops');
+      const response = await fetch('/api/dangerous-shops');
       const data = await response.json();
       
       if (data.success) {

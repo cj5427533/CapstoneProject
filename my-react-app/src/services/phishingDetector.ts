@@ -130,7 +130,7 @@ export class PhishingDetector {
   /**
    * 도메인 분석 (구체적 기준)
    */
-  private async analyzeDomain(url: string): Promise<{ score: number; reasons: string[] }> {
+  private async _analyzeDomain(url: string): Promise<{ score: number; reasons: string[] }> {
     let score = 0;
     const reasons: string[] = [];
     
@@ -183,7 +183,7 @@ export class PhishingDetector {
   /**
    * 콘텐츠 분석 (구체적 기준)
    */
-  private async analyzeContent(): Promise<{ score: number; reasons: string[] }> {
+  private async _analyzeContent(): Promise<{ score: number; reasons: string[] }> {
     let score = 0;
     const reasons: string[] = [];
     
@@ -245,7 +245,7 @@ export class PhishingDetector {
   /**
    * 기술적 분석 (구체적 기준)
    */
-  private async analyzeTechnical(): Promise<{ score: number; reasons: string[] }> {
+  private async _analyzeTechnical(): Promise<{ score: number; reasons: string[] }> {
     let score = 0;
     const reasons: string[] = [];
     
@@ -399,7 +399,7 @@ export class PhishingDetector {
   /**
    * 권장사항 생성
    */
-  private generateRecommendations(riskLevel: string): string[] {
+  private _generateRecommendations(riskLevel: string): string[] {
     const recommendations: string[] = [];
     
     if (riskLevel === 'CRITICAL') {
@@ -421,49 +421,47 @@ export class PhishingDetector {
   }
 
   /**
-   * 메인 피싱 탐지 함수
+   * 메인 피싱 탐지 함수 (백엔드 API 호출)
    */
   async detectPhishing(url: string): Promise<PhishingResult> {
     try {
-      // 1. 도메인 분석
-      const domainAnalysis = await this.analyzeDomain(url);
-      
-      // 2. 콘텐츠 분석
-      const contentAnalysis = await this.analyzeContent();
-      
-      // 3. 기술적 분석
-      const technicalAnalysis = await this.analyzeTechnical();
-      
-      // 4. 종합 점수 계산 (가중치 적용)
-      const weights = { domainAnalysis: 0.4, contentAnalysis: 0.4, technicalAnalysis: 0.2 };
-      const phishingScore = Math.round(
-        domainAnalysis.score * weights.domainAnalysis +
-        contentAnalysis.score * weights.contentAnalysis +
-        technicalAnalysis.score * weights.technicalAnalysis
-      );
-      
-      // 5. 신뢰도 레벨 결정
-      const riskLevel = this.getRiskLevel(phishingScore);
-      
-      // 6. 모든 이유 합치기
-      const allReasons = [
-        ...domainAnalysis.reasons,
-        ...contentAnalysis.reasons,
-        ...technicalAnalysis.reasons
-      ];
-      
-      // 7. 권장사항 생성
-      const recommendations = this.generateRecommendations(riskLevel);
+      // 백엔드 API 호출
+      const API_BASE_URL = typeof window !== 'undefined' 
+        ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001/api'
+            : `http://${window.location.hostname}:3001/api`)
+        : 'http://localhost:3001/api';
+
+      const response = await fetch(`${API_BASE_URL}/phishing/detect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`피싱 탐지 API 호출 실패: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || '피싱 탐지 실패');
+      }
+
+      // 백엔드 결과를 프론트엔드 형식으로 변환
+      const result = data.result;
       
       return {
-        phishingScore,
-        riskLevel,
-        reasons: allReasons,
-        recommendations,
+        phishingScore: 100 - result.phishingScore, // 백엔드는 낮을수록 위험, 프론트는 높을수록 위험
+        riskLevel: result.riskLevel,
+        reasons: result.reasons,
+        recommendations: result.recommendations,
         analysis: {
-          domainAnalysis: domainAnalysis.score,
-          contentAnalysis: contentAnalysis.score,
-          technicalAnalysis: technicalAnalysis.score
+          domainAnalysis: result.analysis.domainAnalysis.domainAge || 0,
+          contentAnalysis: result.analysis.contentAnalysis.contentLength || 0,
+          technicalAnalysis: result.analysis.technicalAnalysis.sslValid ? 100 : 0
         }
       };
       
@@ -486,7 +484,7 @@ export class PhishingDetector {
   /**
    * 신뢰도 레벨 결정
    */
-  private getRiskLevel(phishingScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
+  private _getRiskLevel(phishingScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (phishingScore >= 90) return 'CRITICAL';
     if (phishingScore >= 70) return 'HIGH';
     if (phishingScore >= 50) return 'MEDIUM';

@@ -4,12 +4,30 @@ let API_BASE_URL = 'http://localhost:3001/api';
 // 브라우저 환경에서 동적으로 API URL 설정
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
+  const protocol = window.location.protocol; // http: 또는 https:
   
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     API_BASE_URL = 'http://localhost:3001/api';
+  } else if (hostname.includes('ygmk.app')) {
+    // 프로덕션 도메인: ygmk.app 또는 www.ygmk.app
+    // API는 api.ygmk.app 서브도메인 또는 동일 호스트 사용
+    if (hostname.startsWith('www.')) {
+      // www.ygmk.app인 경우 api 서브도메인 사용
+      API_BASE_URL = `${protocol}//api.ygmk.app/api`;
+    } else {
+      // ygmk.app인 경우 api 서브도메인 사용
+      API_BASE_URL = `${protocol}//api.ygmk.app/api`;
+    }
   } else {
-    // 외부 네트워크에서 접근 시 동일한 호스트 사용
-    API_BASE_URL = `http://${hostname}:3001/api`;
+    // 다른 프로덕션 환경: 동일 호스트 사용 (포트 3001)
+    // 또는 환경 변수로 지정된 API URL 사용
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      API_BASE_URL = envApiUrl;
+    } else {
+      // 기본값: 동일 호스트의 API 서브도메인 또는 포트 사용
+      API_BASE_URL = `${protocol}//${hostname}:3001/api`;
+    }
   }
 }
 
@@ -298,7 +316,7 @@ export async function createReport(data: CreateReportData): Promise<{ id: number
         existingReportId: responseData.existingReportId
       };
     }
-    throw new Error(responseData.message || 'Failed to create report');
+    throw new Error(responseData.message || '신고 제출에 실패했습니다.');
   }
 
   return responseData;
@@ -358,6 +376,32 @@ export async function getShopRatings(shopId: number): Promise<Rating> {
       totalRatings: 0,
       ratingDistribution: {}
     };
+  }
+}
+
+// 리뷰 목록 조회
+export interface ReviewItem {
+  id: number;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  user_id: number | null;
+  username?: string;
+}
+
+export async function getShopReviews(shopId: number): Promise<ReviewItem[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shops/${shopId}/reviews`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch reviews');
+    }
+
+    const data = await response.json();
+    return data.reviews || [];
+  } catch (error) {
+    console.error('리뷰 목록 조회 에러:', error);
+    return [];
   }
 }
 
@@ -720,7 +764,8 @@ export async function getAdminReports() {
       throw new Error(data.message || '피해 사례 제보 조회에 실패했습니다.');
     }
     
-    return data.reports;
+    // 백엔드가 배열을 직접 반환하므로 data를 그대로 반환
+    return Array.isArray(data) ? data : (data.reports || []);
   } catch (error) {
     console.error('피해 사례 제보 조회 에러:', error);
     throw error;
@@ -962,6 +1007,29 @@ export async function deleteRating(ratingId: number) {
     return data;
   } catch (error) {
     console.error('평점 삭제 에러:', error);
+    throw error;
+  }
+}
+
+// 목업 리뷰 데이터 생성
+export async function generateMockRatings(): Promise<{ success: boolean; message: string; created?: Array<{ shop: string; count: number; ratings: any[] }> }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/mock/ratings/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || '목업 리뷰 생성에 실패했습니다.');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('목업 리뷰 생성 에러:', error);
     throw error;
   }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getShopRatings } from '../utils/api';
+import { getShopReviews } from '../utils/api';
 
 interface ReviewsListProps {
   shopId: number;
@@ -11,7 +11,7 @@ interface Review {
   rating: number;
   review_text: string;
   created_at: string;
-  user_id: number;
+  user_id: number | null;
   username?: string;
 }
 
@@ -33,14 +33,24 @@ export function ReviewsList({ shopId, onReviewAdded }: ReviewsListProps) {
   const loadReviews = async () => {
     try {
       setLoading(true);
-      const ratingData = await getShopRatings(shopId);
+      console.log('리뷰 로드 시작, shopId:', shopId);
+      const reviewData = await getShopReviews(shopId);
+      console.log('받은 리뷰 데이터:', reviewData);
       
-      // 리뷰 데이터가 있다면 설정 (실제 API 응답 구조에 따라 조정 필요)
-      if (ratingData && typeof ratingData === 'object') {
-        setReviews([]); // 임시로 빈 배열 설정
-      } else {
-        setReviews([]);
-      }
+      // ReviewItem을 Review 형식으로 변환
+      const formattedReviews: Review[] = reviewData
+        .filter(review => review.comment && review.comment.trim() !== '') // comment가 있는 리뷰만 표시
+        .map(review => ({
+          id: review.id,
+          rating: review.rating,
+          review_text: review.comment || '',
+          created_at: review.created_at,
+          user_id: review.user_id || 0,
+          username: review.username
+        }));
+      
+      console.log('포맷된 리뷰:', formattedReviews);
+      setReviews(formattedReviews);
     } catch (error) {
       console.error('리뷰 목록 로드 오류:', error);
       setReviews([]);
@@ -131,7 +141,7 @@ export function ReviewsList({ shopId, onReviewAdded }: ReviewsListProps) {
               <div className="review-header">
                 <div className="reviewer-info">
                   <span className="username">
-                    {review.username || `사용자${review.user_id}`}
+                    {review.username || (review.user_id ? `사용자${review.user_id}` : '익명')}
                   </span>
                   <span className="review-date">
                     {formatDate(review.created_at)}
@@ -144,7 +154,12 @@ export function ReviewsList({ shopId, onReviewAdded }: ReviewsListProps) {
               </div>
               
               <div className="review-content">
-                <p>{review.review_text}</p>
+                <p style={{
+                  color: review.review_text.includes('[테스트 데이터]') ? '#ff9800' : 'inherit',
+                  fontWeight: review.review_text.includes('[테스트 데이터]') ? 'bold' : 'normal'
+                }}>
+                  {review.review_text}
+                </p>
               </div>
             </div>
           ))}
