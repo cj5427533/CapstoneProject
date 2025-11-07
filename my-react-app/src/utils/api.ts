@@ -9,15 +9,8 @@ if (typeof window !== 'undefined') {
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     API_BASE_URL = '/api';
   } else if (hostname.includes('ygmk.app')) {
-    // 프로덕션 도메인: ygmk.app 또는 www.ygmk.app
-    // API는 api.ygmk.app 서브도메인 또는 동일 호스트 사용
-    if (hostname.startsWith('www.')) {
-      // www.ygmk.app인 경우 api 서브도메인 사용
-      API_BASE_URL = `${protocol}//api.ygmk.app/api`;
-    } else {
-      // ygmk.app인 경우 api 서브도메인 사용
-      API_BASE_URL = `${protocol}//api.ygmk.app/api`;
-    }
+    // ✅ 같은 도메인에서 /api 사용 (Nginx 프록시)
+    API_BASE_URL = '/api';
   } else {
     // 다른 프로덕션 환경: 동일 호스트 사용 (포트 3001)
     // 또는 환경 변수로 지정된 API URL 사용
