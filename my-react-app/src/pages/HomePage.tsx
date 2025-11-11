@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchOrCreateShop, getShopReports, getShopRatings, getDangerousPages, getTopRatedPages } from '../utils/api';
 import type { DangerousShop, TopRatedShop } from '../utils/api';
+import { URLSearchBar } from '@/components/URLSearchBar';
+import logoMark from '@/ygmk_logo.png';
 
 // 디바운싱 유틸리티 함수
 function debounce<T extends (...args: any[]) => any>(
@@ -218,67 +220,54 @@ export function HomePage() {
 
   return (
     <div className="home-page">
-      <div className="home-content">
-        {/* 메인 컨텐츠 */}
-        <div className="main-section">
-          <div className="hero-section">
-            <h1 className="hero-title">
+      <div className="w-full border-t border-border bg-gradient-to-b from-blue-100 via-blue-100 to-blue-50">
+        <section className="container-custom py-16">
+          <div className="mx-auto max-w-[960px] lg:max-w-[1120px] text-center">
+            <h1 className="flex items-center justify-center gap-4 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
               여기몰까
+              <img src={logoMark} alt="여기몰까 로고" className="h-12 w-12 sm:h-14 sm:w-14 object-contain" />
             </h1>
-            <p className="hero-subtitle">
-              믿을 수 있는 쇼핑몰인지 확인해보세요
-            </p>
-            
-            <form onSubmit={handleSearch} className="search-form">
-              <div className="search-input-group">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={handleUrlChange}
-                  placeholder="쇼핑몰 URL을 입력하세요 (예: example.com, www.example.com, https://example.com)"
-                  className={`search-input ${urlError ? 'error' : ''}`}
-                  required
-                />
-                <button type="submit" className="search-button" disabled={isLoading}>
-                  {isLoading ? '검색 중...' : '검색하기'}
-                </button>
-              </div>
-              {urlError && (
-                <div className="url-error-message">
-                  <span className="error-icon">⚠️</span>
-                  {urlError}
-                </div>
-              )}
-            </form>
-            
-            {/* 검색된 쇼핑몰 정보 표시 */}
+            <p className="mt-3 text-base text-slate-700 sm:text-lg">믿을 수 있는 쇼핑몰인지 확인해보세요</p>
+            <div className="mt-8">
+              <URLSearchBar
+                value={url}
+                onChange={handleUrlChange}
+                onSubmit={handleSearch}
+                isLoading={isLoading}
+                errorText={urlError}
+              />
+            </div>
+
             {(shopData || isPreviewLoading) && (
-              <div className="shop-preview">
-                <h3>쇼핑몰 미리보기</h3>
+              <div className="mt-6 text-left">
+                <h3 className="mb-2 text-sm font-medium text-muted-foreground">쇼핑몰 미리보기</h3>
                 {isPreviewLoading ? (
-                  <div className="preview-loading">
-                    <span>쇼핑몰 정보를 확인하는 중...</span>
-                  </div>
+                  <div className="rounded-md border p-4 text-sm text-muted-foreground">쇼핑몰 정보를 확인하는 중...</div>
                 ) : shopData ? (
-                  <div className="preview-stats">
-                    <div className="stat-item">
-                      <span className="stat-label">피해 사례 제보 건수:</span>
-                      <span className="stat-value">{shopData.reportsCount}건</span>
+                  <div className="grid gap-2 rounded-md border p-4 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">피해 사례 제보 건수</span>
+                      <span className="font-medium">{shopData.reportsCount}건</span>
                     </div>
-                    <div className="stat-item">
-                      <span className="stat-label">평균 평점:</span>
-                      <span className="stat-value">{shopData.averageRating.toFixed(1)}점</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">평균 평점</span>
+                      <span className="font-medium">{shopData.averageRating.toFixed(1)}점</span>
                     </div>
-                    <div className="stat-item">
-                      <span className="stat-label">평점 개수:</span>
-                      <span className="stat-value">{shopData.totalRatings}개</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">평점 개수</span>
+                      <span className="font-medium">{shopData.totalRatings}개</span>
                     </div>
                   </div>
                 ) : null}
               </div>
             )}
           </div>
-          
+        </section>
+      </div>
+
+      <div className="home-content">
+        {/* 메인 컨텐츠 */}
+        <div className="main-section">
           {/* 실시간 정보 섹션 - 신뢰성 검증 위로 이동 */}
           <div className="realtime-section">
             {lastUpdate && (
@@ -296,7 +285,7 @@ export function HomePage() {
                   {dangerousPages.length === 0 ? (
                     <p className="empty-message">아직 데이터가 없습니다</p>
                   ) : (
-                    dangerousPages.map((shop, index) => (
+                    dangerousPages.slice(0, 10).map((shop, index) => (
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
@@ -330,7 +319,7 @@ export function HomePage() {
                   {topRatedPages.length === 0 ? (
                     <p className="empty-message">아직 데이터가 없습니다</p>
                   ) : (
-                    topRatedPages.map((shop, index) => (
+                    topRatedPages.slice(0, 10).map((shop, index) => (
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"

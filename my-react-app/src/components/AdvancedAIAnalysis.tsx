@@ -69,6 +69,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
         phishingAlert
       });
       
+      
       // 4. 통계 생성
       // const fakeStats = fakeReviewDetector.generateStatistics(fakeReviewResults, ratings.length);
       
@@ -215,54 +216,30 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
         <div className="analysis-modal-overlay">
           <div className="analysis-modal-content">
             <div className="analysis-modal-header">
-              <h3 className="analysis-modal-title">
-                피싱 사이트 검사 결과
-              </h3>
-              <button 
-                className="analysis-modal-close"
-                onClick={() => setShowAnalysisModal(false)}
-              >
-                ✕
-              </button>
+              <h3 className="analysis-modal-title">AI 분석 결과</h3>
+              <button className="analysis-modal-close" onClick={() => setShowAnalysisModal(false)}>✕</button>
             </div>
-
             <div className="analysis-modal-body">
               <div className="space-y-6">
-                {/* 1. 가짜 리뷰 탐지 결과 */}
+                {/* 가짜 리뷰 분석 결과 */}
                 {analysisResults.fakeReviews.length > 0 && (
                   <div className="analysis-result-section fake-review">
-                    <h4 className="analysis-result-title">
-                      리뷰 신뢰도 분석 결과 (구체적 기준)
-                    </h4>
+                    <h4 className="analysis-result-title">리뷰 신뢰도 분석 결과</h4>
                     <div className="analysis-stats-grid">
                       <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">의심스러운 리뷰</h5>
-                        <p className="analysis-stat-value">{analysisResults.fakeReviews.length}개</p>
-                        <p className="analysis-stat-subtitle">전체 {ratings.length}개 중</p>
-                      </div>
-                      <div className="analysis-stat-card">
                         <h5 className="analysis-stat-title">평균 의심도</h5>
-                        <p className="analysis-stat-value">
-                          {Math.round(analysisResults.fakeReviews.reduce((sum, r) => sum + r.fakeScore, 0) / analysisResults.fakeReviews.length)}점
-                        </p>
+                        <p className="analysis-stat-value">{Math.round(analysisResults.fakeReviews.reduce((sum, r) => sum + r.fakeScore, 0) / analysisResults.fakeReviews.length)}점</p>
                         <p className="analysis-stat-subtitle">0-100점 기준</p>
                       </div>
                       <div className="analysis-stat-card">
                         <h5 className="analysis-stat-title">평균 신뢰도</h5>
-                        <p className="analysis-stat-value">
-                          {Math.round(analysisResults.fakeReviews.reduce((sum, r) => sum + r.confidence, 0) / analysisResults.fakeReviews.length)}점
-                        </p>
+                        <p className="analysis-stat-value">{Math.round(analysisResults.fakeReviews.reduce((sum, r) => sum + r.confidence, 0) / analysisResults.fakeReviews.length)}점</p>
                         <p className="analysis-stat-subtitle">0-100점 기준</p>
                       </div>
                     </div>
-                    
-                    <button
-                      onClick={() => setShowDetails(!showDetails)}
-                      className="analysis-details-button"
-                    >
+                    <button onClick={() => setShowDetails(!showDetails)} className="analysis-details-button">
                       {showDetails ? '상세 정보 숨기기' : '상세 정보 보기'} ({analysisResults.fakeReviews.length}개)
                     </button>
-                    
                     {showDetails && (
                       <div className="analysis-details">
                         {analysisResults.fakeReviews.map((result, index) => (
@@ -273,213 +250,9 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                                 <span className="analysis-badge confidence">신뢰도: {result.confidence}점</span>
                                 <span className="analysis-badge rating">평점: {result.review.rating}점</span>
                               </div>
-                              <span className="analysis-detail-date">
-                                {new Date(result.review.createdAt).toLocaleDateString()}
-                              </span>
+                              <span className="analysis-detail-date">{new Date(result.review.createdAt).toLocaleDateString()}</span>
                             </div>
-                            
                             <p className="analysis-detail-content">{result.review.content}</p>
-                            
-                            <div className="analysis-patterns">
-                              <h6 className="analysis-patterns-title">발견된 패턴 (구체적 기준):</h6>
-                              <ul className="analysis-patterns-list">
-                                {result.reasons.map((reason, reasonIndex) => (
-                                  <li key={reasonIndex}>{reason}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 2. 쇼핑몰 신뢰도 분석 결과 */}
-                {analysisResults.shopRisk && (
-                  <div className="analysis-result-section shop-risk">
-                    <h4 className="analysis-result-title">
-                      쇼핑몰 신뢰도 분석 (구체적 기준)
-                    </h4>
-                    <div className="analysis-stats-grid">
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">종합 신뢰도</h5>
-                        <p className="analysis-stat-value">{100 - analysisResults.shopRisk.riskScore}점</p>
-                        <div className="trust-score-gauge" style={{ 
-                          background: '#f3f4f6' 
-                        }}>
-                          <div className="gauge-bar" style={{
-                            width: `${100 - analysisResults.shopRisk.riskScore}%`,
-                            background: analysisResults.shopRisk.riskScore >= 80 ? '#ef4444' : 
-                                       analysisResults.shopRisk.riskScore >= 60 ? '#f59e0b' : 
-                                       analysisResults.shopRisk.riskScore >= 30 ? '#84cc16' : '#10b981'
-                          }}></div>
-                        </div>
-                        <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>
-                          {getRiskLevelText(analysisResults.shopRisk.riskLevel)}
-                        </span>
-                      </div>
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">분석 세부사항</h5>
-                        <div className="analysis-detail-scores">
-                          <div>피해 사례 제보 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
-                          <div>평점 분석: {Math.round(analysisResults.shopRisk.analysis.ratingAnalysis)}점</div>
-                          <div>도메인 분석: {Math.round(analysisResults.shopRisk.analysis.domainAnalysis)}점</div>
-                          <div>사업자 분석: {Math.round(analysisResults.shopRisk.analysis.businessAnalysis)}점</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="analysis-recommendations">
-                      <div className="analysis-recommendation-section">
-                        <h6 className="analysis-recommendation-title">발견된 신뢰도 요소:</h6>
-                        <ul className="analysis-recommendation-list">
-                          {analysisResults.shopRisk.reasons.map((reason, index) => (
-                            <li key={index}>{reason}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <div className="analysis-recommendation-section">
-                        <h6 className="analysis-recommendation-title">권장사항:</h6>
-                        <ul className="analysis-recommendation-list">
-                          {analysisResults.shopRisk.recommendations.map((recommendation, index) => (
-                            <li key={index}>{recommendation}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. 실시간 피싱 탐지 결과 */}
-                {analysisResults.phishingAlert && (
-                  <div className="analysis-result-section phishing">
-                    <h4 className="analysis-result-title">
-                      🚨 실시간 피싱 사이트 검사 결과
-                    </h4>
-                    <div className="analysis-stats-grid">
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">피싱 점수</h5>
-                        <p className="analysis-stat-value">{analysisResults.phishingAlert.phishingScore}점</p>
-                        <span className={`analysis-risk-badge ${analysisResults.phishingAlert.riskLevel.toLowerCase()}`}>
-                          {getRiskLevelText(analysisResults.phishingAlert.riskLevel)}
-                        </span>
-                      </div>
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">권장 액션</h5>
-                        <p className="analysis-action-text">
-                          {analysisResults.phishingAlert.action === 'BLOCK' ? '즉시 차단' :
-                           analysisResults.phishingAlert.action === 'ALERT' ? '강력 경고' : '모니터링'}
-                        </p>
-                        <p className="analysis-action-subtitle">실시간 탐지 결과</p>
-                      </div>
-                    </div>
-                    
-                    <div className="analysis-phishing-details">
-                      <h6 className="analysis-phishing-title">탐지된 주의 요소:</h6>
-                      <ul className="analysis-phishing-list">
-                        {analysisResults.phishingAlert.reasons.map((reason, index) => (
-                          <li key={index}>{reason}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* AI 리뷰 분석 모달 */}
-      {showReviewModal && reviewStatistics && (
-        <div className="analysis-modal-overlay">
-          <div className="analysis-modal-content">
-            <div className="analysis-modal-header">
-              <h3 className="analysis-modal-title">
-                리뷰 신뢰도 분석 결과
-              </h3>
-              <button 
-                className="analysis-modal-close"
-                onClick={() => setShowReviewModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="analysis-modal-body">
-              <div className="space-y-6">
-                {/* 통계 정보 */}
-                <div className="analysis-result-section fake-review">
-                  <h4 className="analysis-result-title">
-                    분석 결과 요약
-                  </h4>
-                  <div className="analysis-stats-grid">
-                    <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">의심스러운 리뷰</h5>
-                      <p className="analysis-stat-value">{reviewStatistics.fakeCount}개</p>
-                      <p className="analysis-stat-subtitle">
-                        전체 {ratings.length}개 중 {reviewStatistics.fakePercentage}%
-                      </p>
-                    </div>
-                    
-                    <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">신뢰도</h5>
-                      <p className="analysis-stat-value">
-                        <span className={`analysis-risk-badge ${reviewStatistics.riskLevel.toLowerCase()}`}>
-                          {getRiskLevelText(reviewStatistics.riskLevel)}
-                        </span>
-                      </p>
-                      <p className="analysis-stat-subtitle">종합 평가</p>
-                    </div>
-                    
-                    <div className="analysis-stat-card">
-                      <h5 className="analysis-stat-title">패턴 분석</h5>
-                      <div className="analysis-detail-scores">
-                        <div>텍스트: {Math.round(reviewStatistics.patternStats.textPattern * 100)}%</div>
-                        <div>시간적: {Math.round(reviewStatistics.patternStats.temporalPattern * 100)}%</div>
-                        <div>행동: {Math.round(reviewStatistics.patternStats.behaviorPattern * 100)}%</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 상세 리뷰 정보 */}
-                {fakeReviews.length > 0 && (
-                  <div className="analysis-result-section fake-review">
-                    <h4 className="analysis-result-title">
-                      의심스러운 리뷰 상세
-                    </h4>
-                    
-                    <button
-                      onClick={() => setShowReviewDetails(!showReviewDetails)}
-                      className="analysis-details-button"
-                    >
-                      {showReviewDetails ? '상세 정보 숨기기' : '상세 정보 보기'} ({fakeReviews.length}개)
-                    </button>
-                    
-                    {showReviewDetails && (
-                      <div className="analysis-details">
-                        {fakeReviews.map((result, index) => (
-                          <div key={index} className="analysis-detail-card">
-                            <div className="analysis-detail-header">
-                              <div className="analysis-detail-badges">
-                                <span className="analysis-badge fake">
-                                  의심도: {Math.round(result.fakeScore * 100)}%
-                                </span>
-                                <span className="analysis-badge rating">
-                                  평점: {result.review.rating}점
-                                </span>
-                              </div>
-                              <span className="analysis-detail-date">
-                                {new Date(result.review.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                            
-                            <p className="analysis-detail-content">{result.review.content}</p>
-                            
                             <div className="analysis-patterns">
                               <h6 className="analysis-patterns-title">발견된 패턴:</h6>
                               <ul className="analysis-patterns-list">
@@ -495,12 +268,79 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   </div>
                 )}
 
-                {/* 면책 조항 */}
-                <div className="analysis-disclaimer">
-                  <p className="analysis-disclaimer-text">
-                    * 리뷰 신뢰도 분석 결과는 참고용이며, 모든 리뷰가 가짜라는 의미는 아닙니다.
-                  </p>
-                </div>
+                {/* 쇼핑몰 신뢰도 분석 결과 */}
+                {analysisResults.shopRisk && (
+                  <div className="analysis-result-section shop-risk">
+                    <h4 className="analysis-result-title">쇼핑몰 신뢰도 분석</h4>
+                    <div className="analysis-stats-grid">
+                      <div className="analysis-stat-card">
+                        <h5 className="analysis-stat-title">종합 신뢰도</h5>
+                        <p className="analysis-stat-value">{100 - analysisResults.shopRisk.riskScore}점</p>
+                        <div className="trust-score-gauge" style={{ background: '#f3f4f6' }}>
+                          <div className="gauge-bar" style={{
+                            width: `${100 - analysisResults.shopRisk.riskScore}%`,
+                            background: analysisResults.shopRisk.riskScore >= 80 ? '#ef4444' : analysisResults.shopRisk.riskScore >= 60 ? '#f59e0b' : analysisResults.shopRisk.riskScore >= 30 ? '#84cc16' : '#10b981'
+                          }}></div>
+                        </div>
+                        <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>{getRiskLevelText(analysisResults.shopRisk.riskLevel)}</span>
+                      </div>
+                      <div className="analysis-stat-card">
+                        <h5 className="analysis-stat-title">분석 세부사항</h5>
+                        <div className="analysis-detail-scores">
+                          <div>피해 사례 제보 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
+                          <div>평점 분석: {Math.round(analysisResults.shopRisk.analysis.ratingAnalysis)}점</div>
+                          <div>도메인 분석: {Math.round(analysisResults.shopRisk.analysis.domainAnalysis)}점</div>
+                          <div>사업자 분석: {Math.round(analysisResults.shopRisk.analysis.businessAnalysis)}점</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="analysis-recommendations">
+                      <div className="analysis-recommendation-section">
+                        <h6 className="analysis-recommendation-title">발견된 신뢰도 요소:</h6>
+                        <ul className="analysis-recommendation-list">
+                          {analysisResults.shopRisk.reasons.map((reason, index) => (
+                            <li key={index}>{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="analysis-recommendation-section">
+                        <h6 className="analysis-recommendation-title">권장사항:</h6>
+                        <ul className="analysis-recommendation-list">
+                          {analysisResults.shopRisk.recommendations.map((recommendation, index) => (
+                            <li key={index}>{recommendation}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 실시간 피싱 검사 결과 */}
+                {analysisResults.phishingAlert && (
+                  <div className="analysis-result-section phishing">
+                    <h4 className="analysis-result-title">🚨 실시간 피싱 사이트 검사 결과</h4>
+                    <div className="analysis-stats-grid">
+                      <div className="analysis-stat-card">
+                        <h5 className="analysis-stat-title">피싱 점수</h5>
+                        <p className="analysis-stat-value">{analysisResults.phishingAlert.phishingScore}점</p>
+                        <span className={`analysis-risk-badge ${analysisResults.phishingAlert.riskLevel.toLowerCase()}`}>{getRiskLevelText(analysisResults.phishingAlert.riskLevel)}</span>
+                      </div>
+                      <div className="analysis-stat-card">
+                        <h5 className="analysis-stat-title">권장 액션</h5>
+                        <p className="analysis-action-text">{analysisResults.phishingAlert.action === 'BLOCK' ? '즉시 차단' : analysisResults.phishingAlert.action === 'ALERT' ? '강력 경고' : '모니터링'}</p>
+                        <p className="analysis-action-subtitle">실시간 탐지 결과</p>
+                      </div>
+                    </div>
+                    <div className="analysis-phishing-details">
+                      <h6 className="analysis-phishing-title">탐지된 주의 요소:</h6>
+                      <ul className="analysis-phishing-list">
+                        {analysisResults.phishingAlert.reasons.map((reason, index) => (
+                          <li key={index}>{reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

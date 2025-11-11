@@ -63,13 +63,13 @@ export function DangerousShopsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page-sky-background">
       {/* 헤더 */}
       <div className="page-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 page-header-content">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">🚨 주의가 필요한 쇼핑몰 목록</h1>
-            <p className="text-xl max-w-3xl mx-auto" style={{ color: 'rgba(255, 255, 255, 0.95)' }}>
+            <p className="text-xl max-w-3xl mx-auto text-slate-600">
               검색된 쇼핑몰 중 피해 사례 제보가 많이 접수된 쇼핑몰들을 피해 사례 제보 수 순서대로 확인하세요. 
               안전한 온라인 쇼핑을 위해 주의하시기 바랍니다.
             </p>
@@ -77,7 +77,8 @@ export function DangerousShopsPage() {
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="dangerous-shops-page">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
 
         {/* 통계 카드 */}
         <div className="stats-grid">
@@ -172,6 +173,7 @@ export function DangerousShopsPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

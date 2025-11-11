@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
+import logoMark from '@/ygmk_logo.png';
 
 export function Header() {
   const {isAuthenticated, logout } = useAuth();
@@ -17,101 +18,143 @@ export function Header() {
   };
 
   return (
-    <header className="header">
-      <div className="header-container">
-        {/* 메인 네비게이션 메뉴 */}
-        <nav className="main-nav">
-          <Link to="/" className="nav-link">
-            홈
+    <header className="h-16 border-b">
+      <div className="container-custom flex h-16 items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+          >
+            <img src={logoMark} alt="여기몰까 로고" className="h-9 w-9 object-contain" />
+            <span>여기몰까</span>
           </Link>
-          <Link to="/about" className="nav-link">
-            설명
-          </Link>
-          <Link to="/community" className="nav-link">
-            커뮤니티
-          </Link>
-          <Link to="/reports" className="nav-link">
-            피해사례
-          </Link>
-          <Link to="/dangerous-shops" className="nav-link">
-            주의가 필요한 쇼핑몰
-          </Link>
-          <Link to="/recommended-shops" className="nav-link">
-            추천 쇼핑몰
-          </Link>
-        </nav>
-
-        {/* 사용자 메뉴 */}
-        <nav className="user-nav">
-          {isAuthenticated ? (
-            <div className="user-menu">
-              <Link to="/mypage" className="nav-button mypage">
-                마이페이지
-              </Link>
-              
-              <button onClick={handleLogout} className="nav-button logout">
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <>
-              <Link to="/login" className="nav-button">
-                로그인
-              </Link>
-              <Link to="/signup" className="nav-button signup">
-                회원가입
-              </Link>
-            </>
-          )}
-        </nav>
-
-        {/* 모바일 메뉴 버튼 */}
-        <button className="mobile-menu-button" onClick={toggleMenu}>
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-      </div>
-
-      {/* 모바일 메뉴 */}
-      {isMenuOpen && (
-        <div className="mobile-menu">
-          <Link to="/" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-            홈
-          </Link>
-          <Link to="/about" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-            설명
-          </Link>
-          <Link to="/community" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-            커뮤니티
-          </Link>
-          <Link to="/dangerous" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-            주의가 필요한 쇼핑몰
-          </Link>
-          <Link to="/top-rated" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-            추천 쇼핑몰
-          </Link>
-          {isAuthenticated ? (
-            <>
-              <Link to="/mypage" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-                마이페이지
-              </Link>
-              <button onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="mobile-nav-link" style={{ width: '100%', textAlign: 'left' }}>
-                로그아웃
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-                로그인
-              </Link>
-              <Link to="/signup" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-                회원가입
-              </Link>
-            </>
-          )}
+          <nav aria-label="Primary" className="hidden md:flex items-center gap-4 text-sm">
+            <NavLinkItem to="/" label="홈" />
+            <NavLinkItem to="/about" label="설명" />
+            <NavLinkItem to="/reports" label="피해사례" />
+            <NavLinkItem to="/dangerous-shops" label="주의가 필요한 쇼핑몰" />
+            <NavLinkItem to="/recommended-shops" label="추천 쇼핑몰" />
+            <NavLinkItem to="/report/new" label="피해사례 제보" />
+          </nav>
         </div>
-      )}
+
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-5">
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/mypage"
+                  className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                >
+                  마이페이지
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                >
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                >
+                  로그인
+                </Link>
+                <Link
+                  to="/signup"
+                  className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                >
+                  회원가입
+                </Link>
+              </>
+            )}
+          </div>
+
+          <div className="relative md:hidden">
+            <button
+              type="button"
+              onClick={toggleMenu}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              aria-label="메뉴 열기"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border bg-background text-foreground shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+            >
+              <span className="sr-only">메뉴</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            {isMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-56 rounded-md border bg-popover text-popover-foreground shadow focus:outline-none"
+              >
+                <div className="p-1 text-sm">
+                  <MobileMenuLink to="/" label="홈" onClick={() => setIsMenuOpen(false)} />
+                  <MobileMenuLink to="/about" label="설명" onClick={() => setIsMenuOpen(false)} />
+                  <MobileMenuLink to="/reports" label="피해사례" onClick={() => setIsMenuOpen(false)} />
+                  <MobileMenuLink to="/dangerous-shops" label="주의가 필요한 쇼핑몰" onClick={() => setIsMenuOpen(false)} />
+                  <MobileMenuLink to="/recommended-shops" label="추천 쇼핑몰" onClick={() => setIsMenuOpen(false)} />
+                  {isAuthenticated && <MobileMenuLink to="/mypage" label="마이페이지" onClick={() => setIsMenuOpen(false)} />}
+                  <div className="my-1 h-px bg-border" />
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full rounded-sm px-3 py-2 text-left text-black hover:bg-muted hover:text-black"
+                    >
+                      로그아웃
+                    </button>
+                  ) : (
+                    <>
+                      <MobileMenuLink to="/login" label="로그인" onClick={() => setIsMenuOpen(false)} />
+                      <MobileMenuLink to="/signup" label="회원가입" onClick={() => setIsMenuOpen(false)} />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </header>
+  );
+}
+
+// 내부 컴포넌트: NavLinkItem
+
+function NavLinkItem({ to, label }: { to: string; label: string }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }: { isActive: boolean }) =>
+        [
+          'text-black transition-colors hover:text-black',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+          isActive ? 'underline underline-offset-4 decoration-muted' : ''
+        ].join(' ')
+      }
+    >
+      {label}
+    </NavLink>
+  );
+}
+
+function MobileMenuLink({ to, label, onClick }: { to: string; label: string; onClick?: () => void }) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className="block rounded-sm px-3 py-2 text-black hover:bg-muted hover:text-black"
+    >
+      {label}
+    </Link>
   );
 }

@@ -5,8 +5,9 @@ import { Rating } from '../components/Rating';
 import { AdvancedAIAnalysis } from '../components/AdvancedAIAnalysis';
 import { ReviewForm } from '../components/ReviewForm';
 import { ReviewsList } from '../components/ReviewsList';
-import { searchOrCreateShop, getShopReports, getShopRatings, createRating, Report, Rating as RatingData, Shop } from '../utils/api';
+import { searchOrCreateShop, getShopReports, getShopRatings, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SearchResultPage() {
   const [searchParams] = useSearchParams();
@@ -21,10 +22,10 @@ export function SearchResultPage() {
     totalRatings: 0,
     ratingDistribution: {}
   });
-  const [userRating, setUserRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isMockShop, setIsMockShop] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     const searchUrl = searchParams.get('url');
@@ -39,6 +40,10 @@ export function SearchResultPage() {
       setLoading(false);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [url]);
 
   // 타임아웃 래퍼 함수
   const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T> => {
@@ -261,85 +266,16 @@ export function SearchResultPage() {
     }
   };
 
-  const handleRatingSubmit = async () => {
-    // 비회원이 평점 제출하려고 시도하는 경우
-    if (!isAuthenticated) {
-      toast.error('평점을 남기기 위해서는 로그인이 필요합니다!');
-      navigate('/login');
-      return;
-    }
-
-    if (userRating > 0) {
-      try {
-        await createRating({
-          shopUrl: url,
-          rating: userRating
-        });
-        
-        toast.success(`${userRating}점으로 평가했습니다. 홈페이지 고평점 페이지에 반영됩니다.`);
-        setUserRating(0);
-        
-        // 평점 데이터 새로고침 (shop.id가 있는 경우에만)
-        if (shop && shop.id > 0) {
-          const ratingsData = await getShopRatings(shop.id);
-          setShopRating(ratingsData);
-        } else {
-          // 임시 상태인 경우 로컬 상태 업데이트
-          setShopRating({
-            averageRating: userRating,
-            totalRatings: 1,
-            ratingDistribution: { [userRating]: 1 }
-          });
-        }
-        
-        // 현재 페이지 새로고침하여 최신 데이터 반영
-        loadShopData(url);
-      } catch (err) {
-        console.error('평점 제출 에러:', err);
-        toast.error('평점 제출에 실패했습니다.');
-      }
-    }
-  };
-
   if (loading) {
     return (
-      <div className="search-result-page">
-        <div className="loading">
-          <div className="result-header">
-            <h1>검색 결과</h1>
-            <div className="searched-url">
-              <strong>검색한 쇼핑몰:</strong> 
-              <div className="shop-info">
-                <div className="shop-url">
-                  {url}
-                </div>
-                <div className="loading-title">
-                  쇼핑몰 이름을 가져오는 중...
-                </div>
-              </div>
-            </div>
-            
-            {/* 검색창 영역 */}
-            <div className="new-search-section">
-              <h3>다른 쇼핑몰 검색하기</h3>
-              <form onSubmit={handleNewSearch} className="search-form">
-                <div className="search-input-container">
-                  <input
-                    type="text"
-                    value={newSearchUrl}
-                    onChange={(e) => setNewSearchUrl(e.target.value)}
-                    placeholder="검색할 쇼핑몰 URL을 입력하세요"
-                    className="search-input"
-                  />
-                  <button type="submit" className="search-button">
-                    검색
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-          <p>피해 사례 제보 및 평점 정보를 불러오고 있습니다...</p>
+      <div className="container-custom max-w-[800px] mx-auto pt-10 pb-16 space-y-6">
+        <Skeleton className="h-24 w-full" />
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-2/3" />
+          <Skeleton className="h-10 w-1/2" />
+          <Skeleton className="h-10 w-1/3" />
         </div>
+        <p className="text-sm text-muted-foreground">피해 사례 제보 및 평점 정보를 불러오고 있습니다...</p>
       </div>
     );
   }
@@ -377,145 +313,122 @@ export function SearchResultPage() {
     );
   }
 
+  const domain = (() => { try { return new URL(url).hostname; } catch { return url; } })();
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+
   return (
-    <div className="search-result-page">
-      <div className="result-header">
-        <h1>검색 결과</h1>
-        <div className="searched-url">
-          <strong>검색한 쇼핑몰:</strong> 
-          <div className="shop-info">
-            <div className="shop-url">
-              {url}
-            </div>
-            {shop && shop.name && (
-              <div className="shop-title">
-                <strong>쇼핑몰 이름:</strong> {shop.name}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* 검색창 영역 */}
-        <div className="new-search-section">
-          <h3>다른 쇼핑몰 검색하기</h3>
-          <form onSubmit={handleNewSearch} className="search-form">
-            <div className="search-input-container">
-              <input
-                type="text"
-                value={newSearchUrl}
-                onChange={(e) => setNewSearchUrl(e.target.value)}
-                placeholder="검색할 쇼핑몰 URL을 입력하세요"
-                className="search-input"
-              />
-              <button type="submit" className="search-button">
-                검색
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div className="result-summary">
-        <div className="summary-card">
-          <h3>총 피해 사례 제보 건수</h3>
-          <span className="count">{reports.length}건</span>
-        </div>
-        <div className="summary-card">
-          <h3>평균 평점</h3>
-          <div className="rating-summary">
-            <Rating initialRating={Math.round(shopRating.averageRating)} readonly size="small" />
-            <span className="rating-average">{shopRating.averageRating.toFixed(1)}</span>
-            <span className="rating-count">({shopRating.totalRatings}명)</span>
-          </div>
-        </div>
-        <div className="summary-card">
-          <h3>최근 피해 사례 제보</h3>
-          <span className="date">
-            {reports.length > 0 ? new Date(reports[0].created_at).toLocaleDateString('ko-KR') : '없음'}
-          </span>
-        </div>
-      </div>
-
-      {/* 비회원에게는 평점 섹션 숨김 */}
-      {isAuthenticated && (
-        <div className="rating-section">
-          <h2>이 쇼핑몰에 평점을 주세요</h2>
-          <div className="user-rating">
-            <Rating 
-              initialRating={userRating} 
-              onRatingChange={setUserRating}
-              size="large"
-            />
-            {userRating > 0 && (
-              <button onClick={handleRatingSubmit} className="rating-submit-button">
-                평점 제출
-              </button>
-            )}
-          </div>
-          
-          {shopRating.totalRatings > 0 ? (
-            <div className="rating-distribution">
-              <h4>평점 분포</h4>
-              {[5, 4, 3, 2, 1].map((star) => (
-                <div key={star} className="rating-bar">
-                  <span className="star-label">{star}점</span>
-                  <div className="bar-container">
-                    <div 
-                      className="bar-fill" 
-                      style={{ 
-                        width: `${(shopRating.ratingDistribution[star] || 0) / shopRating.totalRatings * 100}%` 
-                      }}
-                    ></div>
-                  </div>
-                  <span className="bar-count">{shopRating.ratingDistribution[star] || 0}</span>
+    <div className="container-custom max-w-[800px] mx-auto pt-10 pb-16 space-y-6">
+      <div className="space-y-4">
+        {/* 쇼핑몰 기본 정보 카드 */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow">
+          <div className="flex items-center gap-4 border-b px-4 py-5">
+            <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-background">
+              {!imgError ? (
+                <img
+                  src={faviconUrl}
+                  alt={`${domain} 파비콘`}
+                  className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                  <span className="text-lg" aria-hidden>
+                    🌐
+                  </span>
                 </div>
-              ))}
+              )}
             </div>
-          ) : (
-            <div className="no-ratings">
-              <p>아직 평점이 없습니다. 첫 번째 평점을 남겨주세요!</p>
+            <div className="min-w-0">
+              <h2 className="truncate text-2xl font-semibold leading-tight" aria-label="분석 대상 도메인">
+                {domain}
+              </h2>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* 비회원에게는 평점 기능 로그인 안내 */}
-      {!isAuthenticated && (
-        <div className="rating-section-disabled">
-          <div className="disabled-rating-message">
-            <h2>이 쇼핑몰에 평점을 주세요</h2>
-            <div className="login-promo">
-              <p>평점을 남기고 확인하려면 로그인이 필요합니다.</p>
-              <button 
-                onClick={() => navigate('/login')} 
-                className="login-button-promo"
-              >
-                로그인하고 평점 남기기
-              </button>
-            </div>
-            
-            {shopRating.totalRatings > 0 && (
-              <div className="rating-distribution">
-                <h4>평점 분포</h4>
-                {[5, 4, 3, 2, 1].map((star) => (
-                  <div key={star} className="rating-bar">
-                    <span className="star-label">{star}점</span>
-                    <div className="bar-container">
-                      <div 
-                        className="bar-fill" 
-                        style={{ 
-                          width: `${(shopRating.ratingDistribution[star] || 0) / shopRating.totalRatings * 100}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="bar-count">{shopRating.ratingDistribution[star] || 0}</span>
-                  </div>
-                ))}
+          </div>
+          <div className="divide-y">
+            <div className="px-4 py-4 text-base leading-relaxed">
+              <div className="flex items-center justify-between text-base font-medium">
+                <span>쇼핑몰 기본 정보</span>
+                <span className="text-sm text-muted-foreground">Globe</span>
               </div>
-            )}
+              <div className="mt-3 grid gap-2">
+                <div className="text-muted-foreground">검색한 쇼핑몰</div>
+                <div className="font-medium break-all">{url}</div>
+                {shop && shop.name && (
+                  <div className="mt-2">
+                    <div className="text-muted-foreground">쇼핑몰 이름</div>
+                    <div className="font-medium">{shop.name}</div>
+                  </div>
+                )}
+              </div>
+              <div className="mt-4">
+                <form onSubmit={handleNewSearch} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={newSearchUrl}
+                    onChange={(e) => setNewSearchUrl(e.target.value)}
+                    placeholder="검색할 쇼핑몰 URL을 입력하세요"
+                    className="flex-1 rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <button type="submit" className="inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 text-sm shadow-sm hover:bg-muted">
+                    검색
+                  </button>
+                </form>
+              </div>
+            </div>
+            <div className="px-4 py-4 text-base leading-relaxed">
+              <div className="flex items-center justify-between text-sm font-medium">
+                <span>사업자 등록</span>
+                <span className="text-muted-foreground">Building</span>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">데이터가 없습니다</p>
+            </div>
+            <div className="px-4 py-4 text-base leading-relaxed">
+              <div className="flex items-center justify-between text-sm font-medium">
+                <span>결제/보안</span>
+                <span className="text-muted-foreground">CreditCard</span>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">데이터가 없습니다</p>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Accordion: 리뷰 신뢰도 */}
+        <details className="rounded-lg border bg-card text-card-foreground shadow" open>
+          <summary className="flex cursor-pointer items-center justify-between p-4">
+            <span className="text-base font-medium">리뷰 신뢰도</span>
+            <span className="text-muted-foreground">Message</span>
+          </summary>
+          <div className="px-4 pb-4 pt-0 text-base leading-relaxed">
+            <div className="flex items-center gap-3">
+              <Rating initialRating={Math.round(shopRating.averageRating)} readonly size="small" />
+              <span className="text-sm text-muted-foreground">{shopRating.averageRating.toFixed(1)} / 5 · {shopRating.totalRatings}명</span>
+            </div>
+            <div className="mt-4">
+              {shopRating.totalRatings > 0 ? (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">평점 분포</h4>
+                  {[5, 4, 3, 2, 1].map((star) => (
+                    <div key={star} className="flex items-center gap-2">
+                      <span className="w-10 text-sm text-muted-foreground">{star}점</span>
+                      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div 
+                          className="absolute left-0 top-0 h-2 rounded-full bg-primary"
+                          style={{ width: `${(shopRating.ratingDistribution[star] || 0) / (shopRating.totalRatings || 1) * 100}%` }}
+                        />
+                      </div>
+                      <span className="w-8 text-right text-sm">{shopRating.ratingDistribution[star] || 0}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">아직 평점이 없습니다. 첫 번째 평점을 남겨주세요!</p>
+              )}
+            </div>
+          </div>
+        </details>
+      </div>
+
+
 
       <div className="reports-section">
         <div className="section-header">

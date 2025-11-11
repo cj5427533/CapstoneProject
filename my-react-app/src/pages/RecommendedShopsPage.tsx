@@ -84,13 +84,13 @@ export function RecommendedShopsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page-sky-background">
       {/* 헤더 */}
       <div className="page-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 page-header-content">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">추천 쇼핑몰 목록</h1>
-            <p className="text-xl max-w-3xl mx-auto" style={{ color: 'rgba(255, 255, 255, 0.95)' }}>
+            <p className="text-xl max-w-3xl mx-auto text-slate-600">
               검색된 쇼핑몰 중 고객들의 높은 평가를 받은 신뢰할 수 있는 쇼핑몰들을 평점 순서대로 확인하세요. 
               안전하고 만족스러운 온라인 쇼핑 경험을 제공합니다.
             </p>
@@ -98,7 +98,8 @@ export function RecommendedShopsPage() {
         </div>
       </div>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="recommended-shops-page">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
 
         {/* 통계 카드 */}
         <div className="stats-grid">
@@ -200,6 +201,7 @@ export function RecommendedShopsPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

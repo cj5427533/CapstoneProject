@@ -570,13 +570,13 @@ export class ShopRiskAnalyzer {
       const domainTrustScore = Math.max(0, 100 - domainAnalysis.score);
       const businessTrustScore = Math.max(0, 100 - businessAnalysis.score);
       
-      // 가중 평균으로 최종 신뢰도 점수 계산
-      const trustScore = Math.round(
+      // 가중 평균으로 최종 신뢰도 점수 계산 (0/100 극단값 방지 정책 적용)
+      const rawTrustScore =
         reportTrustScore * weights.reportAnalysis +
         ratingTrustScore * weights.ratingAnalysis +
         domainTrustScore * weights.domainAnalysis +
-        businessTrustScore * weights.businessAnalysis
-      );
+        businessTrustScore * weights.businessAnalysis;
+      const trustScore = Math.round(Math.min(95, Math.max(5, rawTrustScore)));
       
       // 리스크 점수는 신뢰도 점수의 역수 (100 - trustScore)
       const riskScore = 100 - trustScore;
@@ -631,9 +631,9 @@ export class ShopRiskAnalyzer {
    * 신뢰도 레벨 결정
    */
   private getRiskLevel(riskScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-    if (riskScore >= 90) return 'CRITICAL';
-    if (riskScore >= 70) return 'HIGH';
-    if (riskScore >= 50) return 'MEDIUM';
+    if (riskScore >= 85) return 'CRITICAL';
+    if (riskScore >= 65) return 'HIGH';
+    if (riskScore >= 45) return 'MEDIUM';
     return 'LOW';
   }
 }
