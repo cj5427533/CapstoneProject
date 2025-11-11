@@ -7,7 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // 라우터 import
 const aiAnalysisRoutes = require('./routes/ai-analysis');
