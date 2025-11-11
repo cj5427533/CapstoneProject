@@ -1716,7 +1716,7 @@ app.post('/api/reports', async (req, res) => {
   }
 });
 
-// 위험 페이지 조회
+// 주의가 필요한 페이지 조회
 app.get('/api/dangerous-pages', async (req, res) => {
   try {
     const { data: shopReports, error } = await supabase
@@ -1745,8 +1745,8 @@ app.get('/api/dangerous-pages', async (req, res) => {
 
     res.json(allDangerous);
   } catch (error) {
-    console.error('위험 페이지 조회 오류:', error);
-    res.status(500).json({ success: false, message: '위험 페이지 조회 실패' });
+    console.error('주의가 필요한 페이지 조회 오류:', error);
+    res.status(500).json({ success: false, message: '주의가 필요한 페이지 조회 실패' });
   }
 });
 
@@ -2118,6 +2118,106 @@ app.use('/api/ai', aiAnalysisRoutes);
 
 // 커뮤니티 라우터 등록
 app.use('/api/community', communityRoutes);
+
+// 주의가 필요한 쇼핑몰 목록 조회 (신고 많은 순)
+app.get('/api/dangerous-shops', async (req, res) => {
+  try {
+    // 검색된 쇼핑몰만 조회 (search_count > 0)
+    const { data: shops, error } = await supabase
+      .from('shops')
+      .select('*')
+      .gt('search_count', 0);
+
+    if (error) throw error;
+
+    // 각 쇼핑몰의 신고 수와 평점 계산
+    const shopsWithStats = await Promise.all(
+      shops.map(async (shop) => {
+        // 신고 수 조회
+        const { count: reportCount } = await supabase
+          .from('reports')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shop.id);
+
+        // 평점 조회
+        const { data: ratings } = await supabase
+          .from('ratings')
+          .select('rating')
+          .eq('shop_id', shop.id);
+
+        const ratingCount = ratings?.length || 0;
+        const averageRating = ratingCount > 0 
+          ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratingCount 
+          : 0;
+
+        return {
+          ...shop,
+          reportCount: reportCount || 0,
+          averageRating,
+          ratingCount
+        };
+      })
+    );
+
+    // 신고 수 기준으로 정렬
+    const sortedShops = shopsWithStats.sort((a, b) => b.reportCount - a.reportCount);
+
+    res.json({ success: true, shops: sortedShops });
+  } catch (error) {
+    console.error('주의가 필요한 쇼핑몰 조회 오류:', error);
+    res.status(500).json({ error: '주의가 필요한 쇼핑몰 조회 실패: ' + error.message });
+  }
+});
+
+// 추천 쇼핑몰 목록 조회 (고평점 순)
+app.get('/api/recommended-shops', async (req, res) => {
+  try {
+    // 검색된 쇼핑몰만 조회 (search_count > 0)
+    const { data: shops, error } = await supabase
+      .from('shops')
+      .select('*')
+      .gt('search_count', 0);
+
+    if (error) throw error;
+
+    // 각 쇼핑몰의 신고 수와 평점 계산
+    const shopsWithStats = await Promise.all(
+      shops.map(async (shop) => {
+        // 신고 수 조회
+        const { count: reportCount } = await supabase
+          .from('reports')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shop.id);
+
+        // 평점 조회
+        const { data: ratings } = await supabase
+          .from('ratings')
+          .select('rating')
+          .eq('shop_id', shop.id);
+
+        const ratingCount = ratings?.length || 0;
+        const averageRating = ratingCount > 0 
+          ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratingCount 
+          : 0;
+
+        return {
+          ...shop,
+          reportCount: reportCount || 0,
+          averageRating,
+          ratingCount
+        };
+      })
+    );
+
+    // 평점 기준으로 정렬 (검색된 쇼핑몰만)
+    const sortedShops = shopsWithStats.sort((a, b) => b.averageRating - a.averageRating);
+
+    res.json({ success: true, shops: sortedShops });
+  } catch (error) {
+    console.error('추천 쇼핑몰 조회 오류:', error);
+    res.status(500).json({ error: '추천 쇼핑몰 조회 실패: ' + error.message });
+  }
+});
 
 // 테스트 이메일 발송 API (개발용)
 app.post('/api/test-email', async (req, res) => {

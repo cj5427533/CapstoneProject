@@ -14,7 +14,8 @@ import {
   getAdminCommunityPosts,
   deleteAdminCommunityPost,
   getAdminCommunityComments,
-  deleteAdminCommunityComment
+  deleteAdminCommunityComment,
+  generateMockRatings
 } from '../utils/api';
 
 interface AdminStats {
@@ -39,17 +40,20 @@ interface Report {
   description: string;
   reporter_name: string | null;
   created_at: string;
+  status?: string; // pending, approved, rejected
   shops: {
     id: number;
     url: string;
     name: string | null;
   };
+  evidenceFiles?: string[]; // 증빙 자료 파일 URL 배열
 }
 
 interface RatingData {
   id: number;
   shop_id: number;
   rating: number;
+  comment?: string | null;
   created_at: string;
   shops: {
     id: number;
@@ -122,6 +126,7 @@ export function AdminPage() {
   const [editingShopName, setEditingShopName] = useState('');
   const [mergingShopId, setMergingShopId] = useState<number | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // localhost가 아닌 경우 처리
   useEffect(() => {
@@ -164,13 +169,13 @@ export function AdminPage() {
     }
   };
 
-  // 신고 데이터 로드
+  // 피해 사례 제보 데이터 로드
   const loadReports = async () => {
     try {
       const reportsData = await getAdminReports();
       setReports(reportsData);
     } catch (error) {
-      console.error('신고 조회 실패:', error);
+      console.error('피해 사례 제보 조회 실패:', error);
     }
   };
 
@@ -272,7 +277,7 @@ export function AdminPage() {
 
   // 쇼핑몰 삭제
   const handleDeleteShop = async (shopId: number, shopName: string) => {
-    if (!confirm(`'${shopName}' 쇼핑몰을 삭제하시겠습니까?\n연관된 신고와 평점도 모두 삭제됩니다.`)) {
+    if (!confirm(`'${shopName}' 쇼핑몰을 삭제하시겠습니까?\n연관된 피해 사례 제보와 평점도 모두 삭제됩니다.`)) {
       return;
     }
 
@@ -286,19 +291,81 @@ export function AdminPage() {
     }
   };
 
-  // 신고 삭제
+  // 피해 사례 제보 삭제
   const handleDeleteReport = async (reportId: number) => {
-    if (!confirm('이 신고를 삭제하시겠습니까?')) {
+    if (!confirm('이 피해 사례 제보를 삭제하시겠습니까?')) {
       return;
     }
 
     try {
       await deleteReport(reportId);
-      alert('신고가 삭제되었습니다.');
+      alert('피해 사례 제보가 삭제되었습니다.');
       loadReports();
       loadAdminStats();
     } catch (error) {
-      alert('신고 삭제에 실패했습니다.');
+      alert('피해 사례 제보 삭제에 실패했습니다.');
+    }
+  };
+
+  // 피해 사례 제보 승인
+  const handleApproveReport = async (reportId: number) => {
+    if (!confirm('이 피해 사례 제보를 승인하시겠습니까?\n승인된 제보는 쇼핑몰 목록에 반영됩니다.')) {
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'approved' })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '알 수 없는 오류' }));
+        throw new Error(errorData.message || '승인에 실패했습니다.');
+      }
+
+      await response.json();
+      alert('피해 사례 제보가 승인되었습니다.');
+      loadReports();
+      loadAdminStats();
+    } catch (error) {
+      console.error('승인 처리 오류:', error);
+      alert('승인 처리에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+    }
+  };
+
+  // 피해 사례 제보 거부
+  const handleRejectReport = async (reportId: number) => {
+    if (!confirm('이 피해 사례 제보를 거부하시겠습니까?\n거부된 제보는 쇼핑몰 목록에 반영되지 않습니다.')) {
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '알 수 없는 오류' }));
+        throw new Error(errorData.message || '거부에 실패했습니다.');
+      }
+
+      await response.json();
+      alert('피해 사례 제보가 거부되었습니다.');
+      loadReports();
+      loadAdminStats();
+    } catch (error) {
+      console.error('거부 처리 오류:', error);
+      alert('거부 처리에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
     }
   };
 
@@ -315,6 +382,21 @@ export function AdminPage() {
       loadAdminStats();
     } catch (error) {
       alert('평점 삭제에 실패했습니다.');
+    }
+  };
+
+  // 목업 리뷰 생성
+  const handleGenerateMockRatings = async () => {
+    if (!confirm('목업 쇼핑몰에 테스트 리뷰 데이터를 생성하시겠습니까?\n(리뷰가 이미 있는 쇼핑몰은 스킵됩니다.)')) return;
+    
+    try {
+      const result = await generateMockRatings();
+      alert(`목업 리뷰 생성 완료: ${result.created?.length || 0}개 쇼핑몰에 리뷰가 생성되었습니다.`);
+      loadRatings();
+      loadAdminStats();
+    } catch (error: any) {
+      console.error('목업 리뷰 생성 실패:', error);
+      alert(error.message || '목업 리뷰 생성에 실패했습니다.');
     }
   };
 
@@ -343,7 +425,7 @@ export function AdminPage() {
     if (!confirm(
       `'${childShop?.name || childShop?.url}'를\n` +
       `'${targetShop.name || targetShop.url}' (ID: ${targetId})와 병합하시겠습니까?\n\n` +
-      `✅ 양방향 병합: 두 쇼핑몰의 모든 데이터(신고, 평점)가 통합됩니다.\n` +
+      `✅ 양방향 병합: 두 쇼핑몰의 모든 데이터(피해 사례 제보, 평점)가 통합됩니다.\n` +
       `✅ 어느 URL로 접속해도 통합된 데이터를 볼 수 있습니다.\n` +
       `✅ 데이터는 삭제되지 않고 병합됩니다.`
     )) {
@@ -469,7 +551,7 @@ export function AdminPage() {
           className={`tab-button ${currentTab === 'reports' ? 'active' : ''}`}
           onClick={() => setCurrentTab('reports')}
         >
-          ⚠️ 신고 관리
+          ⚠️ 피해 사례 제보 관리
         </button>
         <button 
           className={`tab-button ${currentTab === 'ratings' ? 'active' : ''}`}
@@ -502,7 +584,7 @@ export function AdminPage() {
                 <span className="stat-number">{stats.totalShops}</span>
               </div>
               <div className="stat-card">
-                <h3>총 신고 수</h3>
+                <h3>총 피해 사례 제보 수</h3>
                 <span className="stat-number">{stats.totalReports}</span>
               </div>
               <div className="stat-card">
@@ -650,7 +732,7 @@ export function AdminPage() {
         {/* 신고 관리 탭 */}
         {currentTab === 'reports' && (
           <div className="admin-section">
-            <h2>⚠️ 신고 관리 ({reports.length}개)</h2>
+            <h2>⚠️ 피해 사례 제보 관리 ({reports.length}개)</h2>
             <div className="data-table-container">
               <table className="admin-table">
                 <thead>
@@ -659,8 +741,9 @@ export function AdminPage() {
                     <th>쇼핑몰</th>
                     <th>카테고리</th>
                     <th>설명</th>
-                    <th>신고자</th>
-                    <th>신고일</th>
+                    <th>제보자</th>
+                    <th>제보일</th>
+                    <th>상태</th>
                     <th>관리</th>
                   </tr>
                 </thead>
@@ -670,16 +753,102 @@ export function AdminPage() {
                       <td>{report.id}</td>
                       <td className="shop-cell">{report.shops?.name || report.shops?.url}</td>
                       <td>{JSON.parse(report.categories).join(', ')}</td>
-                      <td className="desc-cell">{report.description}</td>
+                      <td className="desc-cell">
+                        {report.description}
+                        {(() => {
+                          // evidenceFiles가 문자열이면 JSON.parse, 배열이면 그대로 사용
+                          let evidenceFiles: string[] = [];
+                          if (report.evidenceFiles) {
+                            if (typeof report.evidenceFiles === 'string') {
+                              try {
+                                evidenceFiles = JSON.parse(report.evidenceFiles);
+                              } catch (e) {
+                                console.error('evidenceFiles 파싱 오류:', e);
+                                evidenceFiles = [];
+                              }
+                            } else if (Array.isArray(report.evidenceFiles)) {
+                              evidenceFiles = report.evidenceFiles;
+                            }
+                          }
+                          
+                          // 디버깅: evidenceFiles 확인
+                          if (report.evidenceFiles) {
+                            console.log(`Report ${report.id} evidenceFiles:`, report.evidenceFiles, 'Parsed:', evidenceFiles);
+                          }
+                          
+                          if (evidenceFiles.length === 0) return null;
+                          
+                          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                          
+                          return (
+                            <div className="evidence-images">
+                              <strong>증빙 자료 ({evidenceFiles.length}개):</strong>
+                              <div className="images-grid">
+                                {evidenceFiles.map((fileUrl: string, index: number) => {
+                                  // URL 구성: 이미 http로 시작하면 그대로, 아니면 API URL 추가
+                                  const imageUrl = fileUrl.startsWith('http') 
+                                    ? fileUrl 
+                                    : `${apiUrl}${fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl}`;
+                                  
+                                  console.log(`이미지 URL [${index}]:`, imageUrl);
+                                  
+                                  return (
+                                    <img
+                                      key={index}
+                                      src={imageUrl}
+                                      alt={`증빙 자료 ${index + 1}`}
+                                      className="evidence-thumbnail"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedImage(imageUrl);
+                                      }}
+                                      onError={(e) => {
+                                        console.error('이미지 로드 실패:', imageUrl, '원본 fileUrl:', fileUrl);
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                      onLoad={() => {
+                                        console.log('이미지 로드 성공:', imageUrl);
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td>{report.reporter_name || '익명'}</td>
                       <td>{new Date(report.created_at).toLocaleString('ko-KR')}</td>
                       <td>
-                        <button 
-                          onClick={() => handleDeleteReport(report.id)}
-                          className="action-btn delete"
-                        >
-                          삭제
-                        </button>
+                        {report.status === 'pending' && <span style={{ color: '#ff9800', fontWeight: 'bold' }}>대기중</span>}
+                        {report.status === 'approved' && <span style={{ color: 'green', fontWeight: 'bold' }}>승인</span>}
+                        {report.status === 'rejected' && <span style={{ color: 'red', fontWeight: 'bold' }}>거부</span>}
+                      </td>
+                      <td>
+                        <div className="action-buttons-vertical">
+                          {report.status === 'pending' && (
+                            <>
+                              <button 
+                                onClick={() => handleApproveReport(report.id)}
+                                className="action-btn approve"
+                              >
+                                승인
+                              </button>
+                              <button 
+                                onClick={() => handleRejectReport(report.id)}
+                                className="action-btn reject"
+                              >
+                                거부
+                              </button>
+                            </>
+                          )}
+                          <button 
+                            onClick={() => handleDeleteReport(report.id)}
+                            className="action-btn delete"
+                          >
+                            삭제
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -692,7 +861,23 @@ export function AdminPage() {
         {/* 평점 관리 탭 */}
         {currentTab === 'ratings' && (
           <div className="admin-section">
-            <h2>⭐ 평점 관리 ({ratings.length}개)</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2>⭐ 평점 관리 ({ratings.length}개)</h2>
+              <button 
+                onClick={handleGenerateMockRatings}
+                className="action-btn"
+                style={{ 
+                  background: '#4CAF50', 
+                  color: 'white', 
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                🎓 목업 리뷰 생성
+              </button>
+            </div>
             <div className="data-table-container">
               <table className="admin-table">
                 <thead>
@@ -700,6 +885,7 @@ export function AdminPage() {
                     <th>ID</th>
                     <th>쇼핑몰</th>
                     <th>평점</th>
+                    <th>리뷰 내용</th>
                     <th>등록일</th>
                     <th>관리</th>
                   </tr>
@@ -714,6 +900,18 @@ export function AdminPage() {
                           {'⭐'.repeat(rating.rating)}
                         </span>
                         {rating.rating}점
+                      </td>
+                      <td style={{ maxWidth: '300px', wordBreak: 'break-word' }}>
+                        {rating.comment ? (
+                          <span style={{ 
+                            color: rating.comment.includes('[테스트 데이터]') ? '#ff9800' : 'inherit',
+                            fontWeight: rating.comment.includes('[테스트 데이터]') ? 'bold' : 'normal'
+                          }}>
+                            {rating.comment}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#999', fontStyle: 'italic' }}>리뷰 없음</span>
+                        )}
                       </td>
                       <td>{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
                       <td>
@@ -868,6 +1066,113 @@ export function AdminPage() {
           </div>
         )}
       </div>
+      {selectedImage && (
+        <div className="image-modal" onClick={() => setSelectedImage(null)}>
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <span className="image-modal-close" onClick={() => setSelectedImage(null)}>×</span>
+            <img src={selectedImage} alt="증빙 자료" className="image-modal-image" />
+          </div>
+        </div>
+      )}
+      <style>{`
+        .evidence-images {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: #f5f5f5;
+          border-radius: 8px;
+        }
+
+        .images-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-top: 0.5rem;
+        }
+
+        .evidence-thumbnail {
+          border: 2px solid #ddd;
+          border-radius: 4px;
+          transition: transform 0.2s;
+          object-fit: cover;
+          cursor: pointer;
+          max-width: 150px;
+          max-height: 150px;
+        }
+
+        .evidence-thumbnail:hover {
+          transform: scale(1.05);
+          border-color: #6495ED;
+        }
+
+        .image-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          cursor: pointer;
+          padding: 20px;
+        }
+
+        .image-modal-content {
+          position: relative;
+          max-width: 90vw;
+          max-height: 90vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .image-modal-close {
+          position: absolute;
+          top: -50px;
+          right: 0;
+          color: white;
+          font-size: 3rem;
+          cursor: pointer;
+          z-index: 10001;
+          width: 50px;
+          height: 50px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.2);
+          transition: background 0.2s;
+          line-height: 1;
+        }
+
+        .image-modal-close:hover {
+          background: rgba(255, 255, 255, 0.4);
+        }
+
+        .image-modal-image {
+          max-width: 100%;
+          max-height: 90vh;
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+          object-fit: contain;
+        }
+
+        .action-buttons-vertical {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          align-items: stretch;
+        }
+
+        .action-buttons-vertical .action-btn {
+          width: 100%;
+          min-width: 80px;
+          padding: 0.5rem 1rem;
+          margin: 0;
+        }
+      `}</style>
     </div>
   );
 }

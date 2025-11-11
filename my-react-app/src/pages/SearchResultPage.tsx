@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Rating } from '../components/Rating';
-import { FakeReviewAnalysis } from '../components/FakeReviewAnalysis';
 import { AdvancedAIAnalysis } from '../components/AdvancedAIAnalysis';
+import { ReviewForm } from '../components/ReviewForm';
+import { ReviewsList } from '../components/ReviewsList';
 import { searchOrCreateShop, getShopReports, getShopRatings, createRating, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,43 +23,53 @@ export function SearchResultPage() {
   });
   const [userRating, setUserRating] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [isMockShop, setIsMockShop] = useState(false);
 
   useEffect(() => {
     const searchUrl = searchParams.get('url');
+    const mockParam = searchParams.get('mock');
+    
     if (searchUrl) {
       setUrl(searchUrl);
-      loadShopData(searchUrl);
+      setIsMockShop(mockParam === 'true');
+      loadShopData(searchUrl, mockParam === 'true');
     } else {
       // URL 파라미터가 없으면 로딩 상태 해제
       setLoading(false);
     }
   }, [searchParams]);
 
-  const loadShopData = async (shopUrl: string) => {
+  const loadShopData = async (shopUrl: string, isMock: boolean = false) => {
     try {
       setLoading(true);
 
-      // 쇼핑몰 검색 또는 생성
-      const { shop: shopData } = await searchOrCreateShop(shopUrl);
-      setShop(shopData);
-
-      // 유효한 쇼핑몰 ID가 있을 때만 신고 목록과 평점 데이터를 로드
-      if (shopData.id > 0) {
-        const [reportsData, ratingsData] = await Promise.all([
-          getShopReports(shopData.id),
-          getShopRatings(shopData.id)
-        ]);
-
-        setReports(reportsData);
-        setShopRating(ratingsData);
+      if (isMock) {
+        // 목업 쇼핑몰인 경우 목업 데이터 사용
+        await loadMockShopData(shopUrl);
       } else {
-        // 임시 쇼핑몰인 경우 빈 데이터로 설정
-        setReports([]);
-        setShopRating({
-          averageRating: 0,
-          totalRatings: 0,
-          ratingDistribution: {}
-        });
+        // 실제 쇼핑몰인 경우 API 호출
+        const { shop: shopData } = await searchOrCreateShop(shopUrl);
+        setShop(shopData);
+
+        // 유효한 쇼핑몰 ID가 있을 때만 신고 목록과 평점 데이터를 로드
+        if (shopData.id > 0) {
+          const [reportsData, ratingsData] = await Promise.all([
+            getShopReports(shopData.id),
+            getShopRatings(shopData.id)
+          ]);
+
+          setReports(reportsData);
+          setShopRating(ratingsData);
+        } else {
+          // 임시 쇼핑몰인 경우 빈 데이터로 설정
+          setReports([]);
+          setShopRating({
+            averageRating: 0,
+            totalRatings: 0,
+            ratingDistribution: {}
+          });
+        }
       }
     } catch (err) {
       console.error('데이터 로드 에러:', err);
@@ -82,10 +93,75 @@ export function SearchResultPage() {
     }
   };
 
+  const loadMockShopData = async (shopUrl: string) => {
+    // 목업 데이터에서 해당 URL의 쇼핑몰 찾기
+    const mockShops = [
+      { id: 1001, url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', riskLevel: 'HIGH' as const, riskScore: 85 },
+      { id: 1002, url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', riskLevel: 'HIGH' as const, riskScore: 90 },
+      { id: 1003, url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', riskLevel: 'HIGH' as const, riskScore: 95 },
+      { id: 2001, url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', riskLevel: 'LOW' as const, riskScore: 15 },
+      { id: 2002, url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', riskLevel: 'LOW' as const, riskScore: 20 },
+      { id: 2003, url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 55 },
+      { id: 2004, url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 60 }
+    ];
+
+    const mockShop = mockShops.find(s => s.url === shopUrl);
+    
+    if (mockShop) {
+      setShop({
+        id: mockShop.id,
+        url: mockShop.url,
+        name: mockShop.name,
+        created_at: new Date().toISOString()
+      });
+
+      // 목업 신고 데이터 설정
+      const mockReports: Report[] = [
+        {
+          id: 1,
+          shop_id: mockShop.id,
+          categories: JSON.stringify(['사기/피싱', '배송 문제']),
+          description: '🎓 교육용 목업 신고입니다. 실제 피해 사례가 아닙니다.',
+          reporter_name: '교육용 사용자',
+          created_at: new Date().toISOString()
+        }
+      ];
+      setReports(mockReports);
+
+      // 목업 평점 데이터 설정
+      const mockRating: RatingData = {
+        averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
+        totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
+        ratingDistribution: {
+          5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
+          4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
+          3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
+          2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
+          1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
+        }
+      };
+      setShopRating(mockRating);
+    } else {
+      // 목업 쇼핑몰을 찾을 수 없는 경우 기본 데이터 설정
+      setShop({
+        id: 0,
+        url: shopUrl,
+        name: '🎓 교육용 목업 쇼핑몰',
+        created_at: new Date().toISOString()
+      });
+      setReports([]);
+      setShopRating({
+        averageRating: 0,
+        totalRatings: 0,
+        ratingDistribution: {}
+      });
+    }
+  };
+
   const handleNewReport = () => {
     // 로그인 체크
     if (!isAuthenticated) {
-      if (confirm('신고하기 위해서는 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
+      if (confirm('피해 사례 제보를 위해서는 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
         navigate('/login');
       }
       return;
@@ -100,6 +176,14 @@ export function SearchResultPage() {
     if (newSearchUrl.trim()) {
       const trimmedUrl = newSearchUrl.trim();
       navigate(`/search?url=${encodeURIComponent(trimmedUrl)}`);
+    }
+  };
+
+  const handleReviewSubmitted = () => {
+    // 리뷰 새로고침 로직 제거됨
+    // 평점 데이터도 새로고침
+    if (shop?.id) {
+      loadShopData(url, isMockShop);
     }
   };
 
@@ -180,7 +264,7 @@ export function SearchResultPage() {
               </form>
             </div>
           </div>
-          <p>신고 및 평점 정보를 불러오고 있습니다...</p>
+          <p>피해 사례 제보 및 평점 정보를 불러오고 있습니다...</p>
         </div>
       </div>
     );
@@ -259,7 +343,7 @@ export function SearchResultPage() {
 
       <div className="result-summary">
         <div className="summary-card">
-          <h3>총 신고 건수</h3>
+          <h3>총 피해 사례 제보 건수</h3>
           <span className="count">{reports.length}건</span>
         </div>
         <div className="summary-card">
@@ -271,7 +355,7 @@ export function SearchResultPage() {
           </div>
         </div>
         <div className="summary-card">
-          <h3>최근 신고</h3>
+          <h3>최근 피해 사례 제보</h3>
           <span className="date">
             {reports.length > 0 ? new Date(reports[0].created_at).toLocaleDateString('ko-KR') : '없음'}
           </span>
@@ -361,20 +445,20 @@ export function SearchResultPage() {
 
       <div className="reports-section">
         <div className="section-header">
-          <h2>신고 목록</h2>
+          <h2>피해 사례 제보 목록</h2>
           <button onClick={handleNewReport} className="report-button">
-            신고하기
+            피해 사례 제보
           </button>
         </div>
 
         {reports.length === 0 ? (
           <div className="no-reports">
             <div className="no-reports-content">
-              <h3>아직 신고된 내용이 없습니다</h3>
-              <p>이 쇼핑몰에 대한 첫 번째 신고를 작성해보세요!</p>
+              <h3>아직 피해 사례 제보된 내용이 없습니다</h3>
+              <p>이 쇼핑몰에 대한 첫 번째 피해 사례 제보를 작성해보세요!</p>
               <div className="no-reports-actions">
                 <button onClick={handleNewReport} className="report-button primary">
-                  첫 번째 신고하기
+                  첫 번째 피해 사례 제보
                 </button>
               </div>
             </div>
@@ -416,16 +500,37 @@ export function SearchResultPage() {
         </div>
       )}
 
-      {/* 기존 AI 리뷰 분석 섹션 (호환성 유지) */}
-      {shop && shopRating.totalRatings > 0 && (
-        <div className="ai-analysis-section">
-          <FakeReviewAnalysis 
-            reviews={[]} // 실제 리뷰 데이터는 백엔드에서 가져옴
-            shopType={{ type: 'real' }} // 실제 쇼핑몰로 설정
-            shopUrl={url}
+      {/* 리뷰 섹션 */}
+      {shop && shop.id > 0 && (
+        <div className="reviews-section">
+          <div className="section-header">
+            <h2>사용자 리뷰</h2>
+            {isAuthenticated && (
+              <button 
+                className="write-review-button"
+                onClick={() => setShowReviewForm(!showReviewForm)}
+              >
+                {showReviewForm ? '리뷰 작성 취소' : '리뷰 작성하기'}
+              </button>
+            )}
+          </div>
+
+          {showReviewForm && (
+            <ReviewForm 
+              shopId={shop.id}
+              shopUrl={url}
+              onReviewSubmitted={handleReviewSubmitted}
+            />
+          )}
+
+          <ReviewsList 
+            shopId={shop.id}
+            onReviewAdded={handleReviewSubmitted}
           />
         </div>
       )}
+
+      {/* AI 리뷰 분석은 이제 고급 AI 분석 시스템에 통합됨 */}
 
     </div>
   );

@@ -42,8 +42,8 @@ export function MyPage() {
       const userReports = await getUserReports(user.username);
       setReports(userReports);
     } catch (error) {
-      console.error('신고 목록 로드 에러:', error);
-      toast.error('신고 목록을 불러오는데 실패했습니다.');
+      console.error('피해 사례 제보 목록 로드 에러:', error);
+      toast.error('피해 사례 제보 목록을 불러오는데 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -88,17 +88,17 @@ export function MyPage() {
 
   // 신고 삭제
   const handleDeleteReport = async (reportId: number, shopName: string) => {
-    if (!confirm(`'${shopName}' 쇼핑몰에 대한 신고를 삭제하시겠습니까?`)) {
+    if (!confirm(`'${shopName}' 쇼핑몰에 대한 피해 사례 제보를 삭제하시겠습니까?`)) {
       return;
     }
 
     try {
       await deleteUserReport(reportId, user?.username || '');
-      toast.success('신고가 삭제되었습니다.');
+      toast.success('피해 사례 제보가 삭제되었습니다.');
       loadReports();
     } catch (error) {
-      console.error('신고 삭제 에러:', error);
-      toast.error(error instanceof Error ? error.message : '신고 삭제에 실패했습니다.');
+      console.error('피해 사례 제보 삭제 에러:', error);
+      toast.error(error instanceof Error ? error.message : '피해 사례 제보 삭제에 실패했습니다.');
     }
   };
 
@@ -208,7 +208,7 @@ export function MyPage() {
           className={`tab-button ${activeTab === 'reports' ? 'active' : ''}`}
           onClick={() => setActiveTab('reports')}
         >
-          신고 내역
+          피해 사례 제보 내역
         </button>
         <button
           className={`tab-button ${activeTab === 'community' ? 'active' : ''}`}
@@ -221,16 +221,16 @@ export function MyPage() {
       {/* 신고 내역 탭 */}
       {activeTab === 'reports' && (
         <div className="mypage-section">
-          <h2>내가 신고한 쇼핑몰 ({reports.length}개)</h2>
+          <h2>내가 제보한 피해 사례 쇼핑몰 ({reports.length}개)</h2>
         
         {isLoading ? (
           <div className="loading-message">
-            <p>신고 목록을 불러오는 중...</p>
+            <p>피해 사례 제보 목록을 불러오는 중...</p>
           </div>
         ) : reports.length === 0 ? (
           <div className="empty-message">
-            <p>아직 신고한 쇼핑몰이 없습니다.</p>
-            <p>의심스러운 쇼핑몰이 있다면 신고해주세요!</p>
+            <p>아직 피해 사례를 제보한 쇼핑몰이 없습니다.</p>
+            <p>의심스러운 쇼핑몰이 있다면 피해 사례를 제보해주세요!</p>
           </div>
         ) : (
           <div className="reports-list">
@@ -256,7 +256,7 @@ export function MyPage() {
                   
                   <div className="report-card-body">
                     <div className="report-categories">
-                      <strong>신고 카테고리:</strong>
+                      <strong>피해 사례 카테고리:</strong>
                       <div className="category-tags">
                         {categories.map((category: string, index: number) => (
                           <span key={index} className="category-tag">

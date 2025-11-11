@@ -17,6 +17,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export function HomePage() {
   const [url, setUrl] = useState('');
+  const [urlError, setUrlError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [shopData, setShopData] = useState<{
@@ -28,6 +29,11 @@ export function HomePage() {
   const [topRatedPages, setTopRatedPages] = useState<TopRatedShop[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const navigate = useNavigate();
+
+  // 목업 쇼핑몰인지 확인하는 함수
+  const isMockShop = (shop: DangerousShop | TopRatedShop): boolean => {
+    return shop.id >= 1000; // 목업 쇼핑몰은 1000 이상의 ID를 가짐
+  };
 
   // 디바운싱된 미리보기 검색 함수를 useRef로 관리
   const debouncedPreviewSearchRef = useRef<((searchUrl: string) => void) | null>(null);
@@ -79,8 +85,9 @@ export function HomePage() {
 
   // URL 변경 시 디바운싱된 미리보기 검색 실행
   useEffect(() => {
-    if (debouncedPreviewSearchRef.current) {
-      debouncedPreviewSearchRef.current(url);
+    if (debouncedPreviewSearchRef.current && url.trim()) {
+      const normalizedUrl = normalizeUrl(url);
+      debouncedPreviewSearchRef.current(normalizedUrl);
     }
   }, [url]);
 
@@ -106,14 +113,14 @@ export function HomePage() {
     // 30초마다 자동 새로고침
     const interval = setInterval(() => {
       loadRealtimeData();
-      console.log('위험/고평점 페이지 자동 새로고침');
+      console.log('주의가 필요한/고평점 페이지 자동 새로고침');
     }, 30000);
 
     // 페이지가 다시 보이게 될 때 새로고침
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadRealtimeData();
-        console.log('페이지 포커스 - 위험/고평점 페이지 새로고침');
+        console.log('페이지 포커스 - 주의가 필요한/고평점 페이지 새로고침');
       }
     };
 
@@ -126,16 +133,87 @@ export function HomePage() {
     };
   }, []);
 
+  // URL 유효성 검증 함수
+  const isValidUrl = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  // URL 정규화 함수 (개선된 버전)
+  const normalizeUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // 공백 제거 및 정리
+    url = url.trim().replace(/\s+/g, '');
+    
+    // 빈 문자열 체크
+    if (!url) return url;
+    
+    // 일반적인 오타 수정
+    url = url.replace(/^htps:\/\//, 'https://');
+    url = url.replace(/^http:\/\//, 'http://');
+    
+    // 프로토콜이 없으면 https:// 추가
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    // 이중 점 제거
+    url = url.replace(/\.{2,}/g, '.');
+    
+    // 잘못된 슬래시 정리
+    url = url.replace(/\/{2,}/g, '/');
+    
+    return url;
+  };
+
+  // URL 변경 시 실시간 검증
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputUrl = e.target.value;
+    setUrl(inputUrl);
+    
+    // 에러 메시지 초기화
+    setUrlError('');
+    
+    // 빈 문자열이면 에러 없음
+    if (!inputUrl.trim()) {
+      return;
+    }
+    
+    // URL 정규화
+    const normalizedUrl = normalizeUrl(inputUrl);
+    
+    // 유효성 검증
+    if (!isValidUrl(normalizedUrl)) {
+      setUrlError('올바른 URL 형식을 입력해주세요. (예: example.com 또는 https://example.com)');
+    }
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (url.trim()) {
-      setIsLoading(true);
-      // 검색 결과 페이지로 즉시 이동 (미리보기는 이미 디바운싱으로 처리됨)
-      setTimeout(() => {
-        navigate(`/search?url=${encodeURIComponent(url.trim())}`);
-        setIsLoading(false);
-      }, 500); // 미리보기가 보여진 후 잠시 대기
+    
+    if (!url.trim()) {
+      setUrlError('URL을 입력해주세요.');
+      return;
     }
+    
+    const normalizedUrl = normalizeUrl(url);
+    
+    if (!isValidUrl(normalizedUrl)) {
+      setUrlError('올바른 URL 형식을 입력해주세요. (예: example.com 또는 https://example.com)');
+      return;
+    }
+    
+    setIsLoading(true);
+    // 검색 결과 페이지로 즉시 이동 (미리보기는 이미 디바운싱으로 처리됨)
+    setTimeout(() => {
+      navigate(`/search?url=${encodeURIComponent(normalizedUrl)}`);
+      setIsLoading(false);
+    }, 500); // 미리보기가 보여진 후 잠시 대기
   };
 
   return (
@@ -156,15 +234,21 @@ export function HomePage() {
                 <input
                   type="url"
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="쇼핑몰 URL을 입력하세요 (예: https://example.com)"
-                  className="search-input"
+                  onChange={handleUrlChange}
+                  placeholder="쇼핑몰 URL을 입력하세요 (예: example.com, www.example.com, https://example.com)"
+                  className={`search-input ${urlError ? 'error' : ''}`}
                   required
                 />
                 <button type="submit" className="search-button" disabled={isLoading}>
                   {isLoading ? '검색 중...' : '검색하기'}
                 </button>
               </div>
+              {urlError && (
+                <div className="url-error-message">
+                  <span className="error-icon">⚠️</span>
+                  {urlError}
+                </div>
+              )}
             </form>
             
             {/* 검색된 쇼핑몰 정보 표시 */}
@@ -178,7 +262,7 @@ export function HomePage() {
                 ) : shopData ? (
                   <div className="preview-stats">
                     <div className="stat-item">
-                      <span className="stat-label">신고 건수:</span>
+                      <span className="stat-label">피해 사례 제보 건수:</span>
                       <span className="stat-value">{shopData.reportsCount}건</span>
                     </div>
                     <div className="stat-item">
@@ -207,7 +291,7 @@ export function HomePage() {
             )}
             <div className="realtime-horizontal">
               <div className="realtime-box">
-                <h3 className="realtime-title">⚠️ 위험 페이지 Top 10</h3>
+                <h3 className="realtime-title">⚠️ 주의가 필요한 페이지 Top 10</h3>
                 <div className="realtime-list">
                   {dangerousPages.length === 0 ? (
                     <p className="empty-message">아직 데이터가 없습니다</p>
@@ -216,7 +300,15 @@ export function HomePage() {
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
-                        onClick={() => navigate(`/search?url=${encodeURIComponent(shop.url)}`)}
+                        onClick={() => {
+                          if (isMockShop(shop)) {
+                            // 목업 쇼핑몰인 경우 분석 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
+                          } else {
+                            // 실제 쇼핑몰인 경우 일반 검색 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}`);
+                          }
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <span className="rank">#{index + 1}</span>
@@ -224,7 +316,7 @@ export function HomePage() {
                           <span className="shop-name" title={shop.name}>
                             {shop.name || shop.url}
                           </span>
-                          <span className="shop-count">{shop.reportCount}건 신고</span>
+                          <span className="shop-count">{shop.reportCount}건 피해 사례 제보</span>
                         </div>
                       </div>
                     ))
@@ -242,7 +334,15 @@ export function HomePage() {
                       <div 
                         key={shop.id} 
                         className="realtime-item clickable"
-                        onClick={() => navigate(`/search?url=${encodeURIComponent(shop.url)}`)}
+                        onClick={() => {
+                          if (isMockShop(shop)) {
+                            // 목업 쇼핑몰인 경우 분석 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
+                          } else {
+                            // 실제 쇼핑몰인 경우 일반 검색 페이지로 이동
+                            navigate(`/search?url=${encodeURIComponent(shop.url)}`);
+                          }
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <span className="rank">#{index + 1}</span>
@@ -263,6 +363,7 @@ export function HomePage() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

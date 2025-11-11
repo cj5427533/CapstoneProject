@@ -11,12 +11,45 @@ export function LoginPage() {
     email: '',
     password: ''
   });
+  const [formErrors, setFormErrors] = useState({
+    email: '',
+    password: ''
+  });
   const [loading, setLoading] = useState(false);
 
+  // 이메일 검증 함수
+  const validateEmail = (email: string): string => {
+    if (!email) return '이메일을 입력해주세요.';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return '올바른 이메일 형식을 입력해주세요.';
+    return '';
+  };
+
+  // 비밀번호 검증 함수
+  const validatePassword = (password: string): string => {
+    if (!password) return '비밀번호를 입력해주세요.';
+    if (password.length < 6) return '비밀번호는 최소 6자 이상이어야 합니다.';
+    return '';
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
+    });
+
+    // 실시간 검증
+    let error = '';
+    if (name === 'email') {
+      error = validateEmail(value);
+    } else if (name === 'password') {
+      error = validatePassword(value);
+    }
+
+    setFormErrors({
+      ...formErrors,
+      [name]: error
     });
   };
 
@@ -25,8 +58,17 @@ export function LoginPage() {
     
     if (loading) return;
     
-    if (!formData.email || !formData.password) {
-      toast.error('이메일과 비밀번호를 입력해주세요.');
+    // 전체 폼 검증
+    const emailError = validateEmail(formData.email);
+    const passwordError = validatePassword(formData.password);
+    
+    setFormErrors({
+      email: emailError,
+      password: passwordError
+    });
+    
+    if (emailError || passwordError) {
+      toast.error('입력 정보를 확인해주세요.');
       return;
     }
 
@@ -70,7 +112,14 @@ export function LoginPage() {
               onChange={handleChange}
               required
               placeholder="이메일을 입력하세요"
+              className={formErrors.email ? 'error' : ''}
             />
+            {formErrors.email && (
+              <div className="field-error">
+                <span className="error-icon">⚠️</span>
+                {formErrors.email}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -83,7 +132,14 @@ export function LoginPage() {
               onChange={handleChange}
               required
               placeholder="비밀번호를 입력하세요"
+              className={formErrors.password ? 'error' : ''}
             />
+            {formErrors.password && (
+              <div className="field-error">
+                <span className="error-icon">⚠️</span>
+                {formErrors.password}
+              </div>
+            )}
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>

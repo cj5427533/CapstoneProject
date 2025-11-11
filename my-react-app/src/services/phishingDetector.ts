@@ -130,7 +130,7 @@ export class PhishingDetector {
   /**
    * 도메인 분석 (구체적 기준)
    */
-  private async analyzeDomain(url: string): Promise<{ score: number; reasons: string[] }> {
+  private async _analyzeDomain(url: string): Promise<{ score: number; reasons: string[] }> {
     let score = 0;
     const reasons: string[] = [];
     
@@ -156,7 +156,7 @@ export class PhishingDetector {
       }
       
       // 3. 신규 도메인 검사
-      const domainAge = await this.getDomainAge(domain);
+      const domainAge = await this.getDomainAge();
       if (domainAge <= PHISHING_CRITERIA.domainAnalysis.newDomain.age) {
         score += PHISHING_CRITERIA.domainAnalysis.newDomain.penalty;
         reasons.push(`도메인 연령이 ${domainAge}일로 신규`);
@@ -183,14 +183,14 @@ export class PhishingDetector {
   /**
    * 콘텐츠 분석 (구체적 기준)
    */
-  private async analyzeContent(url: string): Promise<{ score: number; reasons: string[] }> {
+  private async _analyzeContent(): Promise<{ score: number; reasons: string[] }> {
     let score = 0;
     const reasons: string[] = [];
     
     try {
       // 실제 구현에서는 웹 스크래핑이 필요하지만, 
       // 여기서는 시뮬레이션으로 구현
-      const content = await this.fetchPageContent(url);
+      const content = await this.fetchPageContent();
       
       // 1. 긴급성 강조 표현 검사
       const urgencyIndicators = PHISHING_CRITERIA.contentAnalysis.urgencyIndicators;
@@ -245,27 +245,27 @@ export class PhishingDetector {
   /**
    * 기술적 분석 (구체적 기준)
    */
-  private async analyzeTechnical(url: string): Promise<{ score: number; reasons: string[] }> {
+  private async _analyzeTechnical(): Promise<{ score: number; reasons: string[] }> {
     let score = 0;
     const reasons: string[] = [];
     
     try {
       // 1. SSL 인증서 검사
-      const sslValid = await this.checkSSL(url);
+      const sslValid = await this.checkSSL();
       if (!sslValid) {
         score += PHISHING_CRITERIA.technicalAnalysis.sslCertificate.penalty;
         reasons.push('유효하지 않은 SSL 인증서 사용');
       }
       
       // 2. 리다이렉트 체인 검사
-      const redirectCount = await this.checkRedirects(url);
+      const redirectCount = await this.checkRedirects();
       if (redirectCount >= PHISHING_CRITERIA.technicalAnalysis.redirectChains.count) {
         score += PHISHING_CRITERIA.technicalAnalysis.redirectChains.penalty;
         reasons.push(`${redirectCount}회의 리다이렉트로 의심스러움`);
       }
       
       // 3. 의심스러운 스크립트 검사
-      const content = await this.fetchPageContent(url);
+      const content = await this.fetchPageContent();
       const suspiciousScripts = PHISHING_CRITERIA.technicalAnalysis.suspiciousScripts;
       const foundScripts = suspiciousScripts.patterns.filter(pattern => 
         content.includes(pattern)
@@ -357,7 +357,7 @@ export class PhishingDetector {
   /**
    * 도메인 연령 조회 (시뮬레이션)
    */
-  private async getDomainAge(domain: string): Promise<number> {
+  private async getDomainAge(): Promise<number> {
     // 실제 구현에서는 WHOIS API를 사용해야 함
     // 여기서는 시뮬레이션으로 랜덤 연령 반환
     return Math.floor(Math.random() * 365) + 1;
@@ -366,7 +366,7 @@ export class PhishingDetector {
   /**
    * 페이지 콘텐츠 가져오기 (시뮬레이션)
    */
-  private async fetchPageContent(url: string): Promise<string> {
+  private async fetchPageContent(): Promise<string> {
     // 실제 구현에서는 웹 스크래핑이 필요하지만,
     // 여기서는 시뮬레이션으로 샘플 콘텐츠 반환
     return `
@@ -381,7 +381,7 @@ export class PhishingDetector {
   /**
    * SSL 인증서 검사 (시뮬레이션)
    */
-  private async checkSSL(url: string): Promise<boolean> {
+  private async checkSSL(): Promise<boolean> {
     // 실제 구현에서는 SSL 인증서 검증이 필요
     // 여기서는 시뮬레이션으로 랜덤 결과 반환
     return Math.random() > 0.3; // 70% 확률로 유효
@@ -390,7 +390,7 @@ export class PhishingDetector {
   /**
    * 리다이렉트 체인 검사 (시뮬레이션)
    */
-  private async checkRedirects(url: string): Promise<number> {
+  private async checkRedirects(): Promise<number> {
     // 실제 구현에서는 HTTP 리다이렉트를 추적해야 함
     // 여기서는 시뮬레이션으로 랜덤 결과 반환
     return Math.floor(Math.random() * 5);
@@ -399,7 +399,7 @@ export class PhishingDetector {
   /**
    * 권장사항 생성
    */
-  private generateRecommendations(riskLevel: string, reasons: string[]): string[] {
+  private _generateRecommendations(riskLevel: string): string[] {
     const recommendations: string[] = [];
     
     if (riskLevel === 'CRITICAL') {
@@ -421,49 +421,47 @@ export class PhishingDetector {
   }
 
   /**
-   * 메인 피싱 탐지 함수
+   * 메인 피싱 탐지 함수 (백엔드 API 호출)
    */
   async detectPhishing(url: string): Promise<PhishingResult> {
     try {
-      // 1. 도메인 분석
-      const domainAnalysis = await this.analyzeDomain(url);
-      
-      // 2. 콘텐츠 분석
-      const contentAnalysis = await this.analyzeContent(url);
-      
-      // 3. 기술적 분석
-      const technicalAnalysis = await this.analyzeTechnical(url);
-      
-      // 4. 종합 점수 계산 (가중치 적용)
-      const weights = { domainAnalysis: 0.4, contentAnalysis: 0.4, technicalAnalysis: 0.2 };
-      const phishingScore = Math.round(
-        domainAnalysis.score * weights.domainAnalysis +
-        contentAnalysis.score * weights.contentAnalysis +
-        technicalAnalysis.score * weights.technicalAnalysis
-      );
-      
-      // 5. 위험도 레벨 결정
-      const riskLevel = this.getRiskLevel(phishingScore);
-      
-      // 6. 모든 이유 합치기
-      const allReasons = [
-        ...domainAnalysis.reasons,
-        ...contentAnalysis.reasons,
-        ...technicalAnalysis.reasons
-      ];
-      
-      // 7. 권장사항 생성
-      const recommendations = this.generateRecommendations(riskLevel, allReasons);
+      // 백엔드 API 호출
+      const API_BASE_URL = typeof window !== 'undefined' 
+        ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001/api'
+            : `http://${window.location.hostname}:3001/api`)
+        : 'http://localhost:3001/api';
+
+      const response = await fetch(`${API_BASE_URL}/phishing/detect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`피싱 탐지 API 호출 실패: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || '피싱 탐지 실패');
+      }
+
+      // 백엔드 결과를 프론트엔드 형식으로 변환
+      const result = data.result;
       
       return {
-        phishingScore,
-        riskLevel,
-        reasons: allReasons,
-        recommendations,
+        phishingScore: 100 - result.phishingScore, // 백엔드는 낮을수록 위험, 프론트는 높을수록 위험
+        riskLevel: result.riskLevel,
+        reasons: result.reasons,
+        recommendations: result.recommendations,
         analysis: {
-          domainAnalysis: domainAnalysis.score,
-          contentAnalysis: contentAnalysis.score,
-          technicalAnalysis: technicalAnalysis.score
+          domainAnalysis: result.analysis.domainAnalysis.domainAge || 0,
+          contentAnalysis: result.analysis.contentAnalysis.contentLength || 0,
+          technicalAnalysis: result.analysis.technicalAnalysis.sslValid ? 100 : 0
         }
       };
       
@@ -484,9 +482,9 @@ export class PhishingDetector {
   }
 
   /**
-   * 위험도 레벨 결정
+   * 신뢰도 레벨 결정
    */
-  private getRiskLevel(phishingScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
+  private _getRiskLevel(phishingScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (phishingScore >= 90) return 'CRITICAL';
     if (phishingScore >= 70) return 'HIGH';
     if (phishingScore >= 50) return 'MEDIUM';

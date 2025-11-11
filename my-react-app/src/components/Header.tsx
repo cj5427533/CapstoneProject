@@ -30,10 +30,13 @@ export function Header() {
           <Link to="/community" className="nav-link">
             커뮤니티
           </Link>
-          <Link to="/dangerous" className="nav-link">
-            위험 쇼핑몰
+          <Link to="/reports" className="nav-link">
+            피해사례
           </Link>
-          <Link to="/top-rated" className="nav-link">
+          <Link to="/dangerous-shops" className="nav-link">
+            주의가 필요한 쇼핑몰
+          </Link>
+          <Link to="/recommended-shops" className="nav-link">
             추천 쇼핑몰
           </Link>
         </nav>
@@ -83,7 +86,7 @@ export function Header() {
             커뮤니티
           </Link>
           <Link to="/dangerous" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-            위험 쇼핑몰
+            주의가 필요한 쇼핑몰
           </Link>
           <Link to="/top-rated" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
             추천 쇼핑몰

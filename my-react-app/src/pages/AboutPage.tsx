@@ -12,11 +12,11 @@ export function AboutPage() {
         <div className="features">
           <div className="feature-card">
             <h3>신뢰성 검증</h3>
-            <p>다른 사용자들의 신고를 통해 쇼핑몰의 신뢰성을 확인하세요</p>
+            <p>다른 사용자들의 피해 사례 제보를 통해 쇼핑몰의 신뢰성을 확인하세요</p>
           </div>
           <div className="feature-card">
             <h3>실시간 정보</h3>
-            <p>최신 신고 정보를 실시간으로 확인할 수 있습니다</p>
+            <p>최신 피해 사례 제보 정보를 실시간으로 확인할 수 있습니다</p>
           </div>
           <div className="feature-card">
             <h3>커뮤니티</h3>
@@ -34,13 +34,13 @@ export function AboutPage() {
             </div>
             <div className="step">
               <div className="step-number">2</div>
-              <h3>신고 및 평점 확인</h3>
-              <p>다른 사용자들의 신고와 평점을 확인하세요</p>
+              <h3>피해 사례 제보 및 평점 확인</h3>
+              <p>다른 사용자들의 피해 사례 제보와 평점을 확인하세요</p>
             </div>
             <div className="step">
               <div className="step-number">3</div>
-              <h3>신고 작성</h3>
-              <p>피해사례가 있다면 신고를 작성해주세요</p>
+              <h3>피해 사례 제보 작성</h3>
+              <p>피해사례가 있다면 피해 사례 제보를 작성해주세요</p>
             </div>
           </div>
         </div>
