@@ -24,7 +24,7 @@ export function RecommendedShopsPage() {
   const fetchRecommendedShops = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/recommended-shops');
+      const response = await fetch('/api/recommended-shops');
       const data = await response.json();
       
       if (data.success) {
