@@ -1,32 +1,25 @@
-// 동적 API URL 설정 (윈도우 객체 이용)
+// 동적 API URL 설정
 let API_BASE_URL = '/api';
 
 // 브라우저 환경에서 동적으로 API URL 설정
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
-  const protocol = window.location.protocol; // http: 또는 https:
   
+  // 1. 로컬 환경
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     API_BASE_URL = 'http://localhost:3001/api';
-  } else if (hostname.includes('ygmk.app')) {
-    // 프로덕션 도메인: ygmk.app 또는 www.ygmk.app
-    // API는 api.ygmk.app 서브도메인 또는 동일 호스트 사용
-    if (hostname.startsWith('www.')) {
-      // www.ygmk.app인 경우 api 서브도메인 사용
-      API_BASE_URL = `${protocol}//api.ygmk.app/api`;
-    } else {
-      // ygmk.app인 경우 api 서브도메인 사용
-      API_BASE_URL = `${protocol}//api.ygmk.app/api`;
-    }
-  } else {
-    // 다른 프로덕션 환경: 동일 호스트 사용 (포트 3001)
-    // 또는 환경 변수로 지정된 API URL 사용
+  } 
+  else if (hostname.includes('ygmk.app')) {
+    API_BASE_URL = '/api'; 
+  } 
+  
+  // 3. 기타 프로덕션 환경
+  else {
     const envApiUrl = import.meta.env.VITE_API_URL;
     if (envApiUrl) {
       API_BASE_URL = envApiUrl;
     } else {
-      // 기본값: 동일 호스트의 API 서브도메인 또는 포트 사용
-      API_BASE_URL = `${protocol}//${hostname}:3001/api`;
+      API_BASE_URL = '/api';
     }
   }
 }
