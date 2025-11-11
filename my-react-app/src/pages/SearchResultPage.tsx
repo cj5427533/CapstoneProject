@@ -40,27 +40,48 @@ export function SearchResultPage() {
     }
   }, [searchParams]);
 
+  // 타임아웃 래퍼 함수
+  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error('요청 시간 초과')), timeoutMs)
+      )
+    ]);
+  };
+
   const loadShopData = async (shopUrl: string, isMock: boolean = false) => {
     try {
       setLoading(true);
 
       if (isMock) {
         // 목업 쇼핑몰인 경우 목업 데이터 사용
-        await loadMockShopData(shopUrl);
+        await withTimeout(loadMockShopData(shopUrl), 15000);
       } else {
         // 실제 쇼핑몰인 경우 API 호출
-        const { shop: shopData } = await searchOrCreateShop(shopUrl);
+        const { shop: shopData } = await withTimeout(searchOrCreateShop(shopUrl), 10000);
         setShop(shopData);
 
         // 유효한 쇼핑몰 ID가 있을 때만 신고 목록과 평점 데이터를 로드
         if (shopData.id > 0) {
-          const [reportsData, ratingsData] = await Promise.all([
-            getShopReports(shopData.id),
-            getShopRatings(shopData.id)
-          ]);
+          try {
+            const [reportsData, ratingsData] = await Promise.all([
+              withTimeout(getShopReports(shopData.id), 10000),
+              withTimeout(getShopRatings(shopData.id), 10000)
+            ]);
 
-          setReports(reportsData);
-          setShopRating(ratingsData);
+            setReports(reportsData);
+            setShopRating(ratingsData);
+          } catch (dataErr) {
+            console.error('신고/평점 데이터 로드 에러:', dataErr);
+            // 부분 실패 시에도 기본값 설정
+            setReports([]);
+            setShopRating({
+              averageRating: 0,
+              totalRatings: 0,
+              ratingDistribution: {}
+            });
+          }
         } else {
           // 임시 쇼핑몰인 경우 빈 데이터로 설정
           setReports([]);
@@ -96,51 +117,104 @@ export function SearchResultPage() {
   const loadMockShopData = async (shopUrl: string) => {
     // 목업 데이터에서 해당 URL의 쇼핑몰 찾기
     const mockShops = [
-      { id: 1001, url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', riskLevel: 'HIGH' as const, riskScore: 85 },
-      { id: 1002, url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', riskLevel: 'HIGH' as const, riskScore: 90 },
-      { id: 1003, url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', riskLevel: 'HIGH' as const, riskScore: 95 },
-      { id: 2001, url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', riskLevel: 'LOW' as const, riskScore: 15 },
-      { id: 2002, url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', riskLevel: 'LOW' as const, riskScore: 20 },
-      { id: 2003, url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 55 },
-      { id: 2004, url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 60 }
+      { url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', riskLevel: 'HIGH' as const, riskScore: 85 },
+      { url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', riskLevel: 'HIGH' as const, riskScore: 90 },
+      { url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', riskLevel: 'HIGH' as const, riskScore: 95 },
+      { url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', riskLevel: 'LOW' as const, riskScore: 15 },
+      { url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', riskLevel: 'LOW' as const, riskScore: 20 },
+      { url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 55 },
+      { url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 60 }
     ];
 
     const mockShop = mockShops.find(s => s.url === shopUrl);
     
     if (mockShop) {
-      setShop({
-        id: mockShop.id,
-        url: mockShop.url,
-        name: mockShop.name,
-        created_at: new Date().toISOString()
-      });
+      // 실제 데이터베이스에서 shop을 찾거나 생성
+      try {
+        const { shop: actualShop } = await withTimeout(searchOrCreateShop(shopUrl), 10000);
+        
+        setShop({
+          id: actualShop.id,
+          url: mockShop.url,
+          name: mockShop.name || actualShop.name,
+          created_at: actualShop.created_at
+        });
 
-      // 목업 신고 데이터 설정
-      const mockReports: Report[] = [
-        {
-          id: 1,
-          shop_id: mockShop.id,
-          categories: JSON.stringify(['사기/피싱', '배송 문제']),
-          description: '🎓 교육용 목업 신고입니다. 실제 피해 사례가 아닙니다.',
-          reporter_name: '교육용 사용자',
+        // 실제 데이터베이스에서 신고와 평점 데이터 가져오기
+        if (actualShop.id > 0) {
+          try {
+            // 실제 신고 데이터 가져오기 (타임아웃 적용)
+            const reportsData = await withTimeout(getShopReports(actualShop.id), 10000);
+            setReports(reportsData);
+            
+            // 실제 평점 데이터 가져오기 (타임아웃 적용)
+            const ratingData = await withTimeout(getShopRatings(actualShop.id), 10000);
+            setShopRating(ratingData);
+          } catch (error) {
+            console.error('데이터 로드 오류:', error);
+            // 에러 시에도 목업 데이터 설정
+            const mockReports: Report[] = [
+              {
+                id: 1,
+                shop_id: actualShop.id,
+                categories: JSON.stringify(['사기/피싱', '배송 문제']),
+                description: '🎓 교육용 목업 신고입니다. 실제 피해 사례가 아닙니다.',
+                reporter_name: '교육용 사용자',
+                created_at: new Date().toISOString()
+              }
+            ];
+            setReports(mockReports);
+
+            const mockRating: RatingData = {
+              averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
+              totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
+              ratingDistribution: {
+                5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
+                4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
+                3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
+                2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
+                1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
+              }
+            };
+            setShopRating(mockRating);
+          }
+        } else {
+          // ID가 0인 경우에도 목업 데이터 설정
+          setReports([]);
+          setShopRating({
+            averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
+            totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
+            ratingDistribution: {
+              5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
+              4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
+              3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
+              2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
+              1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
+            }
+          });
+        }
+      } catch (error) {
+        console.error('목업 쇼핑몰 데이터 로드 오류:', error);
+        // 에러 시 기본 shop만 설정
+        setShop({
+          id: 0,
+          url: mockShop.url,
+          name: mockShop.name,
           created_at: new Date().toISOString()
-        }
-      ];
-      setReports(mockReports);
-
-      // 목업 평점 데이터 설정
-      const mockRating: RatingData = {
-        averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
-        totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
-        ratingDistribution: {
-          5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
-          4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
-          3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
-          2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
-          1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
-        }
-      };
-      setShopRating(mockRating);
+        });
+        setReports([]);
+        setShopRating({
+          averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
+          totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
+          ratingDistribution: {
+            5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
+            4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
+            3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
+            2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
+            1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
+          }
+        });
+      }
     } else {
       // 목업 쇼핑몰을 찾을 수 없는 경우 기본 데이터 설정
       setShop({

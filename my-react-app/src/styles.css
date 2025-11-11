@@ -2733,7 +2733,7 @@ a:hover {
 
 .analyze-btn {
   padding: 0.75rem 1.5rem;
-  border: 2px solid #d1d5db;
+  border: 3px solid #000;
   border-radius: 8px;
   background: white;
   color: #374151;
@@ -2742,26 +2742,172 @@ a:hover {
   transition: all 0.3s ease;
   min-width: 150px;
   text-align: center;
+  position: relative;
+  overflow: visible;
+}
+
+.analyze-btn::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 10px;
+  background: conic-gradient(
+    from 0deg,
+    #3b82f6,
+    #8b5cf6,
+    #ec4899,
+    #f59e0b,
+    #eab308,
+    #10b981,
+    #06b6d4,
+    #3b82f6
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: rainbow-border-flow 0.8s linear infinite;
+  z-index: -1;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  padding: 3px;
+}
+
+.analyze-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 8px;
+  background: white;
+  z-index: -1;
+}
+
+.analyze-btn:hover::before,
+.analyze-btn:active::before {
+  opacity: 1;
+}
+
+/* 분석 중 상태: 배경을 무지개 그라데이션으로 변경 */
+.analyze-btn:disabled {
+  border: 3px solid transparent;
+  background: linear-gradient(
+    90deg,
+    #3b82f6,
+    #8b5cf6,
+    #ec4899,
+    #f59e0b,
+    #eab308,
+    #10b981,
+    #06b6d4,
+    #3b82f6
+  );
+  background-size: 300% 100%;
+  animation: rainbow-background-flow 2s linear infinite;
+  color: white;
+  cursor: not-allowed;
+}
+
+.analyze-btn:disabled::after {
+  background: transparent;
+}
+
+.analyze-btn:disabled::before {
+  opacity: 0;
+}
+
+@keyframes rainbow-background-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes rainbow-border-flow {
+  0% {
+    background: conic-gradient(
+      from 0deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899,
+      #f59e0b,
+      #eab308,
+      #10b981,
+      #06b6d4,
+      #3b82f6
+    );
+  }
+  25% {
+    background: conic-gradient(
+      from 90deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899,
+      #f59e0b,
+      #eab308,
+      #10b981,
+      #06b6d4,
+      #3b82f6
+    );
+  }
+  50% {
+    background: conic-gradient(
+      from 180deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899,
+      #f59e0b,
+      #eab308,
+      #10b981,
+      #06b6d4,
+      #3b82f6
+    );
+  }
+  75% {
+    background: conic-gradient(
+      from 270deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899,
+      #f59e0b,
+      #eab308,
+      #10b981,
+      #06b6d4,
+      #3b82f6
+    );
+  }
+  100% {
+    background: conic-gradient(
+      from 360deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899,
+      #f59e0b,
+      #eab308,
+      #10b981,
+      #06b6d4,
+      #3b82f6
+    );
+  }
 }
 
 .analyze-btn:hover {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #2563eb;
+  background: white;
+  color: #374151;
+  border-color: transparent;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.analyze-btn {
-  background: #2563eb;
-  color: white;
-  border-color: #2563eb;
-}
-
-.analyze-btn:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: white;
+.analyze-btn:active {
+  transform: translateY(0);
 }
 
 .analyze-btn:disabled {
@@ -2782,7 +2928,7 @@ a:hover {
 }
 
 .review-analyze-btn {
-  background: #8b5cf6;
+  background: #2563eb;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -2790,15 +2936,15 @@ a:hover {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   font-size: 0.9rem;
   min-width: 120px;
 }
 
 .review-analyze-btn:hover {
-  background: #7c3aed;
+  background: #1d4ed8;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
 }
 
 .review-analyze-btn:disabled {
@@ -3517,7 +3663,7 @@ a:hover {
 
 /* 추가 페이지 스타일링 */
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   color: white;
   padding: 3rem 0;
   margin-bottom: 2rem;
@@ -3540,6 +3686,15 @@ a:hover {
   position: relative;
   z-index: 1;
   text-align: center;
+}
+
+.page-header-content h1 {
+  color: white;
+  font-weight: bold;
+}
+
+.page-header-content p {
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .shop-grid {
@@ -4016,16 +4171,22 @@ a:hover {
 .page-header {
   text-align: center;
   margin-bottom: 2rem;
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  color: white;
+  padding: 3rem 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .page-header h1 {
   font-size: 2.5rem;
-  color: #1f2937;
+  color: white;
   margin-bottom: 0.5rem;
+  font-weight: bold;
 }
 
 .page-header p {
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.95);
   font-size: 1.1rem;
 }
 

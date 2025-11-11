@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../utils/api';
 
 interface Shop {
   id: number;
@@ -24,7 +25,7 @@ export function RecommendedShopsPage() {
   const fetchRecommendedShops = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/recommended-shops');
+      const response = await fetch(`${API_BASE_URL}/recommended-shops`);
       const data = await response.json();
       
       if (data.success) {
@@ -89,7 +90,7 @@ export function RecommendedShopsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 page-header-content">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">추천 쇼핑몰 목록</h1>
-            <p className="text-xl opacity-90 max-w-3xl mx-auto">
+            <p className="text-xl max-w-3xl mx-auto" style={{ color: 'rgba(255, 255, 255, 0.95)' }}>
               검색된 쇼핑몰 중 고객들의 높은 평가를 받은 신뢰할 수 있는 쇼핑몰들을 평점 순서대로 확인하세요. 
               안전하고 만족스러운 온라인 쇼핑 경험을 제공합니다.
             </p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../utils/api';
 
 interface Shop {
   id: number;
@@ -24,7 +25,7 @@ export function DangerousShopsPage() {
   const fetchDangerousShops = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/dangerous-shops');
+      const response = await fetch(`${API_BASE_URL}/dangerous-shops`);
       const data = await response.json();
       
       if (data.success) {
@@ -68,7 +69,7 @@ export function DangerousShopsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 page-header-content">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">🚨 주의가 필요한 쇼핑몰 목록</h1>
-            <p className="text-xl opacity-90 max-w-3xl mx-auto">
+            <p className="text-xl max-w-3xl mx-auto" style={{ color: 'rgba(255, 255, 255, 0.95)' }}>
               검색된 쇼핑몰 중 피해 사례 제보가 많이 접수된 쇼핑몰들을 피해 사례 제보 수 순서대로 확인하세요. 
               안전한 온라인 쇼핑을 위해 주의하시기 바랍니다.
             </p>

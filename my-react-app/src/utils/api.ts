@@ -1,5 +1,5 @@
 // 동적 API URL 설정 (윈도우 객체 이용)
-let API_BASE_URL = 'http://localhost:3001/api';
+let API_BASE_URL = '/api';
 
 // 브라우저 환경에서 동적으로 API URL 설정
 if (typeof window !== 'undefined') {
@@ -32,6 +32,9 @@ if (typeof window !== 'undefined') {
 }
 
 console.log('API Base URL:', API_BASE_URL);
+
+// API_BASE_URL export (다른 컴포넌트에서 사용 가능)
+export { API_BASE_URL };
 
 // JWT 토큰 관리 함수들
 export const getAuthToken = (): string | null => {

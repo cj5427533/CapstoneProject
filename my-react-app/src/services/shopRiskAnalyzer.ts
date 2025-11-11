@@ -223,6 +223,65 @@ export class ShopRiskAnalyzer {
   }
 
   /**
+   * 목업 쇼핑몰인지 확인
+   */
+  private isMockShop(url: string): boolean {
+    const mockDomains = [
+      'trusted-mall.co.kr',
+      'reliable-store.com',
+      'caution-mall.com',
+      'mixed-reviews.co.kr',
+      'fake-shop-example.com',
+      'suspicious-store.com',
+      'scam-mall.net'
+    ];
+    const domain = this.extractDomain(url);
+    return mockDomains.some(mockDomain => domain.includes(mockDomain));
+  }
+
+  /**
+   * 목업 쇼핑몰의 시뮬레이션된 특성 생성
+   */
+  private getMockShopCharacteristics(url: string): {
+    domainAge: number;
+    hasSuspiciousPattern: boolean;
+    businessInfoMissing: number;
+  } {
+    // URL 해시를 기반으로 일관된 특성 생성
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+      hash = ((hash << 5) - hash) + url.charCodeAt(i);
+      hash = hash & hash; // 32bit 정수로 변환
+    }
+    
+    const domain = this.extractDomain(url);
+    
+    // 각 목업 쇼핑몰별로 다양한 특성 부여
+    if (domain.includes('trusted-mall') || domain.includes('reliable-store')) {
+      // 안전한 쇼핑몰: 오래된 도메인, 정상 패턴, 사업자 정보 완비
+      return {
+        domainAge: 365 + Math.abs(hash % 730), // 1-3년
+        hasSuspiciousPattern: false,
+        businessInfoMissing: 0
+      };
+    } else if (domain.includes('caution-mall') || domain.includes('mixed-reviews')) {
+      // 주의 쇼핑몰: 중간 연령, 일부 패턴, 사업자 정보 일부 부족
+      return {
+        domainAge: 60 + Math.abs(hash % 120), // 2-6개월
+        hasSuspiciousPattern: Math.abs(hash % 2) === 0,
+        businessInfoMissing: 1
+      };
+    } else {
+      // 위험한 쇼핑몰: 신규 도메인, 의심 패턴, 사업자 정보 대부분 부족
+      return {
+        domainAge: 5 + Math.abs(hash % 25), // 5-30일
+        hasSuspiciousPattern: true,
+        businessInfoMissing: 2 + Math.abs(hash % 2) // 2-3개 부족
+      };
+    }
+  }
+
+  /**
    * 도메인 분석 (구체적 기준)
    */
   private analyzeDomain(shop: Shop): { score: number; reasons: string[] } {
@@ -232,21 +291,34 @@ export class ShopRiskAnalyzer {
     try {
       const domain = this.extractDomain(shop.url);
       
+      // 목업 쇼핑몰인 경우 시뮬레이션된 특성 사용
+      let domainAge: number;
+      let hasSuspiciousPattern: boolean;
+      
+      if (this.isMockShop(shop.url)) {
+        const mockChars = this.getMockShopCharacteristics(shop.url);
+        domainAge = mockChars.domainAge;
+        hasSuspiciousPattern = mockChars.hasSuspiciousPattern;
+      } else {
+        // 실제 쇼핑몰인 경우 실제 데이터 사용
+        domainAge = this.calculateDomainAge(shop.created_at);
+        const suspiciousPattern = SHOP_RISK_CRITERIA.domainAnalysis.suspiciousPattern;
+        hasSuspiciousPattern = suspiciousPattern.patterns.some(pattern => 
+          domain.includes(pattern)
+        );
+      }
+      
       // 1. 신규 도메인 검사
-      const domainAge = this.calculateDomainAge(shop.created_at);
       if (domainAge <= SHOP_RISK_CRITERIA.domainAnalysis.newDomain.age) {
         score += SHOP_RISK_CRITERIA.domainAnalysis.newDomain.penalty;
         reasons.push(`도메인 연령이 ${domainAge}일로 신규`);
       }
       
       // 2. 의심스러운 도메인 패턴 검사
-      const suspiciousPattern = SHOP_RISK_CRITERIA.domainAnalysis.suspiciousPattern;
-      const foundPattern = suspiciousPattern.patterns.filter(pattern => 
-        domain.includes(pattern)
-      );
-      if (foundPattern.length > 0) {
+      if (hasSuspiciousPattern) {
+        const suspiciousPattern = SHOP_RISK_CRITERIA.domainAnalysis.suspiciousPattern;
         score += suspiciousPattern.penalty;
-        reasons.push(`의심스러운 도메인 패턴 "${foundPattern.join(', ')}" 사용`);
+        reasons.push(`의심스러운 도메인 패턴 발견`);
       }
       
     } catch (error) {
@@ -262,32 +334,50 @@ export class ShopRiskAnalyzer {
   /**
    * 사업자 정보 분석 (구체적 기준)
    */
-  private analyzeBusinessInfo(): { score: number; reasons: string[] } {
+  private analyzeBusinessInfo(shop?: Shop): { score: number; reasons: string[] } {
     let score = 0;
     const reasons: string[] = [];
     
-    // 실제 구현에서는 사업자 정보를 별도로 저장해야 하지만,
-    // 여기서는 시뮬레이션으로 구현
-    const businessInfo = this.getBusinessInfo();
+    // 목업 쇼핑몰인 경우 시뮬레이션된 특성 사용
+    let missingBusinessInfoCount = 0;
+    let missingContactInfoCount = 0;
+    
+    if (shop && this.isMockShop(shop.url)) {
+      const mockChars = this.getMockShopCharacteristics(shop.url);
+      missingBusinessInfoCount = mockChars.businessInfoMissing;
+      missingContactInfoCount = Math.max(0, mockChars.businessInfoMissing - 1);
+    } else {
+      // 실제 구현에서는 사업자 정보를 별도로 저장해야 하지만,
+      // 여기서는 시뮬레이션으로 구현
+      const businessInfo = this.getBusinessInfo();
+      
+      // 1. 사업자 정보 부족 검사
+      const missingInfo = SHOP_RISK_CRITERIA.businessAnalysis.missingInfo;
+      const missingBusinessInfo = missingInfo.required.filter(info => 
+        !businessInfo.includes(info)
+      );
+      missingBusinessInfoCount = missingBusinessInfo.length;
+      
+      // 2. 연락처 정보 부족 검사
+      const contactInfo = SHOP_RISK_CRITERIA.businessAnalysis.contactInfo;
+      const missingContactInfo = contactInfo.required.filter(info => 
+        !businessInfo.includes(info)
+      );
+      missingContactInfoCount = missingContactInfo.length;
+    }
     
     // 1. 사업자 정보 부족 검사
     const missingInfo = SHOP_RISK_CRITERIA.businessAnalysis.missingInfo;
-    const missingBusinessInfo = missingInfo.required.filter(info => 
-      !businessInfo.includes(info)
-    );
-    if (missingBusinessInfo.length >= missingInfo.missing) {
+    if (missingBusinessInfoCount >= missingInfo.missing) {
       score += missingInfo.penalty;
-      reasons.push(`사업자 정보 부족: ${missingBusinessInfo.join(', ')}`);
+      reasons.push(`사업자 정보 부족: ${missingBusinessInfoCount}개 항목`);
     }
     
     // 2. 연락처 정보 부족 검사
     const contactInfo = SHOP_RISK_CRITERIA.businessAnalysis.contactInfo;
-    const missingContactInfo = contactInfo.required.filter(info => 
-      !businessInfo.includes(info)
-    );
-    if (missingContactInfo.length >= contactInfo.missing) {
+    if (missingContactInfoCount >= contactInfo.missing) {
       score += contactInfo.penalty;
-      reasons.push(`연락처 정보 부족: ${missingContactInfo.join(', ')}`);
+      reasons.push(`연락처 정보 부족: ${missingContactInfoCount}개 항목`);
     }
     
     return { 
@@ -459,21 +549,37 @@ export class ShopRiskAnalyzer {
       const domainAnalysis = this.analyzeDomain(shop);
       
       // 4. 사업자 정보 분석
-      const businessAnalysis = this.analyzeBusinessInfo();
+      const businessAnalysis = this.analyzeBusinessInfo(shop);
       
-      // 5. 종합 점수 계산 (가중치 적용)
+      // 5. 종합 점수 계산 (이미지 기준 가중치 적용)
+      // 이미지 기준: 객관적 데이터 분석(60%), 증빙 기반 분석(30%), 리뷰 분석(10%)
+      // - 객관적 데이터 분석(60%) = 도메인 분석(40%) + 사업자 정보 분석(20%)
+      // - 증빙 기반 분석(30%) = 피해사례 제보 분석(30%)
+      // - 리뷰 분석(10%) = 평점/리뷰 분석(10%)
       const weights = { 
-        reportAnalysis: 0.4, 
-        ratingAnalysis: 0.3, 
-        domainAnalysis: 0.2, 
-        businessAnalysis: 0.1 
+        reportAnalysis: 0.3,      // 증빙 기반 분석: 30%
+        ratingAnalysis: 0.1,      // 리뷰 분석: 10%
+        domainAnalysis: 0.4,      // 객관적 데이터 분석(도메인): 40%
+        businessAnalysis: 0.2     // 객관적 데이터 분석(사업자): 20%
       };
-      const riskScore = Math.round(
-        reportAnalysis.score * weights.reportAnalysis +
-        ratingAnalysis.score * weights.ratingAnalysis +
-        domainAnalysis.score * weights.domainAnalysis +
-        businessAnalysis.score * weights.businessAnalysis
+      
+      // 각 분석의 리스크 점수를 신뢰도 점수로 변환 (100 - riskScore)
+      // 리스크 점수가 높을수록 신뢰도 점수는 낮아짐
+      const reportTrustScore = Math.max(0, 100 - reportAnalysis.score);
+      const ratingTrustScore = Math.max(0, 100 - ratingAnalysis.score);
+      const domainTrustScore = Math.max(0, 100 - domainAnalysis.score);
+      const businessTrustScore = Math.max(0, 100 - businessAnalysis.score);
+      
+      // 가중 평균으로 최종 신뢰도 점수 계산
+      const trustScore = Math.round(
+        reportTrustScore * weights.reportAnalysis +
+        ratingTrustScore * weights.ratingAnalysis +
+        domainTrustScore * weights.domainAnalysis +
+        businessTrustScore * weights.businessAnalysis
       );
+      
+      // 리스크 점수는 신뢰도 점수의 역수 (100 - trustScore)
+      const riskScore = 100 - trustScore;
       
       // 6. 신뢰도 레벨 결정
       const riskLevel = this.getRiskLevel(riskScore);
