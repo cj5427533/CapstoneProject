@@ -4346,6 +4346,11 @@ a:hover {
   gap: 1.5rem;
 }
 
+.reports-list.reports-grid {
+  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
 .report-card {
   background: white;
   border: 1px solid #e5e7eb;
@@ -4355,8 +4360,21 @@ a:hover {
   transition: box-shadow 0.3s ease;
 }
 
-.report-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.report-card.modern {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 28px 60px -45px rgba(15, 23, 42, 0.55);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.report-card.modern:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 34px 70px -45px rgba(30, 58, 138, 0.45);
 }
 
 .report-header {
@@ -4364,6 +4382,93 @@ a:hover {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1rem;
+}
+
+.report-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.report-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.report-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.report-card-title .shop-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.report-card-title .shop-name a,
+.report-card-title .shop-name span {
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.report-card-title .shop-name a:hover {
+  color: #1d4ed8;
+}
+
+.report-card-meta {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.report-card-meta span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.report-card-meta span + span::before {
+  content: '•';
+  margin-right: 0.45rem;
+  color: rgba(100, 116, 139, 0.55);
+}
+
+.report-card-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.report-category-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.18);
+  color: #1f2937;
+}
+
+.report-card-description {
+  margin: 0;
+  color: #334155;
+  line-height: 1.65;
+  font-size: 0.98rem;
+  white-space: pre-wrap;
+}
+
+.report-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
 }
 
 .shop-name a {
@@ -4383,20 +4488,6 @@ a:hover {
   margin-top: 0.5rem;
   color: #6b7280;
   font-size: 0.875rem;
-}
-
-.report-categories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.category-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 16px;
-  color: white;
-  font-size: 0.875rem;
-  font-weight: 500;
 }
 
 .report-content {
@@ -4447,8 +4538,115 @@ a:hover {
   transition: background 0.3s ease;
 }
 
+.view-shop-button.modern {
+  background: linear-gradient(135deg, #2563eb, #4338ca);
+  border-radius: 999px;
+  padding: 0.6rem 1.35rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  box-shadow: 0 14px 30px -18px rgba(37, 99, 235, 0.8);
+}
+
+.view-shop-button.modern:hover {
+  background: linear-gradient(135deg, #1d4ed8, #3730a3);
+}
+
+.view-shop-button.modern.disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: default;
+}
+
 .view-shop-button:hover {
   background: #2563eb;
+}
+
+/* Reports list modern layout */
+.shop-grid.reports-grid {
+  margin-top: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.report-item {
+  cursor: default;
+}
+
+.report-item .shop-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.shop-rank.report {
+  background: linear-gradient(135deg, #6366f1, #4338ca);
+}
+
+.shop-rank.report.report-critical {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.shop-rank.report.report-high {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.shop-rank.report.report-medium {
+  background: linear-gradient(135deg, #facc15, #eab308);
+}
+
+.shop-rank.report.report-low {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.report-details-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.report-details-meta span + span::before {
+  content: '•';
+  margin-right: 0.45rem;
+  color: rgba(100, 116, 139, 0.5);
+}
+
+.report-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.report-tag {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.report-description {
+  color: #334155;
+  line-height: 1.7;
+  font-size: 0.98rem;
+  white-space: pre-wrap;
+}
+
+.report-item .shop-stats {
+  margin-top: 0.5rem;
+}
+
+.btn-primary.disabled-link {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: default;
+}
+
+.btn-primary.disabled-link:hover {
+  background: #e2e8f0;
+  transform: none;
 }
 
 .empty-state {

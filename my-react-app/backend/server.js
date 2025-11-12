@@ -81,7 +81,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: true, // 모든 오리진 허용
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
@@ -3372,4 +3372,19 @@ app.listen(PORT, '0.0.0.0', async () => {
   // 서버 시작 시 목업 리뷰 자동 생성
   await initializeMockRatings();
 });
-/** */
+app.get('/api/reports', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('reports')
+      .select(`*, shops (id, url, name)`)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ reports: data ?? [] });
+  } catch (error) {
+    console.error('피해사례 목록 조회 오류:', error);
+    res.status(500).json({ message: '피해사례 목록 조회에 실패했습니다.' });
+  }
+});
