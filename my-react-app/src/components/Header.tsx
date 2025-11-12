@@ -18,7 +18,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 border-b">
+    <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b bg-white/90 backdrop-blur">
       <div className="container-custom flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link
