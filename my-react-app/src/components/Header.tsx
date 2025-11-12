@@ -34,7 +34,7 @@ export function Header() {
             <NavLinkItem to="/reports" label="피해사례" />
             <NavLinkItem to="/dangerous-shops" label="주의가 필요한 쇼핑몰" />
             <NavLinkItem to="/recommended-shops" label="추천 쇼핑몰" />
-            <NavLinkItem to="/report/new" label="피해사례 제보" />
+            <NavLinkItem to="/community" label="커뮤니티" />
           </nav>
         </div>
 
