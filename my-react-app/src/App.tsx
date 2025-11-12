@@ -28,7 +28,7 @@ export function App() {
     <AuthProvider>
       <div className="app">
         <Header />
-        <main className="main-content">
+        <main className="main-content pt-16">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/about" element={<AboutPage />} />

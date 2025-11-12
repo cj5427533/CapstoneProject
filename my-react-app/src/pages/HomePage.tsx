@@ -220,7 +220,7 @@ export function HomePage() {
 
   return (
     <div className="home-page">
-      <div className="w-full border-t border-border bg-gradient-to-b from-blue-100 via-blue-100 to-blue-50">
+      <div className="w-full bg-gradient-to-b from-blue-100 via-blue-100 to-blue-50">
         <section className="container-custom py-16">
           <div className="mx-auto max-w-[960px] lg:max-w-[1120px] text-center">
             <h1 className="flex items-center justify-center gap-4 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
