@@ -119,9 +119,6 @@ const upload = multer({
 // 정적 파일 서빙 - 업로드된 증빙 자료 이미지 제공
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// 정적 파일 서빙 설정 추가 (업로드된 증빙 자료)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 // Supabase 클라이언트 초기화
 const supabaseUrl = process.env.SUPABASE_URL || 'https://tqdvolgachfszomwhlfe.supabase.co';
 const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1109,7 +1106,6 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
     }
 
     // 재설정 토큰 생성 (UUID 또는 랜덤 문자열)
-    const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 3600000); // 1시간 후 만료
 
