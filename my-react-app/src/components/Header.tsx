@@ -18,7 +18,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 border-b">
+    <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white/90 backdrop-blur shadow-sm">
       <div className="container-custom flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link
@@ -34,7 +34,7 @@ export function Header() {
             <NavLinkItem to="/reports" label="피해사례" />
             <NavLinkItem to="/dangerous-shops" label="주의가 필요한 쇼핑몰" />
             <NavLinkItem to="/recommended-shops" label="추천 쇼핑몰" />
-            <NavLinkItem to="/report/new" label="피해사례 제보" />
+            <NavLinkItem to="/community" label="커뮤니티" />
           </nav>
         </div>
 

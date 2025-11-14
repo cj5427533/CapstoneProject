@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { getReports } from '../utils/api';
 import { Report } from '../utils/api';
@@ -13,6 +13,29 @@ const categories = [
   '품질 문제',
   '기타'
 ];
+
+const parseCategories = (rawCategories: string): string[] => {
+  try {
+    const parsed = JSON.parse(rawCategories);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const getReportSeverity = (reportCategories: string[]) => {
+  if (reportCategories.includes('사기/피싱')) {
+    return { label: '긴급 주의', indicatorClass: 'risk-critical', rankClass: 'report-critical', icon: '🚨' };
+  }
+  if (reportCategories.includes('환불 문제') || reportCategories.includes('고객 서비스')) {
+    return { label: '주의 필요', indicatorClass: 'risk-high', rankClass: 'report-high', icon: '⚠️' };
+  }
+  if (reportCategories.includes('배송 문제') || reportCategories.includes('품질 문제')) {
+    return { label: '관심 필요', indicatorClass: 'risk-medium', rankClass: 'report-medium', icon: '⚠️' };
+  }
+
+  return { label: '정보', indicatorClass: 'risk-low', rankClass: 'report-low', icon: 'ℹ️' };
+};
 
 export function ReportsListPage() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -45,31 +68,35 @@ export function ReportsListPage() {
       setFilteredReports(reports);
     } else {
       setFilteredReports(reports.filter(report => 
-        JSON.parse(report.categories).includes(selectedCategory)
+        parseCategories(report.categories).includes(selectedCategory)
       ));
     }
   };
 
-  const getCategoryBadge = (category: string) => {
-    const colors = {
-      '배송 문제': '#f59e0b',
-      '상품 불일치': '#ef4444',
-      '환불 문제': '#8b5cf6',
-      '고객 서비스': '#06b6d4',
-      '사기/피싱': '#dc2626',
-      '품질 문제': '#f97316',
-      '기타': '#6b7280'
-    };
-    
-    return (
-      <span 
-        className="category-badge"
-        style={{ backgroundColor: colors[category as keyof typeof colors] || '#6b7280' }}
-      >
-        {category}
-      </span>
+  const reportStats = useMemo(() => {
+    const total = reports.length;
+    const critical = reports.filter(report => {
+      const reportCategories = parseCategories(report.categories);
+      return getReportSeverity(reportCategories).indicatorClass === 'risk-critical';
+    }).length;
+
+    const recent = reports.filter(report => {
+      const created = new Date(report.created_at);
+      const diffDays = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays <= 30;
+    }).length;
+
+    const shopIds = new Set(
+      reports.map(report => report.shops?.id ?? report.shop_id ?? report.shop_url ?? `report-${report.id}`)
     );
-  };
+
+    return {
+      total,
+      critical,
+      recent,
+      uniqueShops: shopIds.size
+    };
+  }, [reports]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ko-KR', {
@@ -120,72 +147,126 @@ export function ReportsListPage() {
               {category}
               {category !== '전체' && (
                 <span className="count">
-                  {reports.filter(r => JSON.parse(r.categories).includes(category)).length}
+                  {reports.filter(r => parseCategories(r.categories).includes(category)).length}
                 </span>
               )}
             </button>
           ))}
         </div>
 
-        {/* 피해사례 목록 */}
-        <div className="reports-list">
-          {filteredReports.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">📝</div>
-              <h3>아직 제보된 피해사례가 없습니다</h3>
-              <p>첫 번째 피해사례를 제보해주세요!</p>
-              <Link to="/report" className="report-button">
-                피해사례 제보하기
-              </Link>
-            </div>
-          ) : (
-            filteredReports.map(report => (
-              <div key={report.id} className="report-card">
-                <div className="report-header">
-                  <div className="report-info">
-                    <h3 className="shop-name">
-                      <Link to={`/search?url=${encodeURIComponent(report.shop_url || '')}`}>
-                        {report.shops?.name || '알 수 없는 쇼핑몰'}
-                      </Link>
-                    </h3>
-                    <div className="report-meta">
-                      <span className="date">{formatDate(report.created_at)}</span>
-                      <span className="evidence-count">
-                        증빙자료 0개
-                      </span>
-                    </div>
-                  </div>
-                  <div className="report-categories">
-                    {JSON.parse(report.categories).map((category: string) => (
-                      <span key={category}>
-                        {getCategoryBadge(category)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="report-content">
-                  <p className="description">{report.description}</p>
-                </div>
+        {/* 통계 카드 */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-value text-indigo-600">{reportStats.total}</div>
+            <div className="stat-label">전체 피해사례</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value text-red-600">{reportStats.critical}</div>
+            <div className="stat-label">긴급 주의 사례</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value text-blue-600">{reportStats.uniqueShops}</div>
+            <div className="stat-label">제보된 쇼핑몰 수</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value text-emerald-600">{reportStats.recent}</div>
+            <div className="stat-label">최근 30일 내 제보</div>
+          </div>
+        </div>
 
-                <div className="report-footer">
-                  <div className="evidence-info">
-                    <div className="evidence-files">
-                      <span className="evidence-label">📎 첨부파일: 없음</span>
-                    </div>
-                  </div>
-                  <div className="report-actions">
-                    <Link 
-                      to={`/search?url=${encodeURIComponent(report.shop_url || '')}`}
-                      className="view-shop-button"
-                    >
-                      쇼핑몰 보기
-                    </Link>
-                  </div>
-                </div>
+        {/* 피해사례 목록 */}
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="px-6 py-4 bg-indigo-50 border-b border-indigo-200">
+            <h2 className="text-xl font-semibold text-indigo-800 flex items-center">
+              최신 피해사례 제보
+            </h2>
+          </div>
+
+          <div className="reports-list reports-grid shop-grid p-6">
+            {filteredReports.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📝</div>
+                <h3>아직 제보된 피해사례가 없습니다</h3>
+                <p>첫 번째 피해사례를 제보해주세요!</p>
+                <Link to="/report" className="report-button">
+                  피해사례 제보하기
+                </Link>
               </div>
-            ))
-          )}
+            ) : (
+              filteredReports.map((report, index) => {
+                const shopUrl = report.shop_url || report.shops?.url || '';
+                const parsedCategories = parseCategories(report.categories);
+                const shopName = report.shops?.name || '알 수 없는 쇼핑몰';
+                const hasShopLink = Boolean(shopUrl);
+                const severity = getReportSeverity(parsedCategories);
+
+                return (
+                  <article key={report.id} className="shop-item report-item">
+                    <div className={`shop-rank report ${severity.rankClass}`}>#{index + 1}</div>
+
+                    <div className="shop-info">
+                      <div className={`risk-indicator ${severity.indicatorClass}`}>
+                        {severity.icon} {severity.label}
+                      </div>
+
+                      <h3 className="shop-name">
+                        {hasShopLink ? (
+                          <Link to={`/search?url=${encodeURIComponent(shopUrl)}`}>
+                            {shopName}
+                          </Link>
+                        ) : (
+                          <span>{shopName}</span>
+                        )}
+                      </h3>
+
+                      <div className="report-details-meta">
+                        <span>{formatDate(report.created_at)}</span>
+                        <span>{report.reporter_name ? `제보자 ${report.reporter_name}` : '익명 제보'}</span>
+                      </div>
+
+                      <div className="report-tags">
+                        {parsedCategories.map((category: string) => (
+                          <span key={category} className="report-tag">
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+
+                      <p className="report-description">{report.description}</p>
+
+                      <div className="shop-stats">
+                        <div className="stat-item">
+                          <div className="stat-value text-rose-600">{parsedCategories.length}</div>
+                          <div className="stat-label">연관 카테고리</div>
+                        </div>
+                        <div className="stat-item">
+                          <div className="stat-value text-slate-600">
+                            {report.shops?.url ? '등록된 쇼핑몰' : '직접 입력'}
+                          </div>
+                          <div className="stat-label">쇼핑몰 정보</div>
+                        </div>
+                      </div>
+
+                      <div className="shop-actions">
+                        <Link 
+                          to={hasShopLink ? `/search?url=${encodeURIComponent(shopUrl)}` : '#'}
+                          className={`btn-primary ${hasShopLink ? '' : 'disabled-link'}`}
+                          onClick={(event) => {
+                            if (!hasShopLink) {
+                              event.preventDefault();
+                            }
+                          }}
+                          aria-disabled={!hasShopLink}
+                        >
+                          쇼핑몰 분석 보기
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </div>
