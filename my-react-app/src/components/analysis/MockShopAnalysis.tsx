@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { mockShops, mockReviews, mockReports, mockRiskAnalysis } from '../data/mockData';
+import { mockShops, mockReviews, mockReports, mockRiskAnalysis } from '../../data/mockData';
 
 interface MockShopAnalysisProps {
   shopUrl: string;
@@ -63,7 +63,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
     <div className="mock-shop-analysis bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold text-blue-800 flex items-center">
-          🎓 교육용 목업 쇼핑몰 AI 분석
+          목업 쇼핑몰 AI 분석
           <span className="ml-2 px-2 py-1 text-xs bg-blue-200 text-blue-900 rounded">
             학습 모드
           </span>
@@ -104,7 +104,7 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
 
       <div className="mb-4 p-3 bg-blue-100 border border-blue-300 rounded-lg">
         <p className="text-blue-900 text-sm">
-          📚 이 섹션은 교육용 목업 쇼핑몰의 AI 분석 기능을 시연합니다.
+          📚 이 섹션은 목업 쇼핑몰의 AI 분석 기능을 시연합니다.
           실제 사기 쇼핑몰과 유사한 패턴을 학습할 수 있습니다.
         </p>
       </div>
@@ -295,3 +295,4 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
     </div>
   );
 };
+

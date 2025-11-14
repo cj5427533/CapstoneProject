@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Rating } from '../components/Rating';
-import { AdvancedAIAnalysis } from '../components/AdvancedAIAnalysis';
-import { ReviewForm } from '../components/ReviewForm';
-import { ReviewsList } from '../components/ReviewsList';
+import { Rating } from '../components/shop/Rating';
+import { AdvancedAIAnalysis } from '../components/analysis/AdvancedAIAnalysis';
+import { ReviewForm } from '../components/shop/ReviewForm';
+import { ReviewsList } from '../components/shop/ReviewsList';
 import { searchOrCreateShop, getShopReports, getShopRatings, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +26,7 @@ export function SearchResultPage() {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isMockShop, setIsMockShop] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
 
   useEffect(() => {
     const searchUrl = searchParams.get('url');
@@ -122,13 +123,13 @@ export function SearchResultPage() {
   const loadMockShopData = async (shopUrl: string) => {
     // 목업 데이터에서 해당 URL의 쇼핑몰 찾기
     const mockShops = [
-      { url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', riskLevel: 'HIGH' as const, riskScore: 85 },
-      { url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', riskLevel: 'HIGH' as const, riskScore: 90 },
-      { url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', riskLevel: 'HIGH' as const, riskScore: 95 },
-      { url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', riskLevel: 'LOW' as const, riskScore: 15 },
-      { url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', riskLevel: 'LOW' as const, riskScore: 20 },
-      { url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 55 },
-      { url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', riskLevel: 'MEDIUM' as const, riskScore: 60 }
+      { url: 'fake-shop-example.com', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 85 },
+      { url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 90 },
+      { url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 95 },
+      { url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', riskLevel: 'LOW' as const, riskScore: 15 },
+      { url: 'reliable-store.com', name: '안전한스토어 [목업쇼핑몰]', riskLevel: 'LOW' as const, riskScore: 20 },
+      { url: 'caution-mall.com', name: '주의쇼핑몰 [목업쇼핑몰]', riskLevel: 'MEDIUM' as const, riskScore: 55 },
+      { url: 'mixed-reviews.co.kr', name: '혼재리뷰몰 [목업쇼핑몰]', riskLevel: 'MEDIUM' as const, riskScore: 60 }
     ];
 
     const mockShop = mockShops.find(s => s.url === shopUrl);
@@ -163,8 +164,8 @@ export function SearchResultPage() {
                 id: 1,
                 shop_id: actualShop.id,
                 categories: JSON.stringify(['사기/피싱', '배송 문제']),
-                description: '🎓 교육용 목업 신고입니다. 실제 피해 사례가 아닙니다.',
-                reporter_name: '교육용 사용자',
+                description: '목업 신고입니다. 실제 피해 사례가 아닙니다.',
+                reporter_name: '목업 사용자',
                 created_at: new Date().toISOString()
               }
             ];
@@ -225,7 +226,7 @@ export function SearchResultPage() {
       setShop({
         id: 0,
         url: shopUrl,
-        name: '🎓 교육용 목업 쇼핑몰',
+        name: '목업 쇼핑몰',
         created_at: new Date().toISOString()
       });
       setReports([]);
@@ -259,16 +260,23 @@ export function SearchResultPage() {
   };
 
   const handleReviewSubmitted = () => {
-    // 리뷰 새로고침 로직 제거됨
+    console.log('handleReviewSubmitted 호출됨, 리뷰 목록 새로고침 시작');
+    // 리뷰 목록 새로고침을 위한 키 변경
+    setReviewRefreshKey(prev => {
+      const newKey = prev + 1;
+      console.log(`refreshKey 변경: ${prev} -> ${newKey}`);
+      return newKey;
+    });
     // 평점 데이터도 새로고침
     if (shop?.id) {
+      console.log('평점 데이터 새로고침 시작, shopId:', shop.id);
       loadShopData(url, isMockShop);
     }
   };
 
   if (loading) {
     return (
-      <div className="container-custom max-w-[800px] mx-auto pt-10 pb-16 space-y-6">
+      <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
         <Skeleton className="h-24 w-full" />
         <div className="space-y-3">
           <Skeleton className="h-10 w-2/3" />
@@ -317,7 +325,7 @@ export function SearchResultPage() {
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
 
   return (
-    <div className="container-custom max-w-[800px] mx-auto pt-10 pb-16 space-y-6">
+    <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
       <div className="space-y-4">
         {/* 쇼핑몰 기본 정보 카드 */}
         <div className="rounded-lg border bg-card text-card-foreground shadow">
@@ -513,6 +521,7 @@ export function SearchResultPage() {
           <ReviewsList 
             shopId={shop.id}
             onReviewAdded={handleReviewSubmitted}
+            refreshKey={reviewRefreshKey}
           />
         </div>
       )}

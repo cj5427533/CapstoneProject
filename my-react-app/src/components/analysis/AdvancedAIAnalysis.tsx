@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { AdvancedFakeReviewDetector, FakeReviewResult } from '../services/advancedFakeReviewDetector';
-import { ShopRiskAnalyzer, Shop, Report, Rating, ShopRiskResult } from '../services/shopRiskAnalyzer';
-import { RealTimePhishingSystem, PhishingAlert } from '../services/realTimePhishingSystem';
-import { FakeReviewDetector, ShopType } from '../services/fakeReviewDetector';
-import { Review } from '../utils/openRouter';
+import { AdvancedFakeReviewDetector, FakeReviewResult } from '../../services/advancedFakeReviewDetector';
+import { ShopRiskAnalyzer, Shop, Report, Rating, ShopRiskResult } from '../../services/shopRiskAnalyzer';
+import { RealTimePhishingSystem, PhishingAlert } from '../../services/realTimePhishingSystem';
+import { FakeReviewDetector, ShopType } from '../../services/fakeReviewDetector';
+import { Review } from '../../utils/openRouter';
 
 interface AdvancedAIAnalysisProps {
   shop: Shop;
@@ -349,3 +349,4 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
     </div>
   );
 };
+

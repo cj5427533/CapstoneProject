@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateReport, getUserShopReport } from '@/utils/api';
+import { normalizeUrl } from '@/utils/url';
 import { StepIndicator } from '@/components/report/StepIndicator';
 import { FileDropzone } from '@/components/report/FileDropzone';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,19 +44,7 @@ export function ReportFormPage() {
     return false;
   };
 
-  const normalizeUrl = (url: string): string => {
-    if (!url) return url;
-    url = url.trim().replace(/\s+/g, '');
-    if (!url) return url;
-    url = url.replace(/^htps:\/\//, 'https://');
-    url = url.replace(/^http:\/\//, 'http://');
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-    url = url.replace(/\.{2,}/g, '.');
-    url = url.replace(/\/{2,}/g, '/');
-    return url;
-  };
+  // URL 정규화 함수는 utils/url.ts에서 import
 
   const handleSubmit = async () => {
     const normalizedUrl = normalizeUrl(shopUrl);

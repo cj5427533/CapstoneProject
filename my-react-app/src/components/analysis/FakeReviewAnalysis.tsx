@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { FakeReviewDetector, FakeReviewResult, ShopType } from '../services/fakeReviewDetector';
-import { Review } from '../utils/openRouter';
+import { FakeReviewDetector, FakeReviewResult, ShopType } from '../../services/fakeReviewDetector';
+import { Review } from '../../utils/openRouter';
 
 interface FakeReviewAnalysisProps {
   reviews: Review[];
@@ -95,7 +95,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
       {shopType.type === 'mock' && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800 text-sm">
-            ⚠️ 이 쇼핑몰은 교육용 목업입니다. 분석 결과는 리뷰 신뢰도 패턴 학습을 위한 것입니다.
+            ⚠️ 이 쇼핑몰은 목업입니다. 분석 결과는 리뷰 신뢰도 패턴 학습을 위한 것입니다.
           </p>
         </div>
       )}
@@ -108,7 +108,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
         </p>
         {shopType.type === 'mock' && (
           <p className="text-sm text-gray-600 mt-1">
-            * 목업 쇼핑몰의 리뷰는 교육용으로 의도적으로 만들어진 것입니다.
+            * 목업 쇼핑몰의 리뷰는 의도적으로 만들어진 것입니다.
           </p>
         )}
       </div>
@@ -222,7 +222,7 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
                   </p>
                   {shopType.type === 'mock' && (
                     <p className="analysis-disclaimer-text">
-                      * 목업 쇼핑몰의 리뷰는 교육용으로 의도적으로 만들어진 것입니다.
+                      * 목업 쇼핑몰의 리뷰는 의도적으로 만들어진 것입니다.
                     </p>
                   )}
                 </div>
@@ -234,3 +234,4 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
     </div>
   );
 };
+

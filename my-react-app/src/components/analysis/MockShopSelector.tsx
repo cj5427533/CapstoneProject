@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { mockShops } from '../data/mockData';
+import { mockShops } from '../../data/mockData';
 
 interface MockShopSelectorProps {
   onShopSelect: (shopId: string) => void;
@@ -44,7 +44,7 @@ export const MockShopSelector: React.FC<MockShopSelectorProps> = ({
     <div className="mock-shop-selector mb-6">
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
-          🎓 교육용 목업 쇼핑몰 선택
+          목업 쇼핑몰 선택
         </h3>
         
         {/* 현재 선택된 쇼핑몰 */}
@@ -128,3 +128,4 @@ export const MockShopSelector: React.FC<MockShopSelectorProps> = ({
     </div>
   );
 };
+

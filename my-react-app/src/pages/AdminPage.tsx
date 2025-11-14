@@ -875,7 +875,7 @@ export function AdminPage() {
                   cursor: 'pointer'
                 }}
               >
-                🎓 목업 리뷰 생성
+                목업 리뷰 생성
               </button>
             </div>
             <div className="data-table-container">

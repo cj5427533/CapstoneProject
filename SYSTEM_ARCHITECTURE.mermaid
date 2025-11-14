@@ -1,0 +1,210 @@
+graph TB
+    subgraph "클라이언트 레이어 (Client Layer)"
+        Browser["웹 브라우저<br/>React 18 + TypeScript + Vite"]
+        
+        subgraph "React 페이지 (Pages)"
+            HomePage["홈페이지<br/>HomePage.tsx"]
+            SearchPage["검색 결과<br/>SearchResultPage.tsx"]
+            ReportPage["신고하기<br/>ReportPage.tsx"]
+            CommunityPage["커뮤니티<br/>CommunityPage.tsx"]
+            AdminPage["관리자<br/>AdminPage.tsx"]
+            MyPage["마이페이지<br/>MyPage.tsx"]
+            AuthPages["인증 페이지<br/>Login/Signup/Reset"]
+            DangerousPage["위험 쇼핑몰<br/>DangerousShopsPage.tsx"]
+            RecommendedPage["추천 쇼핑몰<br/>RecommendedShopsPage.tsx"]
+        end
+        
+        subgraph "React 컴포넌트 (Components)"
+            Header["헤더<br/>Header.tsx"]
+            Footer["푸터<br/>Footer.tsx"]
+            AIAnalysis["AI 분석<br/>AdvancedAIAnalysis.tsx<br/>EnhancedAIAnalysis.tsx"]
+            ReviewSystem["리뷰 시스템<br/>ReviewForm.tsx<br/>ReviewsList.tsx"]
+            MockAnalysis["모의 분석<br/>MockShopAnalysis.tsx"]
+        end
+        
+        subgraph "상태 관리 (State)"
+            AuthContext["인증 컨텍스트<br/>AuthContext.tsx"]
+            LocalStorage["로컬 스토리지<br/>JWT Token"]
+        end
+    end
+    
+    subgraph "네트워크 레이어 (Network Layer)"
+        Router["React Router v6<br/>클라이언트 라우팅"]
+        CORS["CORS 미들웨어<br/>모든 오리진 허용"]
+        HTTP["HTTP/HTTPS<br/>REST API"]
+    end
+    
+    subgraph "백엔드 레이어 (Backend Layer)"
+        ExpressServer["Express.js 서버<br/>Node.js Runtime<br/>Port 3001"]
+        
+        subgraph "미들웨어 (Middleware)"
+            JWTAuth["JWT 인증<br/>verifyToken()"]
+            ErrorHandler["에러 핸들러<br/>errorHandler.js"]
+            FileUpload["파일 업로드<br/>Multer (10MB 제한)"]
+            InputValidation["입력 검증<br/>sanitizeInput()"]
+        end
+        
+        subgraph "라우터 (Routes)"
+            AuthRoutes["인증 라우터<br/>auth.js<br/>/api/auth/*"]
+            ShopRoutes["쇼핑몰 라우터<br/>index.js<br/>/api/shops/*"]
+            ReportRoutes["신고 라우터<br/>reports.js<br/>/api/reports/*"]
+            CommunityRoutes["커뮤니티 라우터<br/>community.js<br/>/api/community/*"]
+            AIRoutes["AI 분석 라우터<br/>ai-analysis.js<br/>/api/ai/*"]
+            AdminRoutes["관리자 라우터<br/>admin.js<br/>/api/admin/*"]
+        end
+        
+        subgraph "비즈니스 로직 (Business Logic)"
+            PasswordHash["비밀번호 해싱<br/>SHA-256"]
+            TokenGen["JWT 토큰 생성<br/>7일 만료"]
+            RateLimit["레이트 리미팅<br/>5회/분"]
+            URLNormalize["URL 정규화<br/>도메인 통합"]
+            TitleCache["타이틀 캐싱<br/>24시간 메모리"]
+        end
+    end
+    
+    subgraph "외부 서비스 레이어 (External Services)"
+        SolAPI["SolAPI<br/>SMS 인증<br/>HMAC-SHA256"]
+        Gmail["Gmail SMTP<br/>이메일 발송<br/>비밀번호 재설정"]
+        NodeFetch["Node-Fetch<br/>웹 스크래핑<br/>타이틀 추출"]
+        OpenRouter["OpenRouter AI<br/>Claude 3.5 Sonnet<br/>가짜 리뷰 탐지"]
+    end
+    
+    subgraph "데이터베이스 레이어 (Database Layer)"
+        Supabase["Supabase PostgreSQL<br/>클라우드 데이터베이스"]
+        
+        subgraph "사용자 & 인증 (Users & Auth)"
+            UsersTable["users<br/>사용자 정보"]
+            PasswordResetTable["password_reset_tokens<br/>비밀번호 재설정"]
+            SMSVerifyTable["sms_verifications<br/>SMS 인증"]
+            SMSTrackingTable["sms_request_tracking<br/>SMS 발송 추적"]
+        end
+        
+        subgraph "쇼핑몰 & 신고 (Shops & Reports)"
+            ShopsTable["shops<br/>쇼핑몰 정보<br/>자기참조 FK"]
+            ReportsTable["reports<br/>신고 내역"]
+            RatingsTable["ratings<br/>평점 & 리뷰"]
+            FilesTable["uploaded_files<br/>증빙 파일"]
+        end
+        
+        subgraph "커뮤니티 (Community)"
+            PostsTable["community_posts<br/>게시글"]
+            CommentsTable["community_comments<br/>댓글"]
+            LikesTable["community_post_likes<br/>좋아요"]
+        end
+        
+        subgraph "분석 & 사업자 (Analysis & Business)"
+            AICacheTable["ai_analysis_cache<br/>AI 분석 캐시"]
+            WebAnalysisTable["web_analysis<br/>웹 분석 결과"]
+            BusinessTable["business_registrations<br/>사업자 등록 정보"]
+        end
+    end
+    
+    subgraph "파일 시스템 (File System)"
+        UploadsDir["uploads/<br/>증빙 자료 이미지<br/>PNG/JPG"]
+        StaticFiles["정적 파일 서빙<br/>/uploads 경로"]
+    end
+    
+    subgraph "보안 레이어 (Security Layer)"
+        Crypto["Node Crypto<br/>SHA-256 해싱<br/>HMAC 서명"]
+        JWTSecret["JWT Secret<br/>환경 변수"]
+        EnvConfig[".env 설정<br/>API Keys<br/>DB Credentials"]
+    end
+
+    %% 클라이언트 연결
+    Browser --> Router
+    Browser --> AuthContext
+    Browser --> LocalStorage
+    
+    HomePage --> Header
+    SearchPage --> AIAnalysis
+    ReportPage --> FileUpload
+    CommunityPage --> ReviewSystem
+    
+    Router --> HTTP
+    HTTP --> CORS
+    CORS --> ExpressServer
+    
+    %% 백엔드 연결
+    ExpressServer --> JWTAuth
+    ExpressServer --> ErrorHandler
+    ExpressServer --> InputValidation
+    
+    JWTAuth --> AuthRoutes
+    JWTAuth --> ShopRoutes
+    JWTAuth --> ReportRoutes
+    JWTAuth --> CommunityRoutes
+    JWTAuth --> AIRoutes
+    JWTAuth --> AdminRoutes
+    
+    AuthRoutes --> PasswordHash
+    AuthRoutes --> TokenGen
+    AuthRoutes --> RateLimit
+    
+    ShopRoutes --> URLNormalize
+    ShopRoutes --> TitleCache
+    
+    AIRoutes --> NodeFetch
+    AIRoutes --> OpenRouter
+    
+    %% 외부 서비스 연결
+    AuthRoutes --> SolAPI
+    AuthRoutes --> Gmail
+    ShopRoutes --> NodeFetch
+    
+    %% 데이터베이스 연결
+    AuthRoutes --> UsersTable
+    AuthRoutes --> PasswordResetTable
+    AuthRoutes --> SMSVerifyTable
+    AuthRoutes --> SMSTrackingTable
+    
+    ShopRoutes --> ShopsTable
+    ReportRoutes --> ReportsTable
+    ReportRoutes --> RatingsTable
+    ReportRoutes --> FilesTable
+    
+    CommunityRoutes --> PostsTable
+    CommunityRoutes --> CommentsTable
+    CommunityRoutes --> LikesTable
+    
+    AIRoutes --> AICacheTable
+    AIRoutes --> WebAnalysisTable
+    ShopRoutes --> BusinessTable
+    
+    UsersTable --> Supabase
+    PasswordResetTable --> Supabase
+    SMSVerifyTable --> Supabase
+    SMSTrackingTable --> Supabase
+    ShopsTable --> Supabase
+    ReportsTable --> Supabase
+    RatingsTable --> Supabase
+    FilesTable --> Supabase
+    PostsTable --> Supabase
+    CommentsTable --> Supabase
+    LikesTable --> Supabase
+    AICacheTable --> Supabase
+    WebAnalysisTable --> Supabase
+    BusinessTable --> Supabase
+    
+    %% 파일 시스템 연결
+    FileUpload --> UploadsDir
+    UploadsDir --> StaticFiles
+    StaticFiles --> ExpressServer
+    
+    %% 보안 연결
+    PasswordHash --> Crypto
+    TokenGen --> JWTSecret
+    SolAPI --> Crypto
+    JWTSecret --> EnvConfig
+    
+    %% 스타일링
+    classDef clientStyle fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef backendStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef dbStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef externalStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef securityStyle fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    
+    class Browser,HomePage,SearchPage,ReportPage,CommunityPage,AdminPage,MyPage,AuthPages,DangerousPage,RecommendedPage,Header,Footer,AIAnalysis,ReviewSystem,MockAnalysis,AuthContext,LocalStorage clientStyle
+    class ExpressServer,JWTAuth,ErrorHandler,FileUpload,InputValidation,AuthRoutes,ShopRoutes,ReportRoutes,CommunityRoutes,AIRoutes,AdminRoutes,PasswordHash,TokenGen,RateLimit,URLNormalize,TitleCache backendStyle
+    class Supabase,UsersTable,PasswordResetTable,SMSVerifyTable,SMSTrackingTable,ShopsTable,ReportsTable,RatingsTable,FilesTable,PostsTable,CommentsTable,LikesTable,AICacheTable,WebAnalysisTable,BusinessTable dbStyle
+    class SolAPI,Gmail,NodeFetch,OpenRouter externalStyle
+    class Crypto,JWTSecret,EnvConfig securityStyle

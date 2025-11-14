@@ -56,3 +56,4 @@ export function URLSearchBar({ value, onChange, onSubmit, isLoading, errorText }
     </form>
   );
 }
+

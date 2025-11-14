@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { createRating } from '../utils/api';
+import { createRating } from '../../utils/api';
 
 interface ReviewFormProps {
   shopId: number;
@@ -8,7 +8,7 @@ interface ReviewFormProps {
   onReviewSubmitted?: () => void;
 }
 
-export function ReviewForm({ onReviewSubmitted }: ReviewFormProps) {
+export function ReviewForm({ shopId, shopUrl, onReviewSubmitted }: ReviewFormProps) {
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,10 +34,14 @@ export function ReviewForm({ onReviewSubmitted }: ReviewFormProps) {
     setIsSubmitting(true);
 
     try {
-      await createRating({
-        shopUrl: '', // shopUrl은 필요하지 않음
-        rating: rating
+      console.log('리뷰 등록 시도:', { shopUrl, rating, commentLength: reviewText.trim().length });
+      const result = await createRating({
+        shopUrl: shopUrl,
+        rating: rating,
+        comment: reviewText.trim()
       });
+      
+      console.log('리뷰 등록 성공:', result);
 
       toast.success('리뷰가 성공적으로 등록되었습니다!');
       
@@ -45,13 +49,19 @@ export function ReviewForm({ onReviewSubmitted }: ReviewFormProps) {
       setRating(0);
       setReviewText('');
       
-      // 부모 컴포넌트에 알림
+      // 부모 컴포넌트에 알림 (약간의 지연을 두어 백엔드에 데이터가 저장될 시간을 줌)
       if (onReviewSubmitted) {
-        onReviewSubmitted();
+        console.log('리뷰 등록 완료, 목록 새로고침 트리거');
+        // 더 긴 지연을 두어 데이터베이스에 확실히 저장되도록 함
+        setTimeout(() => {
+          console.log('리뷰 목록 새로고침 실행');
+          onReviewSubmitted();
+        }, 1500);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('리뷰 등록 오류:', error);
-      toast.error('리뷰 등록 중 오류가 발생했습니다.');
+      const errorMessage = error?.message || '리뷰 등록 중 오류가 발생했습니다.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -120,3 +130,4 @@ export function ReviewForm({ onReviewSubmitted }: ReviewFormProps) {
     </div>
   );
 }
+

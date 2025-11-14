@@ -122,6 +122,7 @@ export interface CreateReportData {
 export interface CreateRatingData {
   shopUrl: string;
   rating: number;
+  comment?: string;
 }
 
 export interface DangerousShop {
@@ -410,7 +411,8 @@ export async function createRating(data: CreateRatingData): Promise<{ id: number
   });
 
   if (!response.ok) {
-    throw new Error('Failed to create rating');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `리뷰 등록 실패 (${response.status})`);
   }
 
   return response.json();
@@ -586,11 +588,11 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
 
     const realData = await response.json();
     
-    // 목업 데이터 추가 (교육용)
+    // 목업 데이터 추가
     const mockDangerousShops: DangerousShop[] = [
-      { id: 1001, url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', reportCount: 15 },
-      { id: 1002, url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', reportCount: 8 },
-      { id: 1003, url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', reportCount: 12 }
+      { id: 1001, url: 'fake-shop-example.com', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
+      { id: 1002, url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', reportCount: 8 },
+      { id: 1003, url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', reportCount: 12 }
     ];
     
     // 실제 데이터와 목업 데이터 합치기
@@ -599,9 +601,9 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
     console.error('주의가 필요한 페이지 조회 에러:', error);
     // 에러 시에도 목업 데이터는 반환
     return [
-      { id: 1001, url: 'fake-shop-example.com', name: '🎓 가짜 쇼핑몰 예시 (교육용)', reportCount: 15 },
-      { id: 1002, url: 'suspicious-store.com', name: '🎓 의심스러운 스토어 (교육용)', reportCount: 8 },
-      { id: 1003, url: 'scam-mall.net', name: '🎓 사기쇼핑몰 (교육용)', reportCount: 12 }
+      { id: 1001, url: 'fake-shop-example.com', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
+      { id: 1002, url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', reportCount: 8 },
+      { id: 1003, url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', reportCount: 12 }
     ];
   }
 }
@@ -618,12 +620,12 @@ export async function getTopRatedPages(): Promise<TopRatedShop[]> {
 
     const realData = await response.json();
     
-    // 목업 데이터 추가 (교육용)
+    // 목업 데이터 추가
     const mockTopRatedShops: TopRatedShop[] = [
-      { id: 2001, url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', averageRating: 4.8, totalRatings: 25 },
-      { id: 2002, url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', averageRating: 4.5, totalRatings: 18 },
-      { id: 2003, url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', averageRating: 3.2, totalRatings: 12 },
-      { id: 2004, url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', averageRating: 3.0, totalRatings: 8 }
+      { id: 2001, url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', averageRating: 4.8, totalRatings: 25 },
+      { id: 2002, url: 'reliable-store.com', name: '안전한스토어 [목업쇼핑몰]', averageRating: 4.5, totalRatings: 18 },
+      { id: 2003, url: 'caution-mall.com', name: '주의쇼핑몰 [목업쇼핑몰]', averageRating: 3.2, totalRatings: 12 },
+      { id: 2004, url: 'mixed-reviews.co.kr', name: '혼재리뷰몰 [목업쇼핑몰]', averageRating: 3.0, totalRatings: 8 }
     ];
     
     // 실제 데이터와 목업 데이터 합치기
@@ -632,10 +634,10 @@ export async function getTopRatedPages(): Promise<TopRatedShop[]> {
     console.error('고평점 페이지 조회 에러:', error);
     // 에러 시에도 목업 데이터는 반환
     return [
-      { id: 2001, url: 'trusted-mall.co.kr', name: '🎓 신뢰쇼핑몰 (교육용)', averageRating: 4.8, totalRatings: 25 },
-      { id: 2002, url: 'reliable-store.com', name: '🎓 안전한스토어 (교육용)', averageRating: 4.5, totalRatings: 18 },
-      { id: 2003, url: 'caution-mall.com', name: '🎓 주의쇼핑몰 (교육용)', averageRating: 3.2, totalRatings: 12 },
-      { id: 2004, url: 'mixed-reviews.co.kr', name: '🎓 혼재리뷰몰 (교육용)', averageRating: 3.0, totalRatings: 8 }
+      { id: 2001, url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', averageRating: 4.8, totalRatings: 25 },
+      { id: 2002, url: 'reliable-store.com', name: '안전한스토어 [목업쇼핑몰]', averageRating: 4.5, totalRatings: 18 },
+      { id: 2003, url: 'caution-mall.com', name: '주의쇼핑몰 [목업쇼핑몰]', averageRating: 3.2, totalRatings: 12 },
+      { id: 2004, url: 'mixed-reviews.co.kr', name: '혼재리뷰몰 [목업쇼핑몰]', averageRating: 3.0, totalRatings: 8 }
     ];
   }
 }

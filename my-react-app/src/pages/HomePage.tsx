@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchOrCreateShop, getShopReports, getShopRatings, getDangerousPages, getTopRatedPages } from '../utils/api';
 import type { DangerousShop, TopRatedShop } from '../utils/api';
-import { URLSearchBar } from '@/components/URLSearchBar';
+import { URLSearchBar } from '@/components/shop/URLSearchBar';
+import { normalizeUrl as normalizeUrlUtil } from '../utils/url';
 import logoMark from '@/ygmk_logo.png';
 
 // 디바운싱 유틸리티 함수
@@ -88,7 +89,7 @@ export function HomePage() {
   // URL 변경 시 디바운싱된 미리보기 검색 실행
   useEffect(() => {
     if (debouncedPreviewSearchRef.current && url.trim()) {
-      const normalizedUrl = normalizeUrl(url);
+      const normalizedUrl = normalizeUrlUtil(url);
       debouncedPreviewSearchRef.current(normalizedUrl);
     }
   }, [url]);
@@ -145,33 +146,8 @@ export function HomePage() {
     }
   };
 
-  // URL 정규화 함수 (개선된 버전)
-  const normalizeUrl = (url: string): string => {
-    if (!url) return url;
-    
-    // 공백 제거 및 정리
-    url = url.trim().replace(/\s+/g, '');
-    
-    // 빈 문자열 체크
-    if (!url) return url;
-    
-    // 일반적인 오타 수정
-    url = url.replace(/^htps:\/\//, 'https://');
-    url = url.replace(/^http:\/\//, 'http://');
-    
-    // 프로토콜이 없으면 https:// 추가
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-    
-    // 이중 점 제거
-    url = url.replace(/\.{2,}/g, '.');
-    
-    // 잘못된 슬래시 정리
-    url = url.replace(/\/{2,}/g, '/');
-    
-    return url;
-  };
+  // URL 정규화 함수는 utils/url.ts에서 import
+  const normalizeUrl = normalizeUrlUtil;
 
   // URL 변경 시 실시간 검증
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,7 +196,7 @@ export function HomePage() {
 
   return (
     <div className="home-page">
-      <div className="w-full bg-gradient-to-b from-blue-100 via-blue-100 to-blue-50">
+      <div className="w-full bg-gradient-to-b from-sky-100 via-sky-100 to-sky-50">
         <section className="container-custom py-16">
           <div className="mx-auto max-w-[960px] lg:max-w-[1120px] text-center">
             <h1 className="flex items-center justify-center gap-4 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">

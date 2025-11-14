@@ -69,3 +69,4 @@ export function Rating({ initialRating = 0, onRatingChange, readonly = false, di
     </div>
   );
 }
+

@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { updateReport, getUserShopReport } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { normalizeUrl } from '../utils/url';
 
 export function ReportPage() {
   const [searchParams] = useSearchParams();
@@ -221,20 +222,7 @@ export function ReportPage() {
     }
   };
 
-  // URL 정규화 함수
-  const normalizeUrl = (url: string): string => {
-    if (!url) return url;
-    url = url.trim().replace(/\s+/g, '');
-    if (!url) return url;
-    url = url.replace(/^htps:\/\//, 'https://');
-    url = url.replace(/^http:\/\//, 'http://');
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-    url = url.replace(/\.{2,}/g, '.');
-    url = url.replace(/\/{2,}/g, '/');
-    return url;
-  };
+  // URL 정규화 함수는 utils/url.ts에서 import
 
   // 스크린샷 제출
   const _handleScreenshotSubmit = async () => {

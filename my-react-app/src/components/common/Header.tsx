@@ -1,6 +1,6 @@
 import { Link, NavLink } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useState } from 'react';
 import logoMark from '@/ygmk_logo.png';
 
@@ -158,3 +158,4 @@ function MobileMenuLink({ to, label, onClick }: { to: string; label: string; onC
     </Link>
   );
 }
+
