@@ -149,10 +149,10 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
 
   const getRiskStatus = (riskScore: number): "safe" | "neutral" | "warning" | "danger" => {
     const trustScore = 100 - riskScore;
-    if (trustScore >= 80) return 'safe';
-    if (trustScore >= 60) return 'neutral';
-    if (trustScore >= 40) return 'warning';
-    return 'danger';
+    if (trustScore >= 90) return 'neutral'; // 90점 이상: 파란색 (neutral을 파란색으로 사용)
+    if (trustScore >= 70) return 'safe'; // 70~89: 초록색
+    if (trustScore >= 40) return 'warning'; // 40~69: 주황색
+    return 'danger'; // 0~39: 빨간색
   };
 
   const getRiskLevelKorean = (riskScore: number): string => {
@@ -294,9 +294,10 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
                                    riskStatus === 'neutral' ? 'text-blue-600' : 
                                    riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
-                  const progressColor = riskStatus === 'safe' ? 'bg-green-500' : 
-                                       riskStatus === 'neutral' ? 'bg-blue-500' : 
-                                       riskStatus === 'warning' ? 'bg-orange-500' : 'bg-red-500';
+                  // 90점 이상: 파란색, 70~89: 초록색, 40~69: 주황색, 0~39: 빨간색
+                  const progressColor = trustScore >= 90 ? '#3B82F6' : 
+                                       trustScore >= 70 ? '#10B981' : 
+                                       trustScore >= 40 ? '#F59E0B' : '#EF4444';
                   
                   return (
                     <div className="analysis-result-section shop-risk bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50 rounded-lg p-6">
@@ -331,13 +332,16 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                         <div className="analysis-stat-card">
                           <h5 className="analysis-stat-title">종합 신뢰도</h5>
                           <p className="analysis-stat-value">{trustScore}점</p>
-                          <div className="trust-score-gauge" style={{ background: '#f3f4f6' }}>
+                          <div className="trust-score-gauge" style={{ background: '#f3f4f6', height: '8px', borderRadius: '4px', overflow: 'hidden', margin: '10px 0' }}>
                             <div className="gauge-bar" style={{
                               width: `${trustScore}%`,
-                              background: analysisResults.shopRisk.riskScore >= 80 ? '#ef4444' : analysisResults.shopRisk.riskScore >= 60 ? '#f59e0b' : analysisResults.shopRisk.riskScore >= 30 ? '#84cc16' : '#10b981'
+                              height: '100%',
+                              background: progressColor,
+                              borderRadius: '4px',
+                              transition: 'width 0.5s ease'
                             }}></div>
                           </div>
-                          <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>{getRiskLevelText(analysisResults.shopRisk.riskLevel)}</span>
+                          <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>{riskLevelKorean}</span>
                         </div>
                         <div className="analysis-stat-card">
                           <h5 className="analysis-stat-title">분석 세부사항</h5>
@@ -374,31 +378,96 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                 })()}
 
                 {/* 실시간 피싱 검사 결과 */}
-                {analysisResults.phishingAlert && (
-                  <div className="analysis-result-section phishing">
-                    <h4 className="analysis-result-title">🚨 실시간 피싱 사이트 검사 결과</h4>
-                    <div className="analysis-stats-grid">
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">피싱 점수</h5>
-                        <p className="analysis-stat-value">{analysisResults.phishingAlert.phishingScore}점</p>
-                        <span className={`analysis-risk-badge ${analysisResults.phishingAlert.riskLevel.toLowerCase()}`}>{getRiskLevelText(analysisResults.phishingAlert.riskLevel)}</span>
+                {analysisResults.phishingAlert && (() => {
+                  // 피싱 점수는 높을수록 위험하므로, 신뢰도 점수는 100 - phishingScore
+                  const trustScore = 100 - analysisResults.phishingAlert.phishingScore;
+                  const riskStatus = getRiskStatus(analysisResults.phishingAlert.phishingScore);
+                  const riskLevelKorean = getRiskLevelKorean(analysisResults.phishingAlert.phishingScore);
+                  const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
+                                   riskStatus === 'neutral' ? 'text-blue-600' : 
+                                   riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
+                  // 90점 이상: 파란색, 70~89: 초록색, 40~69: 주황색, 0~39: 빨간색
+                  const progressColor = trustScore >= 90 ? '#3B82F6' : 
+                                       trustScore >= 70 ? '#10B981' : 
+                                       trustScore >= 40 ? '#F59E0B' : '#EF4444';
+                  
+                  return (
+                    <div className="analysis-result-section phishing bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50 rounded-lg p-6">
+                      <h4 className="analysis-result-title mb-6">🚨 실시간 피싱 사이트 검사 결과</h4>
+                      
+                      {/* 신뢰도 점수 섹션 - 하얀색 배경 */}
+                      <div className="mb-8 bg-white rounded-lg p-6 shadow-sm">
+                        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+                          {/* 원형 점수 표시기 */}
+                          <div className="flex-shrink-0">
+                            <ScoreDial score={trustScore} status={riskStatus} />
+                          </div>
+                          
+                          {/* 설명 텍스트 */}
+                          <div className="flex-1">
+                            <p className="text-base mb-2">
+                              현재 이 쇼핑몰의 신뢰도 점수는 <span className="text-blue-600 font-semibold">{trustScore}점</span>이며, 
+                              <span className={`${riskColor} font-semibold`}> '{riskLevelKorean}'</span> 단계입니다.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {trustScore >= 80 ? '안전하게 이용할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 60 ? '대체로 신뢰할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 40 ? '일부 주의가 필요할 수 있습니다. 구매 전 신중히 검토하세요.' :
+                               '주의가 필요합니다. 구매 전 반드시 신중히 검토하세요.'}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">권장 액션</h5>
-                        <p className="analysis-action-text">{analysisResults.phishingAlert.action === 'BLOCK' ? '즉시 차단' : analysisResults.phishingAlert.action === 'ALERT' ? '강력 경고' : '모니터링'}</p>
-                        <p className="analysis-action-subtitle">실시간 탐지 결과</p>
+                      
+                      {/* 분석 세부사항 */}
+                      <div className="analysis-stats-grid">
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">종합 신뢰도</h5>
+                          <p className="analysis-stat-value">{trustScore}점</p>
+                          <div className="trust-score-gauge" style={{ background: '#f3f4f6', height: '8px', borderRadius: '4px', overflow: 'hidden', margin: '10px 0' }}>
+                            <div className="gauge-bar" style={{
+                              width: `${trustScore}%`,
+                              height: '100%',
+                              background: progressColor,
+                              borderRadius: '4px',
+                              transition: 'width 0.5s ease'
+                            }}></div>
+                          </div>
+                          <span className={`analysis-risk-badge ${analysisResults.phishingAlert.riskLevel.toLowerCase()}`}>{riskLevelKorean}</span>
+                        </div>
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">분석 세부사항</h5>
+                          <div className="analysis-detail-scores">
+                            <div>피해 사례 제보 분석: 0점</div>
+                            <div>평점 분석: 0점</div>
+                            <div>도메인 분석: {Math.round(trustScore * 0.7)}점</div>
+                            <div>사업자 분석: 0점</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 탐지된 주의 요소 및 권장사항 */}
+                      <div className="space-y-4 mt-6">
+                        <div>
+                          <h6 className="font-semibold mb-2">탐지된 주의 요소:</h6>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                            {analysisResults.phishingAlert.reasons.map((reason, index) => (
+                              <li key={index}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <h6 className="font-semibold mb-2">권장 액션:</h6>
+                          <p className="text-sm text-muted-foreground">
+                            {analysisResults.phishingAlert.action === 'BLOCK' ? '즉시 차단' : 
+                             analysisResults.phishingAlert.action === 'ALERT' ? '강력 경고' : 
+                             '모니터링'} - 실시간 탐지 결과
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div className="analysis-phishing-details">
-                      <h6 className="analysis-phishing-title">탐지된 주의 요소:</h6>
-                      <ul className="analysis-phishing-list">
-                        {analysisResults.phishingAlert.reasons.map((reason, index) => (
-                          <li key={index}>{reason}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>

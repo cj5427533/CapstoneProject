@@ -44,7 +44,7 @@ export function ScoreDial({ score, status }: ScoreDialProps) {
       ? "text-status-warning"
       : status === "danger"
       ? "text-status-danger"
-      : "text-slate-400"; // neutral -> slate
+      : "text-status-info"; // neutral -> 파란색 (90점 이상)
 
   return (
     <div
