@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { searchOrCreateShop, getShopReports, getShopRatings, getDangerousPages, getTopRatedPages } from '../utils/api';
 import type { DangerousShop, TopRatedShop } from '../utils/api';
 import { URLSearchBar } from '@/components/shop/URLSearchBar';
-import { normalizeUrl as normalizeUrlUtil } from '../utils/url';
+import { normalizeUrl as normalizeUrlUtil, validateUrl } from '../utils/url';
 import logoMark from '@/ygmk_logo.png';
 
 // 디바운싱 유틸리티 함수
@@ -136,16 +136,6 @@ export function HomePage() {
     };
   }, []);
 
-  // URL 유효성 검증 함수
-  const isValidUrl = (url: string): boolean => {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-    } catch {
-      return false;
-    }
-  };
-
   // URL 정규화 함수는 utils/url.ts에서 import
   const normalizeUrl = normalizeUrlUtil;
 
@@ -165,8 +155,8 @@ export function HomePage() {
     // URL 정규화
     const normalizedUrl = normalizeUrl(inputUrl);
     
-    // 유효성 검증
-    if (!isValidUrl(normalizedUrl)) {
+    // 유효성 검증 (normalizeUrl이 도메인만 반환하므로 원본 URL로 검증)
+    if (!validateUrl(inputUrl)) {
       setUrlError('올바른 URL 형식을 입력해주세요. (예: example.com 또는 https://example.com)');
     }
   };
@@ -181,7 +171,8 @@ export function HomePage() {
     
     const normalizedUrl = normalizeUrl(url);
     
-    if (!isValidUrl(normalizedUrl)) {
+    // 유효성 검증 (normalizeUrl이 도메인만 반환하므로 원본 URL로 검증)
+    if (!validateUrl(url)) {
       setUrlError('올바른 URL 형식을 입력해주세요. (예: example.com 또는 https://example.com)');
       return;
     }
@@ -239,6 +230,57 @@ export function HomePage() {
             )}
           </div>
         </section>
+
+        {/* 어떤 서비스를 제공하나요? 섹션 */}
+        <div className="container-custom py-16">
+          <div className="mx-auto max-w-6xl">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">어떤 서비스를 제공하나요?</h2>
+              <p className="text-base text-slate-700">AI와 사용자 데이터를 결합한 종합적인 쇼핑몰 신뢰도 분석</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* AI 기반 피싱 위험 분석 */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-lg mb-4">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">AI 기반 피싱 위험 분석</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  고급 AI 알고리즘이 도메인, SSL 인증서, 리뷰 패턴을 종합 분석하여 피싱 위험도를 실시간으로 평가합니다.
+                </p>
+              </div>
+
+              {/* 사용자 신고 데이터 반영 */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-lg mb-4">
+                  <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">사용자 신고 데이터 반영</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  실제 피해를 경험한 사용자들의 제보를 수집하고 검증하여, 실시간으로 업데이트되는 신뢰도 점수에 반영합니다.
+                </p>
+              </div>
+
+              {/* 관리자 검증으로 신뢰도 강화 */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-lg mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">관리자 검증으로 신뢰도 강화</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  전문 관리자가 신고 내용을 검토하고, 사업자 정보와 SSL 인증서를 직접 확인하여 신뢰도를 보장합니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="home-content">

@@ -243,7 +243,7 @@ export function MyPage() {
               <div className="card-list">
                 {reports.map((report) => {
                   const categories: string[] = JSON.parse(report.categories);
-                  const shopName = report.shops?.name || report.shops?.url || '알 수 없는 쇼핑몰';
+                  const shopName = report.shops?.name || report.shops?.url || '';
                   const shopUrl = report.shops?.url || '';
 
                   return (

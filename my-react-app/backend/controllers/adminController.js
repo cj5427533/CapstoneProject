@@ -215,7 +215,7 @@ exports.getUsers = async (req, res) => {
   try {
     const { data: users, error: dbError } = await supabase
       .from('users')
-      .select('id, username, email, phone_number, created_at')
+      .select('id, username, email, phone_number, role, created_at')
       .order('created_at', { ascending: false });
 
     if (dbError) throw dbError;
@@ -224,6 +224,45 @@ exports.getUsers = async (req, res) => {
   } catch (err) {
     console.error('사용자 조회 오류:', err);
     return error(res, '사용자 조회 실패', 500);
+  }
+};
+
+/**
+ * 사용자 권한 업데이트
+ */
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['user', 'admin'].includes(role)) {
+      return error(res, '올바른 권한 값을 입력해주세요. (user, admin)', 400);
+    }
+
+    // 자기 자신의 권한을 변경하려는 경우 방지
+    if (parseInt(userId) === req.user.id && role === 'user') {
+      return error(res, '자기 자신의 관리자 권한을 제거할 수 없습니다.', 400);
+    }
+
+    const { data, error: dbError } = await supabase
+      .from('users')
+      .update({ role })
+      .eq('id', userId)
+      .select('id, username, email, role')
+      .single();
+
+    if (dbError) throw dbError;
+
+    if (!data) {
+      return error(res, '사용자를 찾을 수 없습니다.', 404);
+    }
+
+    return success(res, { 
+      user: data
+    }, '사용자 권한이 업데이트되었습니다.');
+  } catch (err) {
+    console.error('사용자 권한 업데이트 오류:', err);
+    return error(res, '사용자 권한 업데이트 실패', 500);
   }
 };
 
@@ -244,11 +283,136 @@ exports.getStats = async (req, res) => {
       supabase.from('users').select('id', { count: 'exact', head: true })
     ]);
 
+    // 최근 14일 신고 추이
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - 14);
+    daysAgo.setHours(0, 0, 0, 0);
+
+    const { data: recentReports, error: reportsError } = await supabase
+      .from('reports')
+      .select('created_at')
+      .gte('created_at', daysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (reportsError) throw reportsError;
+
+    // 날짜별 집계
+    const reportsByDateMap = new Map();
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const dateStr = date.toISOString().split('T')[0];
+      reportsByDateMap.set(dateStr, 0);
+    }
+
+    (recentReports || []).forEach(report => {
+      const dateStr = new Date(report.created_at).toISOString().split('T')[0];
+      const current = reportsByDateMap.get(dateStr) || 0;
+      reportsByDateMap.set(dateStr, current + 1);
+    });
+
+    const reportsByDate = Array.from(reportsByDateMap.entries()).map(([date, count]) => ({
+      date,
+      count
+    }));
+
+    // 신고 카테고리별 집계
+    const { data: allReports, error: allReportsError } = await supabase
+      .from('reports')
+      .select('categories');
+
+    if (allReportsError) throw allReportsError;
+
+    const categoryMap = new Map();
+    (allReports || []).forEach(report => {
+      try {
+        const categories = typeof report.categories === 'string' 
+          ? JSON.parse(report.categories) 
+          : report.categories;
+        
+        if (Array.isArray(categories)) {
+          categories.forEach(category => {
+            const current = categoryMap.get(category) || 0;
+            categoryMap.set(category, current + 1);
+          });
+        } else if (typeof categories === 'string') {
+          const current = categoryMap.get(categories) || 0;
+          categoryMap.set(categories, current + 1);
+        }
+      } catch (e) {
+        // JSON 파싱 실패 시 무시
+      }
+    });
+
+    const reportsByCategory = Array.from(categoryMap.entries())
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // 위험도 분포 (신고 수 기반으로 임시 계산)
+    // 실제로는 쇼핑몰의 신뢰도 점수 기반으로 계산해야 하지만, 
+    // 현재는 신고 수가 많은 쇼핑몰을 위험도가 높다고 가정
+    const { data: shopsWithReports, error: shopsError } = await supabase
+      .from('shops')
+      .select(`
+        id,
+        reports!inner(id)
+      `);
+
+    if (shopsError && shopsError.code !== 'PGRST116') throw shopsError;
+
+    // 신고 수 기반으로 위험도 계산
+    const shopReportCounts = new Map();
+    if (shopsWithReports) {
+      shopsWithReports.forEach(shop => {
+        const count = Array.isArray(shop.reports) ? shop.reports.length : 1;
+        shopReportCounts.set(shop.id, count);
+      });
+    }
+
+    const riskDistribution = {
+      SAFE: 0,
+      CAUTION: 0,
+      DANGEROUS: 0,
+      CRITICAL: 0
+    };
+
+    // 모든 쇼핑몰 조회
+    const { data: allShops, error: allShopsError } = await supabase
+      .from('shops')
+      .select('id');
+
+    if (allShopsError) throw allShopsError;
+
+    (allShops || []).forEach(shop => {
+      const reportCount = shopReportCounts.get(shop.id) || 0;
+      if (reportCount === 0) {
+        riskDistribution.SAFE++;
+      } else if (reportCount <= 2) {
+        riskDistribution.CAUTION++;
+      } else if (reportCount <= 5) {
+        riskDistribution.DANGEROUS++;
+      } else {
+        riskDistribution.CRITICAL++;
+      }
+    });
+
+    const riskDistributionArray = [
+      { level: 'SAFE', count: riskDistribution.SAFE },
+      { level: 'CAUTION', count: riskDistribution.CAUTION },
+      { level: 'DANGEROUS', count: riskDistribution.DANGEROUS },
+      { level: 'CRITICAL', count: riskDistribution.CRITICAL }
+    ];
+
     return success(res, {
       totalShops: shopsResult.count || 0,
       totalReports: reportsResult.count || 0,
       totalRatings: ratingsResult.count || 0,
-      totalUsers: usersResult.count || 0
+      totalUsers: usersResult.count || 0,
+      reportsByDate,
+      riskDistribution: riskDistributionArray,
+      reportsByCategory
     });
   } catch (err) {
     console.error('통계 조회 오류:', err);
@@ -363,6 +527,65 @@ exports.getUserShops = async (req, res) => {
   } catch (err) {
     console.error('유저별 쇼핑몰 목록 조회 오류:', err);
     return error(res, err.message || '쇼핑몰 목록 조회에 실패했습니다.', 500);
+  }
+};
+
+/**
+ * 알 수 없는 쇼핑몰 일괄 삭제 (name이 null이거나 "알 수 없는 쇼핑몰"인 쇼핑몰)
+ */
+exports.deleteUnknownShops = async (req, res) => {
+  try {
+    // name이 null이거나 "알 수 없는 쇼핑몰"인 쇼핑몰 조회
+    const { data: unknownShops, error: searchError } = await supabase
+      .from('shops')
+      .select('id, url, name')
+      .or('name.is.null,name.eq.알 수 없는 쇼핑몰');
+
+    if (searchError) throw searchError;
+
+    if (!unknownShops || unknownShops.length === 0) {
+      return success(res, { deletedCount: 0 }, '삭제할 알 수 없는 쇼핑몰이 없습니다.');
+    }
+
+    const shopIds = unknownShops.map(shop => shop.id);
+    let deletedCount = 0;
+    let errorCount = 0;
+
+    // 각 쇼핑몰과 연관된 데이터 삭제
+    for (const shopId of shopIds) {
+      try {
+        // 연관된 신고, 평점 먼저 삭제
+        await Promise.all([
+          supabase.from('reports').delete().eq('shop_id', shopId),
+          supabase.from('ratings').delete().eq('shop_id', shopId)
+        ]);
+
+        // 쇼핑몰 삭제
+        const { error: deleteError } = await supabase
+          .from('shops')
+          .delete()
+          .eq('id', shopId);
+
+        if (deleteError) {
+          console.error(`쇼핑몰 ${shopId} 삭제 실패:`, deleteError);
+          errorCount++;
+        } else {
+          deletedCount++;
+        }
+      } catch (err) {
+        console.error(`쇼핑몰 ${shopId} 삭제 중 오류:`, err);
+        errorCount++;
+      }
+    }
+
+    return success(res, {
+      deletedCount,
+      errorCount,
+      totalFound: unknownShops.length
+    }, `${deletedCount}개의 알 수 없는 쇼핑몰이 삭제되었습니다.${errorCount > 0 ? ` (${errorCount}개 실패)` : ''}`);
+  } catch (err) {
+    console.error('알 수 없는 쇼핑몰 삭제 오류:', err);
+    return error(res, '알 수 없는 쇼핑몰 삭제 실패', 500);
   }
 };
 

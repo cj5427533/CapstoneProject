@@ -146,6 +146,7 @@ export interface User {
   email: string;
   phoneNumber: string;
   isPhoneVerified: boolean;
+  role?: 'user' | 'admin'; // 관리자 권한 필드 추가
   createdAt?: string;
 }
 
@@ -579,14 +580,15 @@ export async function resetPassword(token: string, newPassword: string): Promise
 // 주의가 필요한 페이지 Top 10 조회
 export async function getDangerousPages(): Promise<DangerousShop[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/dangerous-pages`);
+    const response = await fetch(`${API_BASE_URL}/shops/dangerous/list`);
 
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || '주의가 필요한 페이지 조회에 실패했습니다.');
     }
 
-    const realData = await response.json();
+    const responseData = await response.json();
+    const realData = responseData.shops || responseData.data || [];
     
     // 목업 데이터 추가
     const mockDangerousShops: DangerousShop[] = [
@@ -611,14 +613,15 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
 // 고평점 페이지 Top 10 조회
 export async function getTopRatedPages(): Promise<TopRatedShop[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/top-rated-pages`);
+    const response = await fetch(`${API_BASE_URL}/shops/top-rated/list`);
 
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || '고평점 페이지 조회에 실패했습니다.');
     }
 
-    const realData = await response.json();
+    const responseData = await response.json();
+    const realData = responseData.shops || responseData.data || [];
     
     // 목업 데이터 추가
     const mockTopRatedShops: TopRatedShop[] = [
@@ -694,14 +697,17 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
 // 전체 쇼핑몰 조회
 export async function getAdminShops() {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/shops`);
+    const response = await fetch(`${API_BASE_URL}/admin/shops`, {
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '쇼핑몰 조회에 실패했습니다.');
+      throw new Error(data.message || data.error || '쇼핑몰 조회에 실패했습니다.');
     }
     
-    return data.shops;
+    // 백엔드가 { shops: [...] } 형태로 반환하거나 직접 배열로 반환할 수 있음
+    return data.shops || data.data || [];
   } catch (error) {
     console.error('쇼핑몰 조회 에러:', error);
     throw error;
@@ -714,6 +720,7 @@ export async function updateShopName(shopId: number, name: string) {
     const response = await fetch(`${API_BASE_URL}/admin/shops/${shopId}`, {
       method: 'PUT',
       headers: {
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ name }),
@@ -737,6 +744,7 @@ export async function deleteShop(shopId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/shops/${shopId}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     
     const data = await response.json();
@@ -752,18 +760,41 @@ export async function deleteShop(shopId: number) {
   }
 }
 
-// 전체 피해 사례 제보 조회
-export async function getAdminReports() {
+// 알 수 없는 쇼핑몰 일괄 삭제
+export async function deleteUnknownShops() {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/reports`);
+    const response = await fetch(`${API_BASE_URL}/admin/shops/unknown`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '피해 사례 제보 조회에 실패했습니다.');
+      throw new Error(data.message || '알 수 없는 쇼핑몰 삭제에 실패했습니다.');
     }
     
-    // 백엔드가 배열을 직접 반환하므로 data를 그대로 반환
-    return Array.isArray(data) ? data : (data.reports || []);
+    return data;
+  } catch (error) {
+    console.error('알 수 없는 쇼핑몰 삭제 에러:', error);
+    throw error;
+  }
+}
+
+// 전체 피해 사례 제보 조회
+export async function getAdminReports() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/reports`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || data.error || '피해 사례 제보 조회에 실패했습니다.');
+    }
+    
+    // 백엔드가 배열을 직접 반환하거나 { reports: [...] } 형태로 반환할 수 있음
+    return Array.isArray(data) ? data : (data.reports || data.data || []);
   } catch (error) {
     console.error('피해 사례 제보 조회 에러:', error);
     throw error;
@@ -775,6 +806,7 @@ export async function deleteReport(reportId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/reports/${reportId}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     
     const data = await response.json();
@@ -975,14 +1007,17 @@ export async function storeAIAnalysisCache(
 // 전체 평점 조회
 export async function getAdminRatings() {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/ratings`);
+    const response = await fetch(`${API_BASE_URL}/admin/ratings`, {
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '평점 조회에 실패했습니다.');
+      throw new Error(data.message || data.error || '평점 조회에 실패했습니다.');
     }
     
-    return data.ratings;
+    // 백엔드가 { ratings: [...] } 형태로 반환하거나 직접 배열로 반환할 수 있음
+    return data.ratings || data.data || [];
   } catch (error) {
     console.error('평점 조회 에러:', error);
     throw error;
@@ -994,6 +1029,7 @@ export async function deleteRating(ratingId: number) {
   try {
     const response = await fetch(`${API_BASE_URL}/admin/ratings/${ratingId}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     
     const data = await response.json();
@@ -1035,31 +1071,79 @@ export async function generateMockRatings(): Promise<{ success: boolean; message
 // 전체 사용자 조회
 export async function getAdminUsers() {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/users`);
+    const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '사용자 조회에 실패했습니다.');
+      throw new Error(data.message || data.error || '사용자 조회에 실패했습니다.');
     }
     
-    return data.users;
+    // 백엔드가 { users: [...] } 형태로 반환하거나 직접 배열로 반환할 수 있음
+    return data.users || data.data || [];
   } catch (error) {
     console.error('사용자 조회 에러:', error);
     throw error;
   }
 }
 
-// 데이터베이스 통계
-export async function getAdminStats() {
+// 사용자 권한 업데이트
+export async function updateUserRole(userId: number, role: 'user' | 'admin') {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/stats`);
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role }),
+    });
+    
+    // 응답이 HTML인지 확인
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('예상치 못한 응답 형식:', text.substring(0, 200));
+      throw new Error(`서버가 JSON이 아닌 응답을 반환했습니다. 상태 코드: ${response.status}`);
+    }
+    
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || '통계 조회에 실패했습니다.');
+      throw new Error(data.message || data.error || `사용자 권한 업데이트에 실패했습니다. (상태 코드: ${response.status})`);
     }
     
-    return data.stats;
+    return data.user || data.data;
+  } catch (error: any) {
+    console.error('사용자 권한 업데이트 에러:', error);
+    // 이미 Error 객체인 경우 그대로 throw
+    if (error instanceof Error) {
+      throw error;
+    }
+    // 그 외의 경우 새 Error로 래핑
+    throw new Error(error.message || '사용자 권한 업데이트에 실패했습니다.');
+  }
+}
+
+// 데이터베이스 통계
+export async function getAdminStats() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    
+    console.log('통계 API 응답:', data);
+    
+    if (!response.ok) {
+      throw new Error(data.message || data.error || '통계 조회에 실패했습니다.');
+    }
+    
+    // 백엔드 success 함수가 객체를 data로 감싸서 반환할 수 있음
+    // { success: true, message: 'Success', data: { totalShops, ... } } 형태
+    // 또는 직접 { totalShops, ... } 형태
+    return data.data || data.stats || data;
   } catch (error) {
     console.error('통계 조회 에러:', error);
     throw error;
@@ -1072,6 +1156,7 @@ export async function mergeShops(parentId: number, childId: number) {
     const response = await fetch(`${API_BASE_URL}/admin/shops/merge`, {
       method: 'POST',
       headers: {
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ parentId, childId }),

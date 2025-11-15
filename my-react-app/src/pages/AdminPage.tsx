@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { useAuth } from '../contexts/AuthContext';
 import {
   getAdminStats,
   getAdminShops,
   updateShopName,
   deleteShop,
+  deleteUnknownShops,
   getAdminReports,
   deleteReport,
   getAdminRatings,
   deleteRating,
   getAdminUsers,
+  updateUserRole,
   mergeShops,
   getAdminCommunityPosts,
   deleteAdminCommunityPost,
@@ -17,12 +21,20 @@ import {
   deleteAdminCommunityComment,
   generateMockRatings
 } from '../utils/api';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { AdminDashboardCharts } from '@/components/admin/AdminDashboardCharts';
 
 interface AdminStats {
   totalShops: number;
   totalReports: number;
   totalRatings: number;
   totalUsers: number;
+  reportsByDate?: { date: string; count: number }[];
+  riskDistribution?: { level: string; count: number }[];
+  reportsByCategory?: { category: string; count: number }[];
 }
 
 interface Shop {
@@ -67,6 +79,7 @@ interface UserData {
   username: string;
   email: string;
   phone_number: string;
+  role?: 'user' | 'admin';
   created_at: string;
 }
 
@@ -97,16 +110,8 @@ interface CommunityComment {
 
 export function AdminPage() {
   const navigate = useNavigate();
+  const { isAuthenticated, user: currentUser, loading, logout } = useAuth();
   
-  // localhost 체크 (즉시 실행)
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
-  
-  console.log('AdminPage - hostname:', hostname);
-  console.log('AdminPage - isLocalhost:', isLocalhost);
-  
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminKey, setAdminKey] = useState('');
   const [currentTab, setCurrentTab] = useState<'stats' | 'shops' | 'reports' | 'ratings' | 'users' | 'community'>('stats');
   
   const [stats, setStats] = useState<AdminStats>({
@@ -127,35 +132,41 @@ export function AdminPage() {
   const [mergingShopId, setMergingShopId] = useState<number | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [reportFilter, setReportFilter] = useState<'all' | 'today' | 'pending' | 'approved' | 'rejected'>('all');
+  const [shopFilter, setShopFilter] = useState<{ search: string; riskLevel: 'all' | 'safe' | 'caution' | 'dangerous' | 'critical' }>({ search: '', riskLevel: 'all' });
 
-  // localhost가 아닌 경우 처리
+  // 관리자 인증 체크 (role 기반)
   useEffect(() => {
-    if (!isLocalhost) {
-      alert('관리자 페이지는 localhost에서만 접속할 수 있습니다.');
-      const timer = setTimeout(() => {
-        navigate('/');
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (!loading && (!isAuthenticated || currentUser?.role !== 'admin')) {
+      toast.error('관리자 권한이 필요합니다.');
+      navigate('/');
     }
-  }, [isLocalhost, navigate]);
-
-  // 관리자 인증 체크
-  useEffect(() => {
-    if (!isLocalhost) return;
-    
-    const adminAuth = localStorage.getItem('admin_authenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, [isLocalhost]);
+  }, [loading, isAuthenticated, currentUser?.role, navigate]);
 
   // 관리자 통계 로드
   const loadAdminStats = async () => {
     try {
+      console.log('통계 데이터 로드 시작...');
       const statsData = await getAdminStats();
-      setStats(statsData);
+      console.log('통계 데이터 응답:', statsData);
+      
+      // statsData가 유효한지 확인하고 기본값 설정
+      const newStats = {
+        totalShops: statsData?.totalShops ?? 0,
+        totalReports: statsData?.totalReports ?? 0,
+        totalRatings: statsData?.totalRatings ?? 0,
+        totalUsers: statsData?.totalUsers ?? 0,
+        reportsByDate: statsData?.reportsByDate || [],
+        riskDistribution: statsData?.riskDistribution || [],
+        reportsByCategory: statsData?.reportsByCategory || []
+      };
+      
+      console.log('설정할 통계 데이터:', newStats);
+      setStats(newStats);
     } catch (error) {
       console.error('관리자 통계 로드 실패:', error);
+      // 에러 발생 시 기본값 유지
     }
   };
 
@@ -163,9 +174,11 @@ export function AdminPage() {
   const loadShops = async () => {
     try {
       const shopsData = await getAdminShops();
-      setShops(shopsData);
+      console.log('쇼핑몰 데이터:', shopsData);
+      setShops(Array.isArray(shopsData) ? shopsData : []);
     } catch (error) {
       console.error('쇼핑몰 조회 실패:', error);
+      setShops([]);
     }
   };
 
@@ -173,9 +186,11 @@ export function AdminPage() {
   const loadReports = async () => {
     try {
       const reportsData = await getAdminReports();
-      setReports(reportsData);
+      console.log('피해 사례 제보 데이터:', reportsData);
+      setReports(Array.isArray(reportsData) ? reportsData : []);
     } catch (error) {
       console.error('피해 사례 제보 조회 실패:', error);
+      setReports([]);
     }
   };
 
@@ -183,9 +198,11 @@ export function AdminPage() {
   const loadRatings = async () => {
     try {
       const ratingsData = await getAdminRatings();
-      setRatings(ratingsData);
+      console.log('평점 데이터:', ratingsData);
+      setRatings(Array.isArray(ratingsData) ? ratingsData : []);
     } catch (error) {
       console.error('평점 조회 실패:', error);
+      setRatings([]);
     }
   };
 
@@ -193,9 +210,11 @@ export function AdminPage() {
   const loadUsers = async () => {
     try {
       const usersData = await getAdminUsers();
-      setUsers(usersData);
+      console.log('사용자 데이터:', usersData);
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       console.error('사용자 조회 실패:', error);
+      setUsers([]);
     }
   };
 
@@ -219,9 +238,30 @@ export function AdminPage() {
     }
   };
 
-  // 탭 변경
+  // 사용자 권한 변경
+  const handleUpdateUserRole = async (userId: number, newRole: 'user' | 'admin') => {
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+
+    const roleText = newRole === 'admin' ? '관리자' : '일반 사용자';
+    if (!confirm(`'${targetUser.username}' (${targetUser.email})의 권한을 ${roleText}로 변경하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      await updateUserRole(userId, newRole);
+      alert(`사용자 권한이 ${roleText}로 변경되었습니다.`);
+      loadUsers();
+    } catch (error: any) {
+      console.error('사용자 권한 변경 실패:', error);
+      alert('사용자 권한 변경에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+    }
+  };
+
+  // 초기 로드 및 탭 변경
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!loading && !isAuthenticated) return;
+    if (currentUser?.role !== 'admin') return;
     
     const loadTabData = async () => {
       if (currentTab === 'shops') await loadShops();
@@ -236,24 +276,19 @@ export function AdminPage() {
     };
     
     loadTabData();
-  }, [currentTab, isAuthenticated]);
+  }, [currentTab, loading, isAuthenticated, currentUser?.role]);
 
-  // 관리자 로그인 처리
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminKey === 'admin123') {
-      localStorage.setItem('admin_authenticated', 'true');
-      setIsAuthenticated(true);
-    } else {
-      alert('관리자 키가 올바르지 않습니다.');
+  // 인증 후 초기 통계 로드
+  useEffect(() => {
+    if (!loading && isAuthenticated && currentUser?.role === 'admin' && currentTab === 'stats') {
+      loadAdminStats();
     }
-  };
+  }, [loading, isAuthenticated, currentUser?.role, currentTab]);
 
-  // 관리자 로그아웃
+  // 관리자 로그아웃 (일반 로그아웃과 동일하게 처리)
   const handleLogout = () => {
-    localStorage.removeItem('admin_authenticated');
-    setIsAuthenticated(false);
-    window.location.href = '/';
+    logout();
+    navigate('/');
   };
 
   // 쇼핑몰 이름 수정
@@ -291,6 +326,35 @@ export function AdminPage() {
     }
   };
 
+  // 알 수 없는 쇼핑몰 일괄 삭제
+  const handleDeleteUnknownShops = async () => {
+    const unknownShops = shops.filter(shop => !shop.name || shop.name === '알 수 없는 쇼핑몰');
+    
+    if (unknownShops.length === 0) {
+      alert('삭제할 알 수 없는 쇼핑몰이 없습니다.');
+      return;
+    }
+
+    if (!confirm(
+      `알 수 없는 쇼핑몰 ${unknownShops.length}개를 삭제하시겠습니까?\n\n` +
+      `삭제 대상:\n` +
+      `${unknownShops.slice(0, 5).map(s => `- ${s.url}${s.name ? ` (${s.name})` : ''}`).join('\n')}` +
+      `${unknownShops.length > 5 ? `\n... 외 ${unknownShops.length - 5}개` : ''}\n\n` +
+      `연관된 피해 사례 제보와 평점도 모두 삭제됩니다.`
+    )) {
+      return;
+    }
+
+    try {
+      const result = await deleteUnknownShops();
+      alert(result.message || `${result.deletedCount}개의 알 수 없는 쇼핑몰이 삭제되었습니다.`);
+      loadShops();
+      loadAdminStats();
+    } catch (error: any) {
+      alert('알 수 없는 쇼핑몰 삭제에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+    }
+  };
+
   // 피해 사례 제보 삭제
   const handleDeleteReport = async (reportId: number) => {
     if (!confirm('이 피해 사례 제보를 삭제하시겠습니까?')) {
@@ -318,7 +382,8 @@ export function AdminPage() {
       const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({ status: 'approved' })
       });
@@ -349,7 +414,8 @@ export function AdminPage() {
       const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         },
         body: JSON.stringify({ status: 'rejected' })
       });
@@ -368,6 +434,60 @@ export function AdminPage() {
       alert('거부 처리에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
     }
   };
+
+  // 신고 상태 변경
+  const handleUpdateReportStatus = async (reportId: number, status: 'pending' | 'approved' | 'rejected') => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: '알 수 없는 오류' }));
+        throw new Error(errorData.message || '상태 변경에 실패했습니다.');
+      }
+
+      await response.json();
+      loadReports();
+      loadAdminStats();
+      setSelectedReport(null);
+    } catch (error) {
+      console.error('상태 변경 오류:', error);
+      alert('상태 변경에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+    }
+  };
+
+  // 필터된 신고 목록
+  const filteredReports = reports.filter(report => {
+    if (reportFilter === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reportDate = new Date(report.created_at);
+      reportDate.setHours(0, 0, 0, 0);
+      if (reportDate.getTime() !== today.getTime()) return false;
+    } else if (reportFilter !== 'all') {
+      if (report.status !== reportFilter) return false;
+    }
+    return true;
+  });
+
+  // 필터된 쇼핑몰 목록
+  const filteredShops = shops.filter(shop => {
+    if (shopFilter.search) {
+      const searchLower = shopFilter.search.toLowerCase();
+      const urlMatch = shop.url.toLowerCase().includes(searchLower);
+      const nameMatch = (shop.name || '').toLowerCase().includes(searchLower);
+      if (!urlMatch && !nameMatch) return false;
+    }
+    // 위험도 필터는 현재 구현되지 않았으므로 일단 통과
+    return true;
+  });
 
   // 평점 삭제
   const handleDeleteRating = async (ratingId: number) => {
@@ -476,537 +596,774 @@ export function AdminPage() {
     }
   };
 
-  // localhost가 아닌 경우 접근 차단
-  if (!isLocalhost) {
+  // 로딩 중
+  if (loading) {
     return (
-      <div className="admin-auth-page">
-        <div className="admin-login-container">
-          <h1>⚠️ 접근 제한</h1>
-          <p style={{ textAlign: 'center', marginTop: '1rem' }}>
-            관리자 페이지는 localhost에서만 접속할 수 있습니다.
-          </p>
-          <p style={{ textAlign: 'center', marginTop: '0.5rem', color: '#666' }}>
-            홈페이지로 이동합니다...
-          </p>
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="max-w-md w-full bg-card p-8 rounded-lg shadow-lg text-center">
+          <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
     );
   }
 
-  // 인증되지 않은 경우 로그인 폼 표시
-  if (!isAuthenticated) {
-    return (
-      <div className="admin-auth-page">
-        <div className="admin-login-container">
-          <h1>관리자 인증</h1>
-          <form onSubmit={handleAdminLogin}>
-            <div className="form-group">
-              <label htmlFor="adminKey">관리자 키</label>
-              <input
-                type="password"
-                id="adminKey"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                placeholder="관리자 키를 입력하세요"
-                required
-                className="form-input"
-              />
-            </div>
-            <button type="submit" className="login-button">
-              관리자 로그인
-            </button>
-          </form>
-          <p className="redirect-notice">
-            관리자 키: admin123
-          </p>
-        </div>
-      </div>
-    );
+  // 인증되지 않았거나 관리자가 아닌 경우
+  if (!isAuthenticated || currentUser?.role !== 'admin') {
+    return null;
   }
 
   // 관리자 대시보드
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <h1>🔧 관리자 페이지</h1>
-        <button onClick={handleLogout} className="logout-button">
-          로그아웃
-        </button>
-      </div>
-      
-      <div className="admin-tabs">
-        <button 
-          className={`tab-button ${currentTab === 'stats' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('stats')}
-        >
-          📊 통계
-        </button>
-        <button 
-          className={`tab-button ${currentTab === 'shops' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('shops')}
-        >
-          🏪 쇼핑몰 관리
-        </button>
-        <button 
-          className={`tab-button ${currentTab === 'reports' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('reports')}
-        >
-          ⚠️ 피해 사례 제보 관리
-        </button>
-        <button 
-          className={`tab-button ${currentTab === 'ratings' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('ratings')}
-        >
-          ⭐ 평점 관리
-        </button>
-        <button 
-          className={`tab-button ${currentTab === 'users' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('users')}
-        >
-          👥 사용자 관리
-        </button>
-        <button 
-          className={`tab-button ${currentTab === 'community' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('community')}
-        >
-          💬 커뮤니티 관리
-        </button>
+    <div className="min-h-screen bg-muted/40">
+      {/* 고정 헤더 */}
+      <div className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
+        <div className="max-w-[1400px] mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">여기몰까 Admin Console</h1>
+            <Badge className="text-xs bg-background">관리자</Badge>
+          </div>
+          <Button 
+            onClick={handleLogout} 
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            로그아웃
+          </Button>
+        </div>
+        
+        {/* 탭 영역 */}
+        <div className="max-w-[1400px] mx-auto px-6">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <Button
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentTab === 'stats' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-background text-foreground hover:bg-muted border border-border'
+              }`}
+              onClick={() => setCurrentTab('stats')}
+            >
+              📊 통계
+            </Button>
+            <Button
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentTab === 'shops' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-background text-foreground hover:bg-muted border border-border'
+              }`}
+              onClick={() => setCurrentTab('shops')}
+            >
+              🏪 쇼핑몰 관리
+            </Button>
+            <Button
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentTab === 'reports' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-background text-foreground hover:bg-muted border border-border'
+              }`}
+              onClick={() => setCurrentTab('reports')}
+            >
+              ⚠️ 피해 사례 제보 관리
+            </Button>
+            <Button
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentTab === 'ratings' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-background text-foreground hover:bg-muted border border-border'
+              }`}
+              onClick={() => setCurrentTab('ratings')}
+            >
+              ⭐ 평점 관리
+            </Button>
+            <Button
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentTab === 'users' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-background text-foreground hover:bg-muted border border-border'
+              }`}
+              onClick={() => setCurrentTab('users')}
+            >
+              👥 사용자 관리
+            </Button>
+            <Button
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                currentTab === 'community' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'bg-background text-foreground hover:bg-muted border border-border'
+              }`}
+              onClick={() => setCurrentTab('community')}
+            >
+              💬 커뮤니티 관리
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="admin-content">
+      <div className="max-w-[1400px] mx-auto px-6 py-8">
         {/* 통계 탭 */}
         {currentTab === 'stats' && (
-          <div className="admin-section">
-            <h2>📊 시스템 통계</h2>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <h3>총 쇼핑몰 수</h3>
-                <span className="stat-number">{stats.totalShops}</span>
+          <Card className="rounded-2xl shadow-md border-border">
+            <CardHeader>
+              <h2 className="text-2xl font-bold text-foreground">📊 시스템 통계</h2>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 쇼핑몰 수</h3>
+                    <div className="text-4xl font-bold text-primary">{stats?.totalShops ?? 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 피해 사례 제보 수</h3>
+                    <div className="text-4xl font-bold text-destructive">{stats?.totalReports ?? 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 평점 수</h3>
+                    <div className="text-4xl font-bold text-warning">{stats?.totalRatings ?? 0}</div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 사용자 수</h3>
+                    <div className="text-4xl font-bold text-success">{stats?.totalUsers ?? 0}</div>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="stat-card">
-                <h3>총 피해 사례 제보 수</h3>
-                <span className="stat-number">{stats.totalReports}</span>
-              </div>
-              <div className="stat-card">
-                <h3>총 평점 수</h3>
-                <span className="stat-number">{stats.totalRatings}</span>
-              </div>
-              <div className="stat-card">
-                <h3>총 사용자 수</h3>
-                <span className="stat-number">{stats.totalUsers}</span>
-              </div>
-            </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 통계 차트 섹션 */}
+        {currentTab === 'stats' && (
+          <div className="mt-8">
+            <AdminDashboardCharts
+              reportsByDate={stats?.reportsByDate}
+              riskDistribution={stats?.riskDistribution}
+              reportsByCategory={stats?.reportsByCategory}
+            />
           </div>
         )}
 
         {/* 쇼핑몰 관리 탭 */}
         {currentTab === 'shops' && (
-          <div className="admin-section">
-            <h2>🏪 쇼핑몰 관리 ({shops.length}개)</h2>
-            <div className="data-table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>URL</th>
-                    <th>이름</th>
-                    <th>부모 쇼핑몰</th>
-                    <th>등록일</th>
-                    <th>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shops.map((shop) => (
-                    <tr key={shop.id} style={{ backgroundColor: shop.parent_shop_id ? '#fff9e6' : 'transparent' }}>
-                      <td>{shop.id}</td>
-                      <td className="url-cell">
-                        <a href={`/search?url=${encodeURIComponent(shop.url)}`} target="_blank" rel="noopener noreferrer">
+          <Card className="rounded-2xl shadow-md border-border">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-foreground">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="URL 또는 이름 검색..."
+                    value={shopFilter.search}
+                    onChange={(e) => setShopFilter({ ...shopFilter, search: e.target.value })}
+                    className="w-64"
+                  />
+                  <select
+                    value={shopFilter.riskLevel}
+                    onChange={(e) => setShopFilter({ ...shopFilter, riskLevel: e.target.value as any })}
+                    className="px-3 py-2 rounded-md border border-border bg-background text-sm"
+                  >
+                    <option value="all">전체 위험도</option>
+                    <option value="safe">안전</option>
+                    <option value="caution">주의</option>
+                    <option value="dangerous">위험</option>
+                    <option value="critical">심각</option>
+                  </select>
+                  <Button
+                    onClick={handleDeleteUnknownShops}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    알 수 없는 쇼핑몰 삭제
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+            {filteredShops.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">쇼핑몰 데이터가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">URL</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">이름</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">부모 쇼핑몰</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">등록일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredShops.map((shop) => (
+                    <tr key={shop.id} className={`border-b border-border hover:bg-muted/30 ${shop.parent_shop_id ? 'bg-yellow-50' : ''}`}>
+                      <td className="px-4 py-3 text-foreground">{shop.id}</td>
+                      <td className="px-4 py-3">
+                        <a 
+                          href={`/search?url=${encodeURIComponent(shop.url)}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline break-all"
+                        >
                           {shop.url}
                         </a>
                       </td>
-                      <td>
+                      <td className="px-4 py-3 text-foreground">
                         {editingShopId === shop.id ? (
+                          <div className="space-y-2">
                           <input
                             type="text"
                             value={editingShopName}
                             onChange={(e) => setEditingShopName(e.target.value)}
-                            className="edit-input"
+                              placeholder="쇼핑몰 이름을 입력하세요 (예: 신지모루)"
+                            className="w-full px-3 py-2 border-2 border-border rounded-md text-base transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                             autoFocus
                           />
+                            <p className="text-xs text-muted-foreground">
+                              현재 URL: {shop.url}
+                            </p>
+                          </div>
                         ) : (
-                          shop.name || '(이름 없음)'
+                          <div>
+                            {shop.name && shop.name !== shop.url ? (
+                              <span className="font-medium">{shop.name}</span>
+                            ) : shop.name ? (
+                              <span className="text-muted-foreground italic">{shop.name} (URL과 동일)</span>
+                            ) : (
+                              <span className="text-muted-foreground italic">(이름 없음 - URL: {shop.url})</span>
+                            )}
+                          </div>
                         )}
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {shop.parent_shop_id ? (
-                          <span style={{ color: '#ff8c00', fontWeight: 'bold' }}>
+                          <span className="text-orange-600 font-bold">
                             → #{shop.parent_shop_id} 에 병합됨
                           </span>
                         ) : (
-                          <span style={{ color: '#888' }}>-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
-                      <td>{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
-                      <td>
-                        {editingShopId === shop.id ? (
-                          <>
-                            <button 
-                              onClick={() => handleUpdateShopName(shop.id)}
-                              className="action-btn save"
-                            >
-                              저장
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setEditingShopId(null);
-                                setEditingShopName('');
-                              }}
-                              className="action-btn cancel"
-                            >
-                              취소
-                            </button>
-                          </>
-                        ) : mergingShopId === shop.id ? (
-                          <div className="merge-input-group">
-                            <input
-                              type="number"
-                              value={mergeTargetId}
-                              onChange={(e) => setMergeTargetId(e.target.value)}
-                              placeholder="대상 ID"
-                              className="merge-input"
-                              autoFocus
-                            />
-                            <button 
-                              onClick={() => handleMergeShops(shop.id)}
-                              className="action-btn save"
-                            >
-                              병합
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setMergingShopId(null);
-                                setMergeTargetId('');
-                              }}
-                              className="action-btn cancel"
-                            >
-                              취소
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <button 
-                              onClick={() => {
-                                setEditingShopId(shop.id);
-                                setEditingShopName(shop.name || '');
-                              }}
-                              className="action-btn edit"
-                            >
-                              수정
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setMergingShopId(shop.id);
-                                setMergeTargetId('');
-                              }}
-                              className="action-btn merge"
-                            >
-                              병합
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteShop(shop.id, shop.name || shop.url)}
-                              className="action-btn delete"
-                            >
-                              삭제
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* 신고 관리 탭 */}
-        {currentTab === 'reports' && (
-          <div className="admin-section">
-            <h2>⚠️ 피해 사례 제보 관리 ({reports.length}개)</h2>
-            <div className="data-table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>쇼핑몰</th>
-                    <th>카테고리</th>
-                    <th>설명</th>
-                    <th>제보자</th>
-                    <th>제보일</th>
-                    <th>상태</th>
-                    <th>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.map((report) => (
-                    <tr key={report.id}>
-                      <td>{report.id}</td>
-                      <td className="shop-cell">{report.shops?.name || report.shops?.url}</td>
-                      <td>{JSON.parse(report.categories).join(', ')}</td>
-                      <td className="desc-cell">
-                        {report.description}
-                        {(() => {
-                          // evidenceFiles가 문자열이면 JSON.parse, 배열이면 그대로 사용
-                          let evidenceFiles: string[] = [];
-                          if (report.evidenceFiles) {
-                            if (typeof report.evidenceFiles === 'string') {
-                              try {
-                                evidenceFiles = JSON.parse(report.evidenceFiles);
-                              } catch (e) {
-                                console.error('evidenceFiles 파싱 오류:', e);
-                                evidenceFiles = [];
-                              }
-                            } else if (Array.isArray(report.evidenceFiles)) {
-                              evidenceFiles = report.evidenceFiles;
-                            }
-                          }
-                          
-                          // 디버깅: evidenceFiles 확인
-                          if (report.evidenceFiles) {
-                            console.log(`Report ${report.id} evidenceFiles:`, report.evidenceFiles, 'Parsed:', evidenceFiles);
-                          }
-                          
-                          if (evidenceFiles.length === 0) return null;
-                          
-                          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-                          
-                          return (
-                            <div className="evidence-images">
-                              <strong>증빙 자료 ({evidenceFiles.length}개):</strong>
-                              <div className="images-grid">
-                                {evidenceFiles.map((fileUrl: string, index: number) => {
-                                  // URL 구성: 이미 http로 시작하면 그대로, 아니면 API URL 추가
-                                  const imageUrl = fileUrl.startsWith('http') 
-                                    ? fileUrl 
-                                    : `${apiUrl}${fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl}`;
-                                  
-                                  console.log(`이미지 URL [${index}]:`, imageUrl);
-                                  
-                                  return (
-                                    <img
-                                      key={index}
-                                      src={imageUrl}
-                                      alt={`증빙 자료 ${index + 1}`}
-                                      className="evidence-thumbnail"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedImage(imageUrl);
-                                      }}
-                                      onError={(e) => {
-                                        console.error('이미지 로드 실패:', imageUrl, '원본 fileUrl:', fileUrl);
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                      }}
-                                      onLoad={() => {
-                                        console.log('이미지 로드 성공:', imageUrl);
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td>{report.reporter_name || '익명'}</td>
-                      <td>{new Date(report.created_at).toLocaleString('ko-KR')}</td>
-                      <td>
-                        {report.status === 'pending' && <span style={{ color: '#ff9800', fontWeight: 'bold' }}>대기중</span>}
-                        {report.status === 'approved' && <span style={{ color: 'green', fontWeight: 'bold' }}>승인</span>}
-                        {report.status === 'rejected' && <span style={{ color: 'red', fontWeight: 'bold' }}>거부</span>}
-                      </td>
-                      <td>
-                        <div className="action-buttons-vertical">
-                          {report.status === 'pending' && (
+                      <td className="px-4 py-3 text-foreground">{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2 flex-wrap">
+                          {editingShopId === shop.id ? (
                             <>
                               <button 
-                                onClick={() => handleApproveReport(report.id)}
-                                className="action-btn approve"
+                                onClick={() => handleUpdateShopName(shop.id)}
+                                className="px-3 py-1.5 bg-success text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-success/90"
                               >
-                                승인
+                                저장
                               </button>
                               <button 
-                                onClick={() => handleRejectReport(report.id)}
-                                className="action-btn reject"
+                                onClick={() => {
+                                  setEditingShopId(null);
+                                  setEditingShopName('');
+                                }}
+                                className="px-3 py-1.5 bg-secondary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-secondary/90"
                               >
-                                거부
+                                취소
+                              </button>
+                            </>
+                          ) : mergingShopId === shop.id ? (
+                            <div className="flex gap-2 items-center">
+                              <input
+                                type="number"
+                                value={mergeTargetId}
+                                onChange={(e) => setMergeTargetId(e.target.value)}
+                                placeholder="대상 ID"
+                                className="w-24 px-2 py-1.5 border-2 border-border rounded-md text-sm transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                autoFocus
+                              />
+                              <button 
+                                onClick={() => handleMergeShops(shop.id)}
+                                className="px-3 py-1.5 bg-success text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-success/90"
+                              >
+                                병합
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setMergingShopId(null);
+                                  setMergeTargetId('');
+                                }}
+                                className="px-3 py-1.5 bg-secondary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-secondary/90"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button 
+                                onClick={() => {
+                                  setEditingShopId(shop.id);
+                                  setEditingShopName(shop.name || '');
+                                }}
+                                className="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-primary-hover"
+                              >
+                                수정
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setMergingShopId(shop.id);
+                                  setMergeTargetId('');
+                                }}
+                                className="px-3 py-1.5 bg-warning text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-warning/90"
+                              >
+                                병합
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteShop(shop.id, shop.name || shop.url)}
+                                className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
+                              >
+                                삭제
                               </button>
                             </>
                           )}
-                          <button 
-                            onClick={() => handleDeleteReport(report.id)}
-                            className="action-btn delete"
-                          >
-                            삭제
-                          </button>
                         </div>
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 신고 관리 탭 */}
+        {currentTab === 'reports' && (
+          <Card className="rounded-2xl shadow-md border-border">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-foreground">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
+                <div className="flex gap-2">
+                  <select
+                    value={reportFilter}
+                    onChange={(e) => setReportFilter(e.target.value as any)}
+                    className="px-3 py-2 rounded-md border border-border bg-background text-sm"
+                  >
+                    <option value="all">전체</option>
+                    <option value="today">오늘 신고</option>
+                    <option value="pending">대기중</option>
+                    <option value="approved">승인됨</option>
+                    <option value="rejected">거부됨</option>
+                  </select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+            {filteredReports.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">피해 사례 제보 데이터가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">쇼핑몰</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">카테고리</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">제보자</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">제보일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">상태</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredReports.map((report) => (
+                    <tr 
+                      key={report.id} 
+                      className="border-b border-border hover:bg-muted/30 cursor-pointer"
+                      onClick={() => setSelectedReport(report)}
+                    >
+                      <td className="px-3 py-2 text-foreground text-sm">{report.id}</td>
+                      <td className="px-3 py-2 text-foreground text-sm max-w-xs truncate" title={report.shops?.name || report.shops?.url}>
+                        {report.shops?.name || report.shops?.url}
+                      </td>
+                      <td className="px-3 py-2 text-foreground text-sm">
+                        {(() => {
+                          try {
+                            return JSON.parse(report.categories).join(', ');
+                          } catch {
+                            return report.categories;
+                          }
+                        })()}
+                      </td>
+                      <td className="px-3 py-2 text-foreground text-sm">{report.reporter_name || '익명'}</td>
+                      <td className="px-3 py-2 text-foreground text-sm">{new Date(report.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-3 py-2">
+                        <Badge 
+                          className={
+                            report.status === 'pending' 
+                              ? 'bg-warning/20 text-warning border-warning' 
+                              : report.status === 'approved'
+                              ? 'bg-success/20 text-success border-success'
+                              : 'bg-destructive/20 text-destructive border-destructive'
+                          }
+                        >
+                          {report.status === 'pending' ? '대기중' : report.status === 'approved' ? '승인' : '거부'}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedReport(report)}
+                          >
+                            상세
+                          </Button>
+                          <select
+                            value={report.status || 'pending'}
+                            onChange={(e) => handleUpdateReportStatus(report.id, e.target.value as any)}
+                            className="px-2 py-1 rounded-md border border-border bg-background text-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <option value="pending">대기중</option>
+                            <option value="approved">승인</option>
+                            <option value="rejected">거부</option>
+                          </select>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 신고 상세 보기 모달 */}
+        {selectedReport && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedReport(null)}
+          >
+            <Card 
+              className="max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-bold text-foreground">신고 상세 정보</h3>
+                  <Button variant="ghost" onClick={() => setSelectedReport(null)}>✕</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">신고 ID</label>
+                  <p className="text-foreground">{selectedReport.id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">쇼핑몰</label>
+                  <p className="text-foreground">{selectedReport.shops?.name || selectedReport.shops?.url}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">카테고리</label>
+                  <p className="text-foreground">
+                    {(() => {
+                      try {
+                        return JSON.parse(selectedReport.categories).join(', ');
+                      } catch {
+                        return selectedReport.categories;
+                      }
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">상세 설명</label>
+                  <p className="text-foreground whitespace-pre-wrap bg-muted/30 p-3 rounded-md">{selectedReport.description}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">제보자</label>
+                  <p className="text-foreground">{selectedReport.reporter_name || '익명'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">제보일</label>
+                  <p className="text-foreground">{new Date(selectedReport.created_at).toLocaleString('ko-KR')}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">상태</label>
+                  <div className="mt-2">
+                    <select
+                      value={selectedReport.status || 'pending'}
+                      onChange={(e) => handleUpdateReportStatus(selectedReport.id, e.target.value as any)}
+                      className="px-3 py-2 rounded-md border border-border bg-background"
+                    >
+                      <option value="pending">대기중</option>
+                      <option value="approved">승인</option>
+                      <option value="rejected">거부</option>
+                    </select>
+                  </div>
+                </div>
+                {(() => {
+                  let evidenceFiles: string[] = [];
+                  if (selectedReport.evidenceFiles) {
+                    if (typeof selectedReport.evidenceFiles === 'string') {
+                      try {
+                        evidenceFiles = JSON.parse(selectedReport.evidenceFiles);
+                      } catch (e) {
+                        evidenceFiles = [];
+                      }
+                    } else if (Array.isArray(selectedReport.evidenceFiles)) {
+                      evidenceFiles = selectedReport.evidenceFiles;
+                    }
+                  }
+                  
+                  if (evidenceFiles.length === 0) return null;
+                  
+                  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                  
+                  return (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">증빙 자료 ({evidenceFiles.length}개)</label>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        {evidenceFiles.map((fileUrl: string, index: number) => {
+                          const imageUrl = fileUrl.startsWith('http') 
+                            ? fileUrl 
+                            : `${apiUrl}${fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl}`;
+                          
+                          return (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`증빙 자료 ${index + 1}`}
+                              className="w-full h-auto rounded-md border border-border cursor-pointer"
+                              onClick={() => setSelectedImage(imageUrl)}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    onClick={() => {
+                      setSelectedReport(null);
+                      handleDeleteReport(selectedReport.id);
+                    }}
+                    variant="destructive"
+                  >
+                    삭제
+                  </Button>
+                  <Button
+                    onClick={() => setSelectedReport(null)}
+                    variant="outline"
+                  >
+                    닫기
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {/* 평점 관리 탭 */}
         {currentTab === 'ratings' && (
-          <div className="admin-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2>⭐ 평점 관리 ({ratings.length}개)</h2>
-              <button 
-                onClick={handleGenerateMockRatings}
-                className="action-btn"
-                style={{ 
-                  background: '#4CAF50', 
-                  color: 'white', 
-                  padding: '0.5rem 1rem',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                목업 리뷰 생성
-              </button>
-            </div>
-            <div className="data-table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>쇼핑몰</th>
-                    <th>평점</th>
-                    <th>리뷰 내용</th>
-                    <th>등록일</th>
-                    <th>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ratings.map((rating) => (
-                    <tr key={rating.id}>
-                      <td>{rating.id}</td>
-                      <td className="shop-cell">{rating.shops?.name || rating.shops?.url}</td>
-                      <td>
-                        <span className="rating-stars">
+          <Card className="rounded-2xl shadow-md border-border">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-foreground">⭐ 평점 관리 ({ratings.length}개)</h2>
+                <Button 
+                  onClick={handleGenerateMockRatings}
+                  className="bg-success text-white hover:bg-success/90"
+                >
+                  목업 리뷰 생성
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+            {ratings.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">평점 데이터가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">쇼핑몰</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">평점</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">리뷰 내용</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">등록일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ratings.map((rating) => (
+                    <tr key={rating.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-4 py-3 text-foreground">{rating.id}</td>
+                      <td className="px-4 py-3 text-foreground max-w-xs truncate">{rating.shops?.name || rating.shops?.url}</td>
+                      <td className="px-4 py-3 text-foreground">
+                        <span className="text-yellow-500">
                           {'⭐'.repeat(rating.rating)}
                         </span>
                         {rating.rating}점
                       </td>
-                      <td style={{ maxWidth: '300px', wordBreak: 'break-word' }}>
+                      <td className="px-4 py-3 text-foreground max-w-md break-words">
                         {rating.comment ? (
-                          <span style={{ 
-                            color: rating.comment.includes('[테스트 데이터]') ? '#ff9800' : 'inherit',
-                            fontWeight: rating.comment.includes('[테스트 데이터]') ? 'bold' : 'normal'
-                          }}>
+                          <span className={rating.comment.includes('[테스트 데이터]') ? 'text-orange-600 font-bold' : ''}>
                             {rating.comment}
                           </span>
                         ) : (
-                          <span style={{ color: '#999', fontStyle: 'italic' }}>리뷰 없음</span>
+                          <span className="text-muted-foreground italic">리뷰 없음</span>
                         )}
                       </td>
-                      <td>{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
-                      <td>
+                      <td className="px-4 py-3 text-foreground">{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-3">
                         <button 
                           onClick={() => handleDeleteRating(rating.id)}
-                          className="action-btn delete"
+                          className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
                         >
                           삭제
                         </button>
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            </CardContent>
+          </Card>
         )}
 
         {/* 사용자 관리 탭 */}
         {currentTab === 'users' && (
-          <div className="admin-section">
-            <h2>👥 사용자 관리 ({users.length}명)</h2>
-            <div className="data-table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>사용자명</th>
-                    <th>이메일</th>
-                    <th>전화번호</th>
-                    <th>가입일</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td>{user.id}</td>
-                      <td>{user.username}</td>
-                      <td>{user.email}</td>
-                      <td>{user.phone_number}</td>
-                      <td>{new Date(user.created_at).toLocaleString('ko-KR')}</td>
+          <Card className="rounded-2xl shadow-md border-border">
+            <CardHeader>
+              <h2 className="text-2xl font-bold text-foreground">👥 사용자 관리 ({users.length}명)</h2>
+            </CardHeader>
+            <CardContent>
+            {users.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">사용자 데이터가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">사용자명</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">이메일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">전화번호</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">권한</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">가입일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                    <tr key={user.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="px-4 py-3 text-foreground">{user.id}</td>
+                      <td className="px-4 py-3 text-foreground">{user.username}</td>
+                      <td className="px-4 py-3 text-foreground">{user.email}</td>
+                      <td className="px-4 py-3 text-foreground">{user.phone_number}</td>
+                      <td className="px-4 py-3">
+                        <Badge 
+                          className={
+                            user.role === 'admin' 
+                              ? 'bg-primary/20 text-primary border-primary' 
+                              : 'bg-muted/20 text-muted-foreground border-border'
+                          }
+                        >
+                          {user.role === 'admin' ? '관리자' : '일반 사용자'}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-foreground">{new Date(user.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          {user.role === 'admin' ? (
+                            <button 
+                              onClick={() => handleUpdateUserRole(user.id, 'user')}
+                              className="px-3 py-1.5 bg-secondary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-secondary/90"
+                              disabled={user.id === currentUser?.id}
+                            >
+                              일반 사용자로 변경
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleUpdateUserRole(user.id, 'admin')}
+                              className="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-primary-hover"
+                            >
+                              관리자로 지정
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            </CardContent>
+          </Card>
         )}
 
         {/* 커뮤니티 관리 탭 */}
         {currentTab === 'community' && (
-          <div className="admin-section">
-            <h2>💬 커뮤니티 관리</h2>
+          <Card className="rounded-2xl shadow-md border-border">
+            <CardHeader>
+              <h2 className="text-2xl font-bold text-foreground">💬 커뮤니티 관리</h2>
+            </CardHeader>
+            <CardContent>
             
             {/* 게시글 관리 */}
-            <div style={{ marginBottom: '3rem' }}>
-              <h3>📝 게시글 관리 ({communityPosts.length}개)</h3>
-              <div className="data-table-container">
-                <table className="admin-table">
+            <div className="mb-12">
+              <h3 className="text-lg font-semibold text-foreground mb-4">📝 게시글 관리 ({communityPosts.length}개)</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>제목</th>
-                      <th>내용 미리보기</th>
-                      <th>작성자</th>
-                      <th>조회수</th>
-                      <th>좋아요</th>
-                      <th>댓글수</th>
-                      <th>작성일</th>
-                      <th>관리</th>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">제목</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">내용 미리보기</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성자</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">조회수</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">좋아요</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">댓글수</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {communityPosts.map((post) => (
-                      <tr key={post.id}>
-                        <td>{post.id}</td>
-                        <td className="title-cell" title={post.title}>
+                      <tr key={post.id} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-4 py-3 text-foreground">{post.id}</td>
+                        <td className="px-4 py-3 text-foreground max-w-xs truncate" title={post.title}>
                           {post.title.length > 30 ? post.title.substring(0, 30) + '...' : post.title}
                         </td>
-                        <td className="desc-cell" title={post.content}>
+                        <td className="px-4 py-3 text-foreground max-w-md truncate" title={post.content}>
                           {post.content.length > 50 ? post.content.substring(0, 50) + '...' : post.content}
                         </td>
-                        <td>
+                        <td className="px-4 py-3 text-foreground">
                           {post.author}
                           <br />
-                          <span style={{ fontSize: '0.85em', color: '#888' }}>{post.author_email}</span>
+                          <span className="text-sm text-muted-foreground">{post.author_email}</span>
                         </td>
-                        <td>{post.views}</td>
-                        <td>{post.likes}</td>
-                        <td>{post.comments_count}</td>
-                        <td>{new Date(post.created_at).toLocaleString('ko-KR')}</td>
-                        <td>
+                        <td className="px-4 py-3 text-foreground">{post.views}</td>
+                        <td className="px-4 py-3 text-foreground">{post.likes}</td>
+                        <td className="px-4 py-3 text-foreground">{post.comments_count}</td>
+                        <td className="px-4 py-3 text-foreground">{new Date(post.created_at).toLocaleString('ko-KR')}</td>
+                        <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityPost(post.id, post.title)}
-                            className="action-btn delete"
+                            className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
                           >
                             삭제
                           </button>
@@ -1020,39 +1377,39 @@ export function AdminPage() {
 
             {/* 댓글 관리 */}
             <div>
-              <h3>💭 댓글 관리 ({communityComments.length}개)</h3>
-              <div className="data-table-container">
-                <table className="admin-table">
+              <h3 className="text-lg font-semibold text-foreground mb-4">💭 댓글 관리 ({communityComments.length}개)</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>댓글 내용</th>
-                      <th>작성자</th>
-                      <th>게시글 제목</th>
-                      <th>작성일</th>
-                      <th>관리</th>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">댓글 내용</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성자</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">게시글 제목</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {communityComments.map((comment) => (
-                      <tr key={comment.id}>
-                        <td>{comment.id}</td>
-                        <td className="desc-cell" title={comment.content}>
+                      <tr key={comment.id} className="border-b border-border hover:bg-muted/30">
+                        <td className="px-4 py-3 text-foreground">{comment.id}</td>
+                        <td className="px-4 py-3 text-foreground max-w-md truncate" title={comment.content}>
                           {comment.content.length > 50 ? comment.content.substring(0, 50) + '...' : comment.content}
                         </td>
-                        <td>
+                        <td className="px-4 py-3 text-foreground">
                           {comment.author}
                           <br />
-                          <span style={{ fontSize: '0.85em', color: '#888' }}>{comment.author_email}</span>
+                          <span className="text-sm text-muted-foreground">{comment.author_email}</span>
                         </td>
-                        <td className="title-cell" title={comment.post_title}>
+                        <td className="px-4 py-3 text-foreground max-w-xs truncate" title={comment.post_title}>
                           {comment.post_title.length > 30 ? comment.post_title.substring(0, 30) + '...' : comment.post_title}
                         </td>
-                        <td>{new Date(comment.created_at).toLocaleString('ko-KR')}</td>
-                        <td>
+                        <td className="px-4 py-3 text-foreground">{new Date(comment.created_at).toLocaleString('ko-KR')}</td>
+                        <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityComment(comment.id)}
-                            className="action-btn delete"
+                            className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
                           >
                             삭제
                           </button>
@@ -1063,7 +1420,8 @@ export function AdminPage() {
                 </table>
               </div>
             </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
       </div>
       {selectedImage && (

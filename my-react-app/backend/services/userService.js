@@ -48,9 +48,10 @@ async function registerUser(userData) {
       username,
       email,
       password: hashPassword(password),
-      phone_number: phoneNumber
+      phone_number: phoneNumber,
+      role: 'user' // 기본값 'user'
     })
-    .select('id, username, email, phone_number')
+    .select('id, username, email, phone_number, role')
     .single();
 
   if (insertError) throw insertError;
@@ -59,7 +60,8 @@ async function registerUser(userData) {
     id: newUser.id,
     username: newUser.username,
     email: newUser.email,
-    phoneNumber: newUser.phone_number
+    phoneNumber: newUser.phone_number,
+    role: newUser.role || 'user'
   };
 }
 
@@ -94,7 +96,8 @@ async function loginUser(email, password) {
       id: user.id,
       username: user.username,
       email: user.email,
-      phoneNumber: user.phone_number
+      phoneNumber: user.phone_number,
+      role: user.role || 'user'
     }
   };
 }

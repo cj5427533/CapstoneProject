@@ -89,10 +89,13 @@ exports.getShopReviews = async (req, res) => {
 exports.getDangerousShops = async (req, res) => {
   try {
     const shops = await shopService.getDangerousShops();
-    return success(res, shops);
+    console.log('getDangerousShops 결과:', shops);
+    // shops가 배열인지 확인하고, 빈 배열도 허용
+    const shopsArray = Array.isArray(shops) ? shops : [];
+    return success(res, { shops: shopsArray });
   } catch (err) {
     console.error('주의가 필요한 쇼핑몰 조회 오류:', err);
-    return error(res, '주의가 필요한 쇼핑몰 조회 실패', 500);
+    return error(res, `주의가 필요한 쇼핑몰 조회 실패: ${err.message}`, 500);
   }
 };
 
@@ -102,7 +105,7 @@ exports.getDangerousShops = async (req, res) => {
 exports.getTopRatedShops = async (req, res) => {
   try {
     const shops = await shopService.getTopRatedShops();
-    return success(res, shops);
+    return success(res, { shops });
   } catch (err) {
     console.error('고평점 쇼핑몰 조회 오류:', err);
     return error(res, '고평점 쇼핑몰 조회 실패', 500);
@@ -164,7 +167,7 @@ exports.getDangerousShopsDetailed = async (req, res) => {
 
     const sortedShops = shopsWithStats.sort((a, b) => b.reportCount - a.reportCount);
 
-    return success(res, sortedShops);
+    return success(res, { shops: sortedShops });
   } catch (err) {
     console.error('주의가 필요한 쇼핑몰 조회 오류:', err);
     return error(res, `주의가 필요한 쇼핑몰 조회 실패: ${err.message}`, 500);
@@ -226,7 +229,7 @@ exports.getRecommendedShopsDetailed = async (req, res) => {
 
     const sortedShops = shopsWithStats.sort((a, b) => b.averageRating - a.averageRating);
 
-    return success(res, sortedShops);
+    return success(res, { shops: sortedShops });
   } catch (err) {
     console.error('추천 쇼핑몰 조회 오류:', err);
     return error(res, `추천 쇼핑몰 조회 실패: ${err.message}`, 500);

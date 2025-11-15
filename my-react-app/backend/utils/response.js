@@ -22,7 +22,12 @@ const success = (res, data = null, message = 'Success', statusCode = 200) => {
       if (data.success !== undefined || data.message !== undefined || data.token !== undefined) {
         Object.assign(response, data);
       } else {
-        response.data = data;
+        // shops, users 등 특정 필드가 있으면 직접 병합, 아니면 data로 감싸기
+        if (data.shops !== undefined || data.users !== undefined || data.reports !== undefined) {
+          Object.assign(response, data);
+        } else {
+          response.data = data;
+        }
       }
     } else {
       response.data = data;

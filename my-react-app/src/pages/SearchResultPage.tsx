@@ -32,6 +32,9 @@ export function SearchResultPage() {
     const searchUrl = searchParams.get('url');
     const mockParam = searchParams.get('mock');
     
+    // 페이지 최상단으로 스크롤
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     if (searchUrl) {
       setUrl(searchUrl);
       setIsMockShop(mockParam === 'true');

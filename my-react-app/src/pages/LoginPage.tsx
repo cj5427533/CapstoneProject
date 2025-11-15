@@ -84,10 +84,14 @@ export function LoginPage() {
       if (result.user) {
         authLogin(result.user);
         toast.success('로그인되었습니다!');
+        
+        // 관리자는 관리자 페이지로, 일반 사용자는 홈으로
+        if (result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
       }
-      
-      // 로그인 성공 시 홈페이지로 이동
-      navigate('/');
     } catch (error) {
       console.error('로그인 에러:', error);
       // 로그인 실패 시에만 경고창 표시

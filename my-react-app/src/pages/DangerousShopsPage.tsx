@@ -25,12 +25,23 @@ export function DangerousShopsPage() {
   const fetchDangerousShops = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/dangerous-shops`);
+      const response = await fetch(`${API_BASE_URL}/shops/dangerous/list`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('주의가 필요한 쇼핑몰 응답 데이터:', data);
       
       if (data.success) {
+        // 응답 형식: { success: true, data: { shops: [...] } } 또는 { success: true, shops: [...] }
+        const shops = data.shops || data.data?.shops || data.data || [];
+        console.log('추출된 shops:', shops);
+        
         // 피해 사례 제보 건수가 0인 쇼핑몰들을 제외
-        const filteredShops = data.shops.filter((shop: Shop) => shop.reportCount > 0);
+        const filteredShops = Array.isArray(shops) ? shops.filter((shop: Shop) => shop.reportCount > 0) : [];
+        console.log('필터링된 shops:', filteredShops);
         setShops(filteredShops);
       } else {
         toast.error('주의가 필요한 쇼핑몰 목록을 불러오는데 실패했습니다.');
@@ -148,7 +159,9 @@ export function DangerousShopsPage() {
                           <div className="stat-label">피해 사례 제보 건수</div>
                         </div>
                         <div className="stat-item">
-                          <div className="stat-value text-blue-600">{shop.averageRating.toFixed(1)}</div>
+                          <div className="stat-value text-blue-600">
+                            {shop.averageRating != null ? shop.averageRating.toFixed(1) : 'N/A'}
+                          </div>
                           <div className="stat-label">평균 평점</div>
                         </div>
                       </div>

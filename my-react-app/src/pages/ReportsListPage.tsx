@@ -196,7 +196,7 @@ export function ReportsListPage() {
               filteredReports.map((report, index) => {
                 const shopUrl = report.shop_url || report.shops?.url || '';
                 const parsedCategories = parseCategories(report.categories);
-                const shopName = report.shops?.name || '알 수 없는 쇼핑몰';
+                const shopName = report.shops?.name || report.shops?.url || '';
                 const hasShopLink = Boolean(shopUrl);
                 const severity = getReportSeverity(parsedCategories);
 

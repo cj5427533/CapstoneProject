@@ -332,6 +332,51 @@ async function checkDailyShopCreationLimit(userId) {
 }
 
 /**
+ * URL에서 기본 이름 추출
+ */
+function extractDefaultNameFromUrl(url) {
+  try {
+    // URL 정규화
+    let cleanUrl = url;
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      cleanUrl = 'https://' + cleanUrl;
+    }
+    
+    const urlObj = new URL(cleanUrl);
+    let hostname = urlObj.hostname.toLowerCase();
+    
+    // www. 제거
+    hostname = hostname.replace(/^www\./, '');
+    
+    // 도메인에서 기본 이름 추출
+    // 예: example.com -> example
+    // 예: shop.example.com -> shop
+    const parts = hostname.split('.');
+    
+    // 서브도메인이 있는 경우 서브도메인 사용, 없으면 메인 도메인 사용
+    let defaultName = parts.length > 2 ? parts[0] : parts[0];
+    
+    // 특수 문자 제거 및 대문자 변환
+    defaultName = defaultName
+      .replace(/[_-]/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase 분리
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    // 너무 짧거나 의미 없는 이름인 경우 전체 도메인 사용
+    if (defaultName.length < 2) {
+      defaultName = hostname.split('.')[0];
+    }
+    
+    return defaultName || hostname;
+  } catch (error) {
+    // URL 파싱 실패 시 원본 URL의 일부 사용
+    return url.split('/')[0].replace(/^www\./, '').split('.')[0] || url;
+  }
+}
+
+/**
  * 쇼핑몰 생성 (일일 제한 체크 포함)
  */
 async function createShopIfNotExists(normalizedUrl, userId = null, createdVia = 'search', parentShopId = null) {
@@ -368,11 +413,14 @@ async function createShopIfNotExists(normalizedUrl, userId = null, createdVia = 
       }
     }
     
+    // URL에서 기본 이름 추출 (타이틀을 가져오기 전에 임시로 사용)
+    const defaultName = extractDefaultNameFromUrl(normalizedUrl);
+    
     const { data: newShop, error: insertError } = await supabase
       .from('shops')
       .insert({
         url: normalizedUrl,
-        name: null,
+        name: defaultName, // 기본 이름 설정 (나중에 타이틀로 업데이트될 수 있음)
         parent_shop_id: parentShopId,
         created_by_user_id: userId,
         created_via: createdVia
@@ -382,9 +430,9 @@ async function createShopIfNotExists(normalizedUrl, userId = null, createdVia = 
     
     if (insertError) throw insertError;
     
-    // 백그라운드에서 타이틀 가져오기
+    // 백그라운드에서 타이틀 가져오기 (성공하면 더 나은 이름으로 업데이트)
     getWebsiteTitle(normalizedUrl).then(titleName => {
-      if (titleName) {
+      if (titleName && titleName.trim().length > 0) {
         supabase
           .from('shops')
           .update({ name: titleName })
@@ -399,6 +447,7 @@ async function createShopIfNotExists(normalizedUrl, userId = null, createdVia = 
       }
     }).catch(error => {
       console.error('백그라운드 타이틀 가져오기 에러:', error);
+      // 타이틀을 가져오지 못해도 기본 이름이 이미 설정되어 있음
     });
     
     return { shop: newShop, error: null };
@@ -567,32 +616,76 @@ async function getShopReviews(shopId) {
  * 주의가 필요한 쇼핑몰 목록 조회
  */
 async function getDangerousShops() {
-  const { data: shopReports, error } = await supabase
-    .from('reports')
-    .select(`shop_id, shops!inner (id, url, name)`);
+  try {
+    const { data: shopReports, error } = await supabase
+      .from('reports')
+      .select(`shop_id, shops!inner (id, url, name)`);
 
-  if (error) throw error;
-
-  const reportCounts = {};
-  shopReports.forEach(report => {
-    const shopId = report.shop_id;
-    if (!reportCounts[shopId]) {
-      reportCounts[shopId] = { shop: report.shops, reportCount: 0 };
+    if (error) {
+      console.error('getDangerousShops DB 에러:', error);
+      throw error;
     }
-    reportCounts[shopId].reportCount++;
-  });
 
-  const topDangerous = Object.values(reportCounts)
-    .sort((a, b) => b.reportCount - a.reportCount)
-    .slice(0, 10)
-    .map(item => ({
-      id: item.shop.id,
-      url: item.shop.url,
-      name: item.shop.name || '알 수 없는 쇼핑몰',
-      reportCount: item.reportCount
-    }));
+    if (!shopReports || shopReports.length === 0) {
+      return [];
+    }
 
-  return topDangerous;
+    const reportCounts = {};
+    shopReports.forEach(report => {
+      const shopId = report.shop_id;
+      if (!reportCounts[shopId]) {
+        reportCounts[shopId] = { shop: report.shops, reportCount: 0 };
+      }
+      reportCounts[shopId].reportCount++;
+    });
+
+    // 각 쇼핑몰의 평점 정보도 가져오기
+    const shopIds = Object.keys(reportCounts).map(id => parseInt(id));
+    const { data: ratings, error: ratingsError } = await supabase
+      .from('ratings')
+      .select('shop_id, rating')
+      .in('shop_id', shopIds);
+
+    if (ratingsError) {
+      console.error('평점 조회 에러:', ratingsError);
+    }
+
+    // shop_id별 평점 집계
+    const ratingStats = {};
+    if (ratings) {
+      ratings.forEach(rating => {
+        const shopId = rating.shop_id;
+        if (!ratingStats[shopId]) {
+          ratingStats[shopId] = { total: 0, count: 0 };
+        }
+        ratingStats[shopId].total += rating.rating;
+        ratingStats[shopId].count++;
+      });
+    }
+
+    const topDangerous = Object.values(reportCounts)
+      .sort((a, b) => b.reportCount - a.reportCount)
+      .slice(0, 10)
+      .map(item => {
+        const shopId = item.shop.id;
+        const stats = ratingStats[shopId] || { total: 0, count: 0 };
+        const averageRating = stats.count > 0 ? stats.total / stats.count : 0;
+        
+        return {
+          id: shopId,
+          url: item.shop.url,
+          name: item.shop.name || item.shop.url, // name이 없으면 URL 사용
+          reportCount: item.reportCount,
+          averageRating: averageRating,
+          ratingCount: stats.count
+        };
+      });
+
+    return topDangerous || [];
+  } catch (err) {
+    console.error('getDangerousShops 에러:', err);
+    throw err;
+  }
 }
 
 /**
@@ -621,7 +714,7 @@ async function getTopRatedShops() {
       return {
         id: item.shop.id,
         url: item.shop.url,
-        name: item.shop.name || '알 수 없는 쇼핑몰',
+        name: item.shop.name || item.shop.url, // name이 없으면 URL 사용
         averageRating: Number(averageRating.toFixed(1)),
         totalRatings: ratings.length
       };

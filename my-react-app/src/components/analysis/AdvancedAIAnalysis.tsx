@@ -5,6 +5,7 @@ import { ShopRiskAnalyzer, Shop, Report, Rating, ShopRiskResult } from '../../se
 import { RealTimePhishingSystem, PhishingAlert } from '../../services/realTimePhishingSystem';
 import { FakeReviewDetector, ShopType } from '../../services/fakeReviewDetector';
 import { Review } from '../../utils/openRouter';
+import { ScoreDial } from '../report/ScoreDial';
 
 interface AdvancedAIAnalysisProps {
   shop: Shop;
@@ -146,6 +147,23 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
     }
   };
 
+  const getRiskStatus = (riskScore: number): "safe" | "neutral" | "warning" | "danger" => {
+    const trustScore = 100 - riskScore;
+    if (trustScore >= 80) return 'safe';
+    if (trustScore >= 60) return 'neutral';
+    if (trustScore >= 40) return 'warning';
+    return 'danger';
+  };
+
+  const getRiskLevelKorean = (riskScore: number): string => {
+    const trustScore = 100 - riskScore;
+    if (trustScore >= 80) return '신뢰도 매우 높음';
+    if (trustScore >= 60) return '신뢰도 높음';
+    if (trustScore >= 40) return '주의 필요';
+    if (trustScore >= 20) return '신뢰도 낮음';
+    return '신뢰도 매우 낮음';
+  };
+
 
   return (
     <div className="advanced-ai-analysis bg-white rounded-lg shadow-lg p-6 mb-6">
@@ -219,7 +237,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
               <h3 className="analysis-modal-title">AI 분석 결과</h3>
               <button className="analysis-modal-close" onClick={() => setShowAnalysisModal(false)}>✕</button>
             </div>
-            <div className="analysis-modal-body">
+            <div className="analysis-modal-body bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50">
               <div className="space-y-6">
                 {/* 가짜 리뷰 분석 결과 */}
                 {analysisResults.fakeReviews.length > 0 && (
@@ -269,51 +287,91 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                 )}
 
                 {/* 쇼핑몰 신뢰도 분석 결과 */}
-                {analysisResults.shopRisk && (
-                  <div className="analysis-result-section shop-risk">
-                    <h4 className="analysis-result-title">쇼핑몰 신뢰도 분석</h4>
-                    <div className="analysis-stats-grid">
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">종합 신뢰도</h5>
-                        <p className="analysis-stat-value">{100 - analysisResults.shopRisk.riskScore}점</p>
-                        <div className="trust-score-gauge" style={{ background: '#f3f4f6' }}>
-                          <div className="gauge-bar" style={{
-                            width: `${100 - analysisResults.shopRisk.riskScore}%`,
-                            background: analysisResults.shopRisk.riskScore >= 80 ? '#ef4444' : analysisResults.shopRisk.riskScore >= 60 ? '#f59e0b' : analysisResults.shopRisk.riskScore >= 30 ? '#84cc16' : '#10b981'
-                          }}></div>
+                {analysisResults.shopRisk && (() => {
+                  const trustScore = 100 - analysisResults.shopRisk.riskScore;
+                  const riskStatus = getRiskStatus(analysisResults.shopRisk.riskScore);
+                  const riskLevelKorean = getRiskLevelKorean(analysisResults.shopRisk.riskScore);
+                  const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
+                                   riskStatus === 'neutral' ? 'text-blue-600' : 
+                                   riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
+                  const progressColor = riskStatus === 'safe' ? 'bg-green-500' : 
+                                       riskStatus === 'neutral' ? 'bg-blue-500' : 
+                                       riskStatus === 'warning' ? 'bg-orange-500' : 'bg-red-500';
+                  
+                  return (
+                    <div className="analysis-result-section shop-risk bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50 rounded-lg p-6">
+                      <h4 className="analysis-result-title mb-6">쇼핑몰 신뢰도 분석</h4>
+                      
+                      {/* 신뢰도 점수 섹션 - 하얀색 배경 */}
+                      <div className="mb-8 bg-white rounded-lg p-6 shadow-sm">
+                        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+                          {/* 원형 점수 표시기 */}
+                          <div className="flex-shrink-0">
+                            <ScoreDial score={trustScore} status={riskStatus} />
+                          </div>
+                          
+                          {/* 설명 텍스트 */}
+                          <div className="flex-1">
+                            <p className="text-base mb-2">
+                              현재 이 쇼핑몰의 신뢰도 점수는 <span className="text-blue-600 font-semibold">{trustScore}점</span>이며, 
+                              <span className={`${riskColor} font-semibold`}> '{riskLevelKorean}'</span> 단계입니다.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {trustScore >= 80 ? '안전하게 이용할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 60 ? '대체로 신뢰할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 40 ? '일부 주의가 필요할 수 있습니다. 구매 전 신중히 검토하세요.' :
+                               '주의가 필요합니다. 구매 전 반드시 신중히 검토하세요.'}
+                            </p>
+                          </div>
                         </div>
-                        <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>{getRiskLevelText(analysisResults.shopRisk.riskLevel)}</span>
                       </div>
-                      <div className="analysis-stat-card">
-                        <h5 className="analysis-stat-title">분석 세부사항</h5>
-                        <div className="analysis-detail-scores">
-                          <div>피해 사례 제보 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
-                          <div>평점 분석: {Math.round(analysisResults.shopRisk.analysis.ratingAnalysis)}점</div>
-                          <div>도메인 분석: {Math.round(analysisResults.shopRisk.analysis.domainAnalysis)}점</div>
-                          <div>사업자 분석: {Math.round(analysisResults.shopRisk.analysis.businessAnalysis)}점</div>
+                      
+                      {/* 분석 세부사항 - 원래 스타일로 복원 */}
+                      <div className="analysis-stats-grid">
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">종합 신뢰도</h5>
+                          <p className="analysis-stat-value">{trustScore}점</p>
+                          <div className="trust-score-gauge" style={{ background: '#f3f4f6' }}>
+                            <div className="gauge-bar" style={{
+                              width: `${trustScore}%`,
+                              background: analysisResults.shopRisk.riskScore >= 80 ? '#ef4444' : analysisResults.shopRisk.riskScore >= 60 ? '#f59e0b' : analysisResults.shopRisk.riskScore >= 30 ? '#84cc16' : '#10b981'
+                            }}></div>
+                          </div>
+                          <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>{getRiskLevelText(analysisResults.shopRisk.riskLevel)}</span>
+                        </div>
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">분석 세부사항</h5>
+                          <div className="analysis-detail-scores">
+                            <div>피해 사례 제보 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
+                            <div>평점 분석: {Math.round(analysisResults.shopRisk.analysis.ratingAnalysis)}점</div>
+                            <div>도메인 분석: {Math.round(analysisResults.shopRisk.analysis.domainAnalysis)}점</div>
+                            <div>사업자 분석: {Math.round(analysisResults.shopRisk.analysis.businessAnalysis)}점</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 발견된 신뢰도 요소 및 권장사항 */}
+                      <div className="space-y-4">
+                        <div>
+                          <h6 className="font-semibold mb-2">발견된 신뢰도 요소:</h6>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                            {analysisResults.shopRisk.reasons.map((reason, index) => (
+                              <li key={index}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <h6 className="font-semibold mb-2">권장사항:</h6>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                            {analysisResults.shopRisk.recommendations.map((recommendation, index) => (
+                              <li key={index}>{recommendation}</li>
+                            ))}
+                          </ul>
                         </div>
                       </div>
                     </div>
-                    <div className="analysis-recommendations">
-                      <div className="analysis-recommendation-section">
-                        <h6 className="analysis-recommendation-title">발견된 신뢰도 요소:</h6>
-                        <ul className="analysis-recommendation-list">
-                          {analysisResults.shopRisk.reasons.map((reason, index) => (
-                            <li key={index}>{reason}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="analysis-recommendation-section">
-                        <h6 className="analysis-recommendation-title">권장사항:</h6>
-                        <ul className="analysis-recommendation-list">
-                          {analysisResults.shopRisk.recommendations.map((recommendation, index) => (
-                            <li key={index}>{recommendation}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* 실시간 피싱 검사 결과 */}
                 {analysisResults.phishingAlert && (

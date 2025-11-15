@@ -1,0 +1,76 @@
+/**
+ * 레이아웃 관련 스타일
+ * 컨테이너, 그리드, 섹션 등
+ */
+
+/* 컨테이너 (Tailwind로 대체 가능하지만 호환성 유지) */
+.container-custom {
+  /* Tailwind: mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 */
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1280px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-custom {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-custom {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* 그리드 레이아웃 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.result-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+/* 섹션 헤더 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+/* 페이지 배경 (특수 그라디언트) */
+.page-sky-background {
+  min-height: calc(100vh - 64px);
+  padding: 3rem 0 4rem;
+  background: radial-gradient(circle at 20% 0%, rgba(224, 242, 255, 0.95) 0%, rgba(248, 251, 255, 0.95) 45%, rgba(255, 255, 255, 0.98) 100%);
+}
+
+@media (max-width: 768px) {
+  .page-sky-background {
+    padding: 2.5rem 0 3.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-sky-background {
+    padding: 2rem 0 3rem;
+  }
+}
+

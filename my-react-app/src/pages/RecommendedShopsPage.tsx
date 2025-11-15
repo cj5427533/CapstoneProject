@@ -25,12 +25,14 @@ export function RecommendedShopsPage() {
   const fetchRecommendedShops = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/recommended-shops`);
+      const response = await fetch(`${API_BASE_URL}/shops/recommended/detailed`);
       const data = await response.json();
       
       if (data.success) {
+        // 응답 형식: { success: true, data: { shops: [...] } } 또는 { success: true, shops: [...] }
+        const shops = data.shops || data.data?.shops || data.data || [];
         // 평점이 0인 쇼핑몰들을 제외
-        const filteredShops = data.shops.filter((shop: Shop) => shop.averageRating > 0);
+        const filteredShops = Array.isArray(shops) ? shops.filter((shop: Shop) => shop.averageRating > 0) : [];
         setShops(filteredShops);
       } else {
         toast.error('추천 쇼핑몰 목록을 불러오는데 실패했습니다.');

@@ -3351,7 +3351,7 @@ a:hover {
 }
 
 .analysis-result-section.shop-risk {
-  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(198, 215, 243, 0.96) 100%);
   border-color: #fed7aa;
 }
 

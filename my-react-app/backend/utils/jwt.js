@@ -16,7 +16,8 @@ const generateToken = (user) => {
     { 
       id: user.id, 
       username: user.username, 
-      email: user.email 
+      email: user.email,
+      role: user.role || 'user' // role 필드 추가, 기본값 'user'
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }

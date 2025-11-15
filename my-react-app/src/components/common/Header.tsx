@@ -1,12 +1,14 @@
 import { Link, NavLink } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import logoMark from '@/ygmk_logo.png';
 
 export function Header() {
-  const {isAuthenticated, logout } = useAuth();
+  const {isAuthenticated, logout, user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
+  const adminDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
     logout();
@@ -16,6 +18,23 @@ export function Header() {
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
+        setIsAdminDropdownOpen(false);
+      }
+    };
+
+    if (isAdminDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAdminDropdownOpen]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white/90 backdrop-blur shadow-sm">
@@ -42,12 +61,71 @@ export function Header() {
           <div className="hidden md:flex items-center gap-5">
             {isAuthenticated ? (
               <>
-                <Link
-                  to="/mypage"
-                  className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
-                >
-                  마이페이지
-                </Link>
+                {user?.role === 'admin' ? (
+                  <div 
+                    ref={adminDropdownRef}
+                    className="relative"
+                  >
+                    <div className="flex items-center gap-1">
+                      <Link
+                        to="/admin"
+                        className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                      >
+                        관리자 페이지
+                      </Link>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsAdminDropdownOpen(!isAdminDropdownOpen);
+                        }}
+                        className="flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                        aria-label="메뉴 토글"
+                      >
+                        <svg 
+                          width="12" 
+                          height="12" 
+                          viewBox="0 0 12 12" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          className={`transition-transform ${isAdminDropdownOpen ? 'rotate-180' : ''}`}
+                        >
+                          <polyline points="3 4 6 7 9 4"></polyline>
+                        </svg>
+                      </button>
+                    </div>
+                    {isAdminDropdownOpen && (
+                      <div 
+                        className="absolute right-0 mt-2 w-48 rounded-md border bg-white shadow-lg z-50"
+                      >
+                        <Link
+                          to="/admin"
+                          className="block px-4 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
+                          onClick={() => setIsAdminDropdownOpen(false)}
+                        >
+                          관리자 페이지
+                        </Link>
+                        <Link
+                          to="/mypage"
+                          className="block px-4 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
+                          onClick={() => setIsAdminDropdownOpen(false)}
+                        >
+                          마이페이지
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    to="/mypage"
+                    className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                  >
+                    마이페이지
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="text-sm text-black hover:text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
@@ -100,7 +178,19 @@ export function Header() {
                   <MobileMenuLink to="/reports" label="피해사례" onClick={() => setIsMenuOpen(false)} />
                   <MobileMenuLink to="/dangerous-shops" label="주의가 필요한 쇼핑몰" onClick={() => setIsMenuOpen(false)} />
                   <MobileMenuLink to="/recommended-shops" label="추천 쇼핑몰" onClick={() => setIsMenuOpen(false)} />
-                  {isAuthenticated && <MobileMenuLink to="/mypage" label="마이페이지" onClick={() => setIsMenuOpen(false)} />}
+                  {isAuthenticated && (
+                    <>
+                      {user?.role === 'admin' && (
+                        <>
+                          <MobileMenuLink to="/admin" label="관리자 페이지" onClick={() => setIsMenuOpen(false)} />
+                          <MobileMenuLink to="/mypage" label="마이페이지" onClick={() => setIsMenuOpen(false)} />
+                        </>
+                      )}
+                      {user?.role !== 'admin' && (
+                        <MobileMenuLink to="/mypage" label="마이페이지" onClick={() => setIsMenuOpen(false)} />
+                      )}
+                    </>
+                  )}
                   <div className="my-1 h-px bg-border" />
                   {isAuthenticated ? (
                     <button

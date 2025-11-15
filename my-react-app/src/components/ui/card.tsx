@@ -7,6 +7,9 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 export function CardHeader(props: React.HTMLAttributes<HTMLDivElement>) {
   return <div className="space-y-1.5 p-6" {...props} />;
 }
+export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />;
+}
 export function CardContent(props: React.HTMLAttributes<HTMLDivElement>) {
   return <div className="p-6 pt-0" {...props} />;
 }
