@@ -2,7 +2,7 @@
 
 > **프로젝트명**: 여기몰까 (ygmk)  
 > **목적**: 안전한 온라인 쇼핑을 위한 쇼핑몰 검증 및 신고 플랫폼  
-> **최종 업데이트**: 2025년 11월  
+> **최종 업데이트**: 2025년 1월  
 > **버전**: 2.0.0
 
 ---
@@ -20,6 +20,20 @@
 9. [주요 기능 흐름](#9-주요-기능-흐름)
 10. [보안 구조](#10-보안-구조)
 11. [외부 서비스 통합](#11-외부-서비스-통합)
+12. [배포 환경](#12-배포-환경)
+13. [주요 설정 파일](#13-주요-설정-파일)
+14. [데이터베이스 마이그레이션](#14-데이터베이스-마이그레이션)
+15. [에러 처리](#15-에러-처리)
+16. [성능 최적화](#16-성능-최적화)
+17. [테스트 데이터](#17-테스트-데이터)
+18. [주요 알고리즘](#18-주요-알고리즘)
+19. [파일 업로드 시스템](#19-파일-업로드-시스템)
+20. [환경 변수 참조](#20-환경-변수-참조)
+21. [개발 가이드](#21-개발-가이드)
+22. [트러블슈팅](#22-트러블슈팅)
+23. [향후 개선 사항](#23-향후-개선-사항)
+24. [참고 자료](#24-참고-자료)
+25. [최근 업데이트 내역](#25-최근-업데이트-내역)
 
 ---
 
@@ -171,6 +185,8 @@ CapstoneProject/
 | React Toastify | 11.0.5 | 알림 메시지 | 전역 사용 |
 | Tailwind CSS | 3.4.1 | CSS 프레임워크 | `tailwind.config.js` |
 | class-variance-authority | 0.7.0 | 컴포넌트 변형 | `src/components/ui/` |
+| Recharts | 3.4.1 | 차트 및 데이터 시각화 | `src/components/admin/` |
+| shadcn/ui | - | UI 컴포넌트 라이브러리 | `src/components/ui/` |
 
 ### 4.2 백엔드
 
@@ -258,10 +274,14 @@ CapstoneProject/
 #### UI 컴포넌트 (`components/ui/`)
 - `badge.tsx`, `button.tsx`, `card.tsx`
 - `input.tsx`, `label.tsx`, `skeleton.tsx`, `textarea.tsx`
+- shadcn/ui 기반 고품질 컴포넌트
 
 #### 테마 컴포넌트 (`components/theme/`)
-- `theme-provider.tsx` - 테마 제공자 (다크/라이트 모드)
+- `theme-provider.tsx` - 테마 제공자 (다크/라이트/시스템 모드)
 - `theme-toggle.tsx` - 테마 토글 버튼
+
+#### 관리자 컴포넌트 (`components/admin/`)
+- `AdminDashboardCharts.tsx` - 관리자 대시보드 차트 (통계 시각화)
 
 ### 5.3 서비스 레이어 (8개)
 
@@ -320,7 +340,7 @@ CapstoneProject/
 | 신고 | `reports.js` | 신고 작성, 조회, 수정, 삭제 |
 | 커뮤니티 | `community.js` | 게시글, 댓글, 좋아요 |
 | AI 분석 | `ai-analysis.js` | 가짜 리뷰 탐지, 쇼핑몰 위험도 분석 |
-| 관리자 | `admin.js` | 관리자 전용 API |
+| 관리자 | `admin.js` | 관리자 전용 API (통계, 신고/쇼핑몰/커뮤니티 관리) |
 
 ### 6.3 미들웨어
 
@@ -672,13 +692,19 @@ Content-Type: multipart/form-data
 
 | 메서드 | 엔드포인트 | 설명 | 인증 필요 |
 |--------|-----------|------|-----------|
-| GET | `/api/community/posts` | 게시글 목록 | ❌ |
-| POST | `/api/community/posts` | 게시글 작성 | ✅ |
-| GET | `/api/community/posts/:id` | 게시글 상세 | ❌ |
-| PUT | `/api/community/posts/:id` | 게시글 수정 | ✅ |
-| DELETE | `/api/community/posts/:id` | 게시글 삭제 | ✅ |
-| POST | `/api/community/posts/:id/comments` | 댓글 작성 | ✅ |
-| POST | `/api/community/posts/:id/like` | 좋아요 | ✅ |
+| GET | `/api/community/posts` | 게시글 목록 (댓글 수 포함) | ❌ |
+| POST | `/api/community/posts` | 게시글 작성 (제목 2-100자, 내용 10-1000자) | ✅ |
+| GET | `/api/community/posts/:id` | 게시글 상세 (조회수 자동 증가) | ❌ |
+| PUT | `/api/community/posts/:id` | 게시글 수정 (본인만) | ✅ |
+| DELETE | `/api/community/posts/:id` | 게시글 삭제 (본인만) | ✅ |
+| POST | `/api/community/posts/:id/comments` | 댓글 작성 (1-500자) | ✅ |
+| DELETE | `/api/community/comments/:id` | 댓글 삭제 (본인만) | ✅ |
+| GET | `/api/community/posts/:id/comments` | 댓글 목록 조회 | ❌ |
+| POST | `/api/community/posts/:id/like` | 좋아요 (중복 방지) | ✅ |
+| GET | `/api/community/admin/posts` | 관리자: 모든 게시글 조회 | ❌ |
+| DELETE | `/api/community/admin/posts/:id` | 관리자: 게시글 삭제 | ❌ |
+| GET | `/api/community/admin/comments` | 관리자: 모든 댓글 조회 | ❌ |
+| DELETE | `/api/community/admin/comments/:id` | 관리자: 댓글 삭제 | ❌ |
 
 ### 8.6 AI 분석 API (`/api/ai`)
 
@@ -745,7 +771,11 @@ POST /api/phishing/detect
 | GET | `/api/admin/ratings` | 전체 평점 조회 | ❌ |
 | DELETE | `/api/admin/ratings/:ratingId` | 평점 삭제 | ❌ |
 | GET | `/api/admin/users` | 전체 사용자 조회 | ❌ |
-| GET | `/api/admin/stats` | 시스템 통계 | ❌ |
+| GET | `/api/admin/stats` | 시스템 통계 (쇼핑몰 수, 신고 수, 사용자 수, 게시글 수, 차트 데이터) | ❌ |
+| GET | `/api/admin/community/posts` | 관리자: 커뮤니티 게시글 목록 | ❌ |
+| DELETE | `/api/admin/community/posts/:id` | 관리자: 커뮤니티 게시글 삭제 | ❌ |
+| GET | `/api/admin/community/comments` | 관리자: 커뮤니티 댓글 목록 | ❌ |
+| DELETE | `/api/admin/community/comments/:id` | 관리자: 커뮤니티 댓글 삭제 | ❌ |
 
 ### 8.9 기타 API
 
@@ -1077,6 +1107,7 @@ const supabase = createClient(
 - 배치 처리: 5개씩 묶어서 처리
 - Rate Limiting: 1초 간격
 - 에러 핸들링: 실패 시 기본값 반환
+- AI 분석 결과 캐싱: `ai_analysis_cache` 테이블에 저장하여 재사용
 
 ---
 
@@ -1187,8 +1218,10 @@ npm start
 ### 16.2 백엔드
 
 - **캐싱**: 웹사이트 타이틀 캐싱 (24시간, 메모리 기반)
-- **배치 처리**: AI 분석 시 5개씩 묶어서 처리
-- **Rate Limiting**: SMS 발송 레이트 리밋
+- **배치 처리**: AI 분석 시 5개씩 묶어서 처리 (1초 간격)
+- **AI 분석 결과 캐싱**: `ai_analysis_cache` 테이블에 저장하여 중복 분석 방지
+- **Rate Limiting**: SMS 발송 레이트 리밋 (5회/분)
+- **데이터베이스 인덱싱**: 자주 조회되는 컬럼에 인덱스 추가 (user_id, shop_id, created_at 등)
 
 ---
 
@@ -1375,11 +1408,12 @@ npm run build
 
 ### 23.1 계획된 기능
 
-- [ ] 실시간 알림 시스템
+- [ ] 실시간 알림 시스템 (새 댓글, 좋아요, 관리자 승인)
 - [ ] 쇼핑몰 비교 기능
-- [ ] 고급 검색 필터
+- [ ] 고급 검색 필터 (카테고리, 날짜 범위, 위험도 등)
 - [ ] 모바일 앱 (React Native)
-- [ ] 관리자 대시보드 개선
+- [ ] 커뮤니티 개선 (게시글 검색, 이미지 업로드, 카테고리 분류)
+- [ ] Recharts 활용 고급 통계 차트 (관리자 대시보드)
 
 ### 23.2 기술 부채
 
@@ -1414,4 +1448,18 @@ npm run build
 **최종 업데이트**: 2025년 1월  
 **프로젝트 버전**: 2.0.0  
 **문서 버전**: 2.0.0
+
+---
+
+## 25. 최근 업데이트 내역
+
+### 2025년 1월 업데이트
+- ✅ **커뮤니티 기능 추가**: 게시판, 댓글, 좋아요 기능 완전 구현
+- ✅ **다크/라이트 테마 지원**: Tailwind CSS 기반 테마 시스템 추가
+- ✅ **관리자 대시보드 개선**: 통계 차트 및 시각화 추가 (AdminDashboardCharts)
+- ✅ **shadcn/ui 도입**: 고품질 UI 컴포넌트 라이브러리 통합
+- ✅ **백엔드 라우터 분리**: routes 디렉토리로 라우터 모듈화
+- ✅ **데이터베이스 확장**: 커뮤니티 관련 테이블 3개 추가 (community_posts, community_comments, community_post_likes)
+- ✅ **보안 강화**: XSS 방지, 레이트 리밋, 파일 업로드 검증
+- ✅ **성능 최적화**: AI 분석 배치 처리, 캐싱 시스템 개선
 
