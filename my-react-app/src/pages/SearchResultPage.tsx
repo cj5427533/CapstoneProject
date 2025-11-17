@@ -378,9 +378,16 @@ export function SearchResultPage() {
                     value={newSearchUrl}
                     onChange={(e) => setNewSearchUrl(e.target.value)}
                     placeholder="검색할 쇼핑몰 URL을 입력하세요"
-                    className="flex-1 rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex-1 rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={{ background: '#ffffff', color: '#1e293b', borderColor: '#e2e8f0' }}
                   />
-                  <button type="submit" className="inline-flex items-center justify-center rounded-md border bg-background px-3 py-2 text-sm shadow-sm hover:bg-muted">
+                  <button 
+                    type="submit" 
+                    className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm shadow-sm"
+                    style={{ background: '#2563eb', color: '#ffffff', borderColor: '#2563eb' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#1d4ed8'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#2563eb'}
+                  >
                     검색
                   </button>
                 </form>
@@ -421,10 +428,13 @@ export function SearchResultPage() {
                   {[5, 4, 3, 2, 1].map((star) => (
                     <div key={star} className="flex items-center gap-2">
                       <span className="w-10 text-sm" style={{ color: '#64748b' }}>{star}점</span>
-                      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="relative h-2 flex-1 overflow-hidden rounded-full" style={{ background: '#f1f5f9' }}>
                         <div 
-                          className="absolute left-0 top-0 h-2 rounded-full bg-primary"
-                          style={{ width: `${(shopRating.ratingDistribution[star] || 0) / (shopRating.totalRatings || 1) * 100}%` }}
+                          className="absolute left-0 top-0 h-2 rounded-full"
+                          style={{ 
+                            width: `${(shopRating.ratingDistribution[star] || 0) / (shopRating.totalRatings || 1) * 100}%`,
+                            background: '#6366f1'
+                          }}
                         />
                       </div>
                       <span className="w-8 text-right text-sm" style={{ color: '#1e293b' }}>{shopRating.ratingDistribution[star] || 0}</span>
