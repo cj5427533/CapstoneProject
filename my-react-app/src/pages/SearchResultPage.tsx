@@ -331,9 +331,9 @@ export function SearchResultPage() {
     <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
       <div className="space-y-4">
         {/* 쇼핑몰 기본 정보 카드 */}
-        <div className="rounded-lg border bg-white text-card-foreground shadow">
+        <div className="rounded-lg border bg-white shadow" style={{ color: '#1e293b' }}>
           <div className="flex items-center gap-4 border-b px-4 py-5">
-            <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-background">
+            <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-white">
               {!imgError ? (
                 <img
                   src={faviconUrl}
@@ -342,7 +342,7 @@ export function SearchResultPage() {
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <div className="flex h-full w-full items-center justify-center" style={{ color: '#64748b' }}>
                   <span className="text-lg" aria-hidden>
                     🌐
                   </span>
@@ -350,24 +350,24 @@ export function SearchResultPage() {
               )}
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-2xl font-semibold leading-tight" aria-label="분석 대상 도메인">
+              <h2 className="truncate text-2xl font-semibold leading-tight" style={{ color: '#1e293b' }} aria-label="분석 대상 도메인">
                 {domain}
               </h2>
             </div>
           </div>
           <div className="divide-y">
             <div className="px-4 py-4 text-base leading-relaxed">
-              <div className="flex items-center justify-between text-base font-medium">
+              <div className="flex items-center justify-between text-base font-medium" style={{ color: '#1e293b' }}>
                 <span>쇼핑몰 기본 정보</span>
-                <span className="text-sm text-muted-foreground">Globe</span>
+                <span className="text-sm" style={{ color: '#64748b' }}>Globe</span>
               </div>
               <div className="mt-3 grid gap-2">
-                <div className="text-muted-foreground">검색한 쇼핑몰</div>
-                <div className="font-medium break-all">{url}</div>
+                <div style={{ color: '#64748b' }}>검색한 쇼핑몰</div>
+                <div className="font-medium break-all" style={{ color: '#1e293b' }}>{url}</div>
                 {shop && shop.name && (
                   <div className="mt-2">
-                    <div className="text-muted-foreground">쇼핑몰 이름</div>
-                    <div className="font-medium">{shop.name}</div>
+                    <div style={{ color: '#64748b' }}>쇼핑몰 이름</div>
+                    <div className="font-medium" style={{ color: '#1e293b' }}>{shop.name}</div>
                   </div>
                 )}
               </div>
@@ -387,52 +387,52 @@ export function SearchResultPage() {
               </div>
             </div>
             <div className="px-4 py-4 text-base leading-relaxed">
-              <div className="flex items-center justify-between text-sm font-medium">
+              <div className="flex items-center justify-between text-sm font-medium" style={{ color: '#1e293b' }}>
                 <span>사업자 등록</span>
-                <span className="text-muted-foreground">Building</span>
+                <span style={{ color: '#64748b' }}>Building</span>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">데이터가 없습니다</p>
+              <p className="mt-3 text-sm" style={{ color: '#64748b' }}>데이터가 없습니다</p>
             </div>
             <div className="px-4 py-4 text-base leading-relaxed">
-              <div className="flex items-center justify-between text-sm font-medium">
+              <div className="flex items-center justify-between text-sm font-medium" style={{ color: '#1e293b' }}>
                 <span>결제/보안</span>
-                <span className="text-muted-foreground">CreditCard</span>
+                <span style={{ color: '#64748b' }}>CreditCard</span>
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">데이터가 없습니다</p>
+              <p className="mt-3 text-sm" style={{ color: '#64748b' }}>데이터가 없습니다</p>
             </div>
           </div>
         </div>
 
         {/* Accordion: 리뷰 신뢰도 */}
-        <details className="rounded-lg border bg-white text-card-foreground shadow" open>
+        <details className="rounded-lg border bg-white shadow" style={{ color: '#1e293b' }} open>
           <summary className="flex cursor-pointer items-center justify-between p-4">
-            <span className="text-base font-medium">리뷰 신뢰도</span>
-            <span className="text-muted-foreground">Message</span>
+            <span className="text-base font-medium" style={{ color: '#1e293b' }}>리뷰 신뢰도</span>
+            <span style={{ color: '#64748b' }}>Message</span>
           </summary>
           <div className="px-4 pb-4 pt-0 text-base leading-relaxed">
             <div className="flex items-center gap-3">
               <Rating initialRating={Math.round(shopRating.averageRating)} readonly size="small" />
-              <span className="text-sm text-muted-foreground">{shopRating.averageRating.toFixed(1)} / 5 · {shopRating.totalRatings}명</span>
+              <span className="text-sm" style={{ color: '#64748b' }}>{shopRating.averageRating.toFixed(1)} / 5 · {shopRating.totalRatings}명</span>
             </div>
             <div className="mt-4">
               {shopRating.totalRatings > 0 ? (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">평점 분포</h4>
+                  <h4 className="text-sm font-medium" style={{ color: '#1e293b' }}>평점 분포</h4>
                   {[5, 4, 3, 2, 1].map((star) => (
                     <div key={star} className="flex items-center gap-2">
-                      <span className="w-10 text-sm text-muted-foreground">{star}점</span>
+                      <span className="w-10 text-sm" style={{ color: '#64748b' }}>{star}점</span>
                       <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
                         <div 
                           className="absolute left-0 top-0 h-2 rounded-full bg-primary"
                           style={{ width: `${(shopRating.ratingDistribution[star] || 0) / (shopRating.totalRatings || 1) * 100}%` }}
                         />
                       </div>
-                      <span className="w-8 text-right text-sm">{shopRating.ratingDistribution[star] || 0}</span>
+                      <span className="w-8 text-right text-sm" style={{ color: '#1e293b' }}>{shopRating.ratingDistribution[star] || 0}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">아직 평점이 없습니다. 첫 번째 평점을 남겨주세요!</p>
+                <p className="text-sm" style={{ color: '#64748b' }}>아직 평점이 없습니다. 첫 번째 평점을 남겨주세요!</p>
               )}
             </div>
           </div>
