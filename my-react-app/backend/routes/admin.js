@@ -36,4 +36,7 @@ router.get('/users/:userId/shops', adminController.getUserShops);
 // 통계
 router.get('/stats', adminController.getStats);
 
+// 신뢰도 분포
+router.get('/trust-distribution', adminController.getTrustDistribution);
+
 module.exports = router;

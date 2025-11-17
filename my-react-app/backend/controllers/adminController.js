@@ -661,3 +661,79 @@ exports.deleteUnknownShops = async (req, res) => {
   }
 };
 
+/**
+ * 신뢰도 등급별 분포 조회
+ * GET /api/admin/trust-distribution
+ */
+exports.getTrustDistribution = async (req, res) => {
+  try {
+    // 신뢰도 등급별 집계
+    const { data: distributionData, error: distError } = await supabase
+      .from('shop_trust_scores')
+      .select('trust_grade');
+
+    if (distError) throw distError;
+
+    // 전체 쇼핑몰 수
+    const { count: totalShops, error: countError } = await supabase
+      .from('shop_trust_scores')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+
+    // 등급별 카운트
+    const gradeCounts = {
+      'VERY_HIGH': 0,
+      'HIGH': 0,
+      'CAUTION': 0,
+      'LOW': 0,
+      'VERY_LOW': 0
+    };
+
+    if (distributionData) {
+      distributionData.forEach(item => {
+        if (gradeCounts.hasOwnProperty(item.trust_grade)) {
+          gradeCounts[item.trust_grade]++;
+        }
+      });
+    }
+
+    // 응답 형식 구성
+    const distribution = [
+      {
+        grade: 'VERY_HIGH',
+        label: '신뢰도 매우 높음',
+        count: gradeCounts['VERY_HIGH']
+      },
+      {
+        grade: 'HIGH',
+        label: '신뢰도 높음',
+        count: gradeCounts['HIGH']
+      },
+      {
+        grade: 'CAUTION',
+        label: '주의 필요',
+        count: gradeCounts['CAUTION']
+      },
+      {
+        grade: 'LOW',
+        label: '신뢰도 낮음',
+        count: gradeCounts['LOW']
+      },
+      {
+        grade: 'VERY_LOW',
+        label: '신뢰도 매우 낮음',
+        count: gradeCounts['VERY_LOW']
+      }
+    ];
+
+    return success(res, {
+      totalShops: totalShops || 0,
+      distribution
+    });
+  } catch (err) {
+    console.error('신뢰도 분포 조회 오류:', err);
+    return error(res, err.message || '신뢰도 분포 조회 실패', 500);
+  }
+};
+

@@ -2,9 +2,12 @@
  * 쇼핑몰 관련 컨트롤러
  */
 const shopService = require('../services/shopService');
+const trustScoreService = require('../services/trustScoreService');
+const supabase = require('../config/supabase');
 const { success, error } = require('../utils/response');
 const { sanitizeInput, validateUrl } = require('../utils/validation');
 const { verifyToken } = require('../utils/jwt');
+const { normalizeUrl } = require('../utils/url');
 
 /**
  * 쇼핑몰 검색
@@ -233,6 +236,110 @@ exports.getRecommendedShopsDetailed = async (req, res) => {
   } catch (err) {
     console.error('추천 쇼핑몰 조회 오류:', err);
     return error(res, `추천 쇼핑몰 조회 실패: ${err.message}`, 500);
+  }
+};
+
+/**
+ * 쇼핑몰 전체 분석 실행
+ * POST /api/shops/analyze
+ */
+exports.analyzeShop = async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return error(res, 'URL이 필요합니다.', 400);
+    }
+
+    const cleanUrl = sanitizeInput(url);
+    if (!validateUrl(cleanUrl)) {
+      return error(res, '올바른 URL 형식을 입력해주세요.', 400);
+    }
+
+    // 1. URL 정규화 후 shop 조회/생성
+    const normalizedUrl = normalizeUrl(cleanUrl);
+    let userId = null;
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        userId = decoded.id;
+      }
+    }
+
+    const { shop, error: shopError } = await shopService.createShopIfNotExists(
+      normalizedUrl,
+      userId,
+      'analysis'
+    );
+
+    if (shopError) {
+      return error(res, shopError, 400);
+    }
+
+    if (!shop) {
+      return error(res, '쇼핑몰을 찾거나 생성할 수 없습니다.', 500);
+    }
+
+    // 2. ML 엔진으로부터 techRisk 가져오기
+    const techRisk = await trustScoreService.getTechRiskFromMLEngine(normalizedUrl);
+
+    // 3. 리뷰 분석 모듈로부터 reviewRisk 가져오기
+    const reviewRisk = await trustScoreService.getReviewRiskFromAnalysis(shop.id);
+
+    // 4. 관리자 검수된 신고 건수 기반 reportPenalty 계산
+    const reportPenalty = await trustScoreService.calculateReportPenalty(shop.id);
+
+    // 5. 최종 신뢰도 계산
+    const { finalTrust, trustGrade } = trustScoreService.calculateFinalTrustScore({
+      techRisk,
+      reviewRisk,
+      reportPenalty
+    });
+
+    // 6. shop_trust_scores 테이블에 upsert
+    await trustScoreService.upsertTrustScore(shop.id, {
+      techRisk,
+      reviewRisk,
+      reportPenalty,
+      finalTrust,
+      trustGrade,
+      modelVersion: 'v1.0'
+    });
+
+    // 7. 응답 데이터 구성
+    const response = {
+      shop: {
+        id: shop.id,
+        url: shop.url,
+        name: shop.name || shop.url
+      },
+      trust: {
+        finalTrust,
+        grade: trustGrade,
+        gradeLabel: trustScoreService.getTrustGradeLabel(trustGrade),
+        techRisk,
+        reviewRisk,
+        reportPenalty,
+        breakdown: {
+          domainPenalty: Math.round(techRisk * 75 * 0.4), // techRisk의 40%가 도메인 관련
+          businessPenalty: Math.round(techRisk * 75 * 0.2), // techRisk의 20%가 사업자 관련
+          reviewPenalty: Math.round(reviewRisk * 10), // reviewRisk 전체
+          reportPenalty: reportPenalty
+        }
+      },
+      analysisDetails: {
+        domain: {},
+        business: {},
+        reviews: {},
+        reports: {}
+      }
+    };
+
+    return success(res, response);
+  } catch (err) {
+    console.error('쇼핑몰 분석 오류:', err);
+    return error(res, err.message || '쇼핑몰 분석에 실패했습니다.', 500);
   }
 };
 

@@ -9,6 +9,9 @@ const ratingController = require('../controllers/ratingController');
 // 쇼핑몰 검색
 router.post('/search', shopController.searchShop);
 
+// 쇼핑몰 전체 분석
+router.post('/analyze', shopController.analyzeShop);
+
 // 쇼핑몰별 신고/평점/리뷰 조회
 router.get('/:shopId/reports', shopController.getShopReports);
 router.get('/:shopId/ratings', shopController.getShopRatings);
