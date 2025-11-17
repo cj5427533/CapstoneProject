@@ -42,26 +42,46 @@ export function AdminDashboardCharts({
         </Card>
       )}
 
-      {/* 위험도 분포 차트 */}
+      {/* 신뢰도 분포 차트 */}
       {riskDistribution && riskDistribution.length > 0 && (
         <Card className="rounded-2xl shadow-md border-border">
           <CardHeader>
-            <h3 className="text-lg font-bold text-foreground">⚠️ 위험도 분포</h3>
+            <h3 className="text-lg font-bold text-foreground">📊 신뢰도분포</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {riskDistribution.map((item, index) => {
+              {riskDistribution
+                .sort((a, b) => {
+                  // 레벨 순서: VERY_HIGH → HIGH → MEDIUM → LOW → VERY_LOW
+                  const order: { [key: string]: number } = {
+                    VERY_HIGH: 0,
+                    HIGH: 1,
+                    MEDIUM: 2,
+                    LOW: 3,
+                    VERY_LOW: 4
+                  };
+                  return (order[a.level] ?? 99) - (order[b.level] ?? 99);
+                })
+                .map((item, index) => {
+                // 신뢰도 점수 기준 5개 레벨
+                // VERY_HIGH: 90점 이상 → 파란색 (#3B82F6) - "신뢰도 매우 높음"
+                // HIGH: 70~89점 → 초록색 (#10B981) - "신뢰도 높음"
+                // MEDIUM: 40~69점 → 주황색 (#F59E0B) - "주의 필요"
+                // LOW: 20~39점 → 빨간색 (#EF4444) - "신뢰도 낮음"
+                // VERY_LOW: 0~19점 → 빨간색 (#EF4444) - "신뢰도 매우 낮음"
                 const levelColors: { [key: string]: string } = {
-                  SAFE: 'bg-green-500',
-                  CAUTION: 'bg-yellow-500',
-                  DANGEROUS: 'bg-orange-500',
-                  CRITICAL: 'bg-red-500'
+                  VERY_HIGH: '#3B82F6',  // 파란색 (neutral)
+                  HIGH: '#10B981',       // 초록색 (safe)
+                  MEDIUM: '#F59E0B',     // 주황색 (warning)
+                  LOW: '#EF4444',        // 빨간색 (danger)
+                  VERY_LOW: '#EF4444'    // 빨간색 (danger)
                 };
                 const levelLabels: { [key: string]: string } = {
-                  SAFE: '안전',
-                  CAUTION: '주의',
-                  DANGEROUS: '위험',
-                  CRITICAL: '심각'
+                  VERY_HIGH: '신뢰도 매우 높음',
+                  HIGH: '신뢰도 높음',
+                  MEDIUM: '주의 필요',
+                  LOW: '신뢰도 낮음',
+                  VERY_LOW: '신뢰도 매우 낮음'
                 };
                 const total = riskDistribution.reduce((sum, r) => sum + r.count, 0);
                 const percentage = total > 0 ? (item.count / total) * 100 : 0;
@@ -78,8 +98,12 @@ export function AdminDashboardCharts({
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
-                        className={`${levelColors[item.level] || 'bg-gray-500'} h-2 rounded-full`}
-                        style={{ width: `${percentage}%` }}
+                        className="h-2 rounded-full transition-all"
+                        style={{ 
+                          width: `${percentage}%`,
+                          backgroundColor: levelColors[item.level] || '#6B7280',
+                          minWidth: percentage > 0 ? '2px' : '0px'
+                        }}
                       />
                     </div>
                   </div>

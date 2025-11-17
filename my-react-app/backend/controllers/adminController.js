@@ -350,9 +350,22 @@ exports.getStats = async (req, res) => {
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count);
 
-    // 위험도 분포 (신고 수 기반으로 임시 계산)
-    // 실제로는 쇼핑몰의 신뢰도 점수 기반으로 계산해야 하지만, 
-    // 현재는 신고 수가 많은 쇼핑몰을 위험도가 높다고 가정
+    // 신뢰도 분포 (신뢰도 점수 기준으로 5개 레벨 계산)
+    // 신뢰도 점수 기준:
+    // - VERY_HIGH: 90점 이상 → "신뢰도 매우 높음" (파란색)
+    // - HIGH: 70~89점 → "신뢰도 높음" (초록색)
+    // - MEDIUM: 40~69점 → "주의 필요" (주황색)
+    // - LOW: 20~39점 → "신뢰도 낮음" (빨간색)
+    // - VERY_LOW: 0~19점 → "신뢰도 매우 낮음" (빨간색)
+    
+    // AI 분석 캐시에서 신뢰도 점수 조회 시도
+    const { data: aiAnalysisData, error: aiAnalysisError } = await supabase
+      .from('ai_analysis_cache')
+      .select('shop_id, analysis_result')
+      .eq('analysis_type', 'RISK_ANALYSIS')
+      .gt('expires_at', new Date().toISOString());
+
+    // 신고 수 기반으로 신뢰도 점수 추정 (AI 분석 결과가 없는 경우)
     const { data: shopsWithReports, error: shopsError } = await supabase
       .from('shops')
       .select(`
@@ -362,7 +375,6 @@ exports.getStats = async (req, res) => {
 
     if (shopsError && shopsError.code !== 'PGRST116') throw shopsError;
 
-    // 신고 수 기반으로 위험도 계산
     const shopReportCounts = new Map();
     if (shopsWithReports) {
       shopsWithReports.forEach(shop => {
@@ -371,11 +383,32 @@ exports.getStats = async (req, res) => {
       });
     }
 
-    const riskDistribution = {
-      SAFE: 0,
-      CAUTION: 0,
-      DANGEROUS: 0,
-      CRITICAL: 0
+    // AI 분석 결과에서 신뢰도 점수 추출
+    const shopTrustScores = new Map();
+    if (aiAnalysisData) {
+      aiAnalysisData.forEach(analysis => {
+        try {
+          const result = typeof analysis.analysis_result === 'string' 
+            ? JSON.parse(analysis.analysis_result) 
+            : analysis.analysis_result;
+          
+          // riskScore가 있으면 신뢰도 점수로 변환 (100 - riskScore)
+          if (result.riskScore !== undefined) {
+            const trustScore = 100 - result.riskScore;
+            shopTrustScores.set(analysis.shop_id, trustScore);
+          }
+        } catch (e) {
+          // JSON 파싱 실패 시 무시
+        }
+      });
+    }
+
+    const trustDistribution = {
+      VERY_HIGH: 0,  // 90점 이상
+      HIGH: 0,       // 70~89점
+      MEDIUM: 0,     // 40~69점
+      LOW: 0,        // 20~39점
+      VERY_LOW: 0    // 0~19점
     };
 
     // 모든 쇼핑몰 조회
@@ -386,23 +419,44 @@ exports.getStats = async (req, res) => {
     if (allShopsError) throw allShopsError;
 
     (allShops || []).forEach(shop => {
-      const reportCount = shopReportCounts.get(shop.id) || 0;
-      if (reportCount === 0) {
-        riskDistribution.SAFE++;
-      } else if (reportCount <= 2) {
-        riskDistribution.CAUTION++;
-      } else if (reportCount <= 5) {
-        riskDistribution.DANGEROUS++;
+      let trustScore = shopTrustScores.get(shop.id);
+      
+      // AI 분석 결과가 없으면 신고 수 기반으로 신뢰도 점수 추정
+      if (trustScore === undefined) {
+        const reportCount = shopReportCounts.get(shop.id) || 0;
+        if (reportCount === 0) {
+          trustScore = 100; // 신고 없음 → 신뢰도 높음
+        } else if (reportCount === 1) {
+          trustScore = 60; // 신고 1건
+        } else if (reportCount === 2) {
+          trustScore = 50; // 신고 2건
+        } else if (reportCount <= 4) {
+          trustScore = 30; // 신고 3-4건
+        } else {
+          trustScore = 10; // 신고 5건 이상
+        }
+      }
+
+      // 신뢰도 점수 기준으로 5개 레벨로 분류
+      if (trustScore >= 90) {
+        trustDistribution.VERY_HIGH++;
+      } else if (trustScore >= 70) {
+        trustDistribution.HIGH++;
+      } else if (trustScore >= 40) {
+        trustDistribution.MEDIUM++;
+      } else if (trustScore >= 20) {
+        trustDistribution.LOW++;
       } else {
-        riskDistribution.CRITICAL++;
+        trustDistribution.VERY_LOW++;
       }
     });
 
-    const riskDistributionArray = [
-      { level: 'SAFE', count: riskDistribution.SAFE },
-      { level: 'CAUTION', count: riskDistribution.CAUTION },
-      { level: 'DANGEROUS', count: riskDistribution.DANGEROUS },
-      { level: 'CRITICAL', count: riskDistribution.CRITICAL }
+    const trustDistributionArray = [
+      { level: 'VERY_HIGH', count: trustDistribution.VERY_HIGH },
+      { level: 'HIGH', count: trustDistribution.HIGH },
+      { level: 'MEDIUM', count: trustDistribution.MEDIUM },
+      { level: 'LOW', count: trustDistribution.LOW },
+      { level: 'VERY_LOW', count: trustDistribution.VERY_LOW }
     ];
 
     return success(res, {
@@ -411,7 +465,7 @@ exports.getStats = async (req, res) => {
       totalRatings: ratingsResult.count || 0,
       totalUsers: usersResult.count || 0,
       reportsByDate,
-      riskDistribution: riskDistributionArray,
+      riskDistribution: trustDistributionArray,
       reportsByCategory
     });
   } catch (err) {
