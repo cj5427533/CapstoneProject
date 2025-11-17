@@ -61,8 +61,8 @@ exports.deleteShop = async (req, res) => {
 
     // 연관된 신고, 평점 먼저 삭제
     await Promise.all([
-      supabase.from('reports').delete().eq('shop_id', shopId),
-      supabase.from('ratings').delete().eq('shop_id', shopId)
+      supabase.from('shop_reports').delete().eq('shop_id', shopId),
+      supabase.from('shop_ratings').delete().eq('shop_id', shopId)
     ]);
 
     // 쇼핑몰 삭제
@@ -86,7 +86,7 @@ exports.deleteShop = async (req, res) => {
 exports.getReports = async (req, res) => {
   try {
     const { data: reports, error: dbError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .select(`
         *,
         shops (id, url, name)
@@ -122,7 +122,7 @@ exports.updateReportStatus = async (req, res) => {
     }
 
     const { data, error: dbError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .update({ status })
       .eq('id', id)
       .select('id, status')
@@ -152,7 +152,7 @@ exports.deleteReport = async (req, res) => {
     const { reportId } = req.params;
 
     const { error: dbError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .delete()
       .eq('id', reportId);
 
@@ -171,7 +171,7 @@ exports.deleteReport = async (req, res) => {
 exports.getRatings = async (req, res) => {
   try {
     const { data: ratings, error: dbError } = await supabase
-      .from('ratings')
+      .from('shop_ratings')
       .select(`
         *,
         shops (id, url, name)
@@ -195,7 +195,7 @@ exports.deleteRating = async (req, res) => {
     const { ratingId } = req.params;
 
     const { error: dbError } = await supabase
-      .from('ratings')
+      .from('shop_ratings')
       .delete()
       .eq('id', ratingId);
 
@@ -278,8 +278,8 @@ exports.getStats = async (req, res) => {
       usersResult
     ] = await Promise.all([
       supabase.from('shops').select('id', { count: 'exact', head: true }),
-      supabase.from('reports').select('id', { count: 'exact', head: true }),
-      supabase.from('ratings').select('id', { count: 'exact', head: true }),
+      supabase.from('shop_reports').select('id', { count: 'exact', head: true }),
+      supabase.from('shop_ratings').select('id', { count: 'exact', head: true }),
       supabase.from('users').select('id', { count: 'exact', head: true })
     ]);
 
@@ -289,7 +289,7 @@ exports.getStats = async (req, res) => {
     daysAgo.setHours(0, 0, 0, 0);
 
     const { data: recentReports, error: reportsError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .select('created_at')
       .gte('created_at', daysAgo.toISOString())
       .order('created_at', { ascending: true });
@@ -320,7 +320,7 @@ exports.getStats = async (req, res) => {
 
     // 신고 카테고리별 집계
     const { data: allReports, error: allReportsError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .select('categories');
 
     if (allReportsError) throw allReportsError;
@@ -357,7 +357,7 @@ exports.getStats = async (req, res) => {
       .from('shops')
       .select(`
         id,
-        reports!inner(id)
+        shop_reports!inner(id)
       `);
 
     if (shopsError && shopsError.code !== 'PGRST116') throw shopsError;
@@ -366,7 +366,7 @@ exports.getStats = async (req, res) => {
     const shopReportCounts = new Map();
     if (shopsWithReports) {
       shopsWithReports.forEach(shop => {
-        const count = Array.isArray(shop.reports) ? shop.reports.length : 1;
+        const count = Array.isArray(shop.shop_reports) ? shop.shop_reports.length : 1;
         shopReportCounts.set(shop.id, count);
       });
     }
@@ -454,8 +454,8 @@ exports.mergeShops = async (req, res) => {
 
     // 자식 쇼핑몰의 모든 신고와 평점을 부모 쇼핑몰로 이동
     await Promise.all([
-      supabase.from('reports').update({ shop_id: parentId }).eq('shop_id', childId),
-      supabase.from('ratings').update({ shop_id: parentId }).eq('shop_id', childId)
+      supabase.from('shop_reports').update({ shop_id: parentId }).eq('shop_id', childId),
+      supabase.from('shop_ratings').update({ shop_id: parentId }).eq('shop_id', childId)
     ]);
 
     // 자식 쇼핑몰 삭제
@@ -556,8 +556,8 @@ exports.deleteUnknownShops = async (req, res) => {
       try {
         // 연관된 신고, 평점 먼저 삭제
         await Promise.all([
-          supabase.from('reports').delete().eq('shop_id', shopId),
-          supabase.from('ratings').delete().eq('shop_id', shopId)
+          supabase.from('shop_reports').delete().eq('shop_id', shopId),
+          supabase.from('shop_ratings').delete().eq('shop_id', shopId)
         ]);
 
         // 쇼핑몰 삭제

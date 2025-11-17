@@ -7,6 +7,7 @@ const { success, error } = require('../utils/response');
 const { sanitizeInput } = require('../utils/validation');
 const { verifyToken } = require('../utils/jwt');
 const { normalizeUrl } = require('../utils/url');
+const { ensureUserId } = require('../utils/anonymousUser');
 
 /**
  * 평점 등록
@@ -32,12 +33,15 @@ exports.createRating = async (req, res) => {
       }
     }
 
+    // user_id가 없으면 익명 사용자 ID로 설정 (NOT NULL 제약조건 대응)
+    const finalUserId = await ensureUserId(userId);
+
     const normalizedUrl = normalizeUrl(shopUrl);
     
     // 쇼핑몰 생성 또는 조회
     const { shop, error: shopError } = await shopService.createShopIfNotExists(
       normalizedUrl,
-      userId,
+      finalUserId,
       'rating',
       null
     );
@@ -56,7 +60,8 @@ exports.createRating = async (req, res) => {
 
     // comment가 있으면 포함하여 저장
     const ratingData = { 
-      shop_id: shopId, 
+      shop_id: shopId,
+      user_id: finalUserId, // NOT NULL 제약조건 대응
       rating: rating 
     };
     
@@ -64,16 +69,11 @@ exports.createRating = async (req, res) => {
       ratingData.comment = comment.trim();
       console.log('리뷰 내용 저장:', ratingData.comment.substring(0, 50) + '...');
     }
-    
-    // 로그인한 사용자 ID 추가
-    if (userId) {
-      ratingData.user_id = userId;
-    }
 
     console.log('저장할 평점 데이터:', ratingData);
 
     const { data: newRating, error: ratingError } = await supabase
-      .from('ratings')
+      .from('shop_ratings')
       .insert(ratingData)
       .select('*')
       .single();

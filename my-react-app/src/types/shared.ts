@@ -96,3 +96,24 @@ export interface CreateRatingData {
   shopUrl: string;
   rating: number;
 }
+
+// ENUM 타입 정의
+export type VerificationSource = 'API' | 'MANUAL' | 'CRAWLING';
+
+export interface BusinessRegistration {
+  id: number;
+  shop_id: number;
+  business_number?: string;
+  registration_date?: string;
+  business_status?: string;
+  business_type?: string;
+  capital_amount?: number;
+  representative_name?: string;
+  business_address?: string;
+  phone_number?: string;
+  email?: string;
+  last_verified: string;
+  verification_source: VerificationSource; // ENUM 타입
+  created_at: string;
+  updated_at: string;
+}

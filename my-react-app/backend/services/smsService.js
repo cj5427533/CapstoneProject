@@ -92,7 +92,7 @@ async function checkRateLimit(phoneNumber, ipAddress) {
   
   try {
     const { data: rateLimits, error } = await supabase
-      .from('sms_request_tracking')
+      .from('sms_request_logs')
       .select('*')
       .eq('phone_number', phoneNumber)
       .order('last_sent_at', { ascending: false })
@@ -103,7 +103,7 @@ async function checkRateLimit(phoneNumber, ipAddress) {
     // 새로운 제한 기록이 없으면 생성
     if (!rateLimits || rateLimits.length === 0) {
       const { error: insertError } = await supabase
-        .from('sms_request_tracking')
+        .from('sms_request_logs')
         .insert({
           phone_number: phoneNumber,
           ip_address: ipAddress,
@@ -127,7 +127,7 @@ async function checkRateLimit(phoneNumber, ipAddress) {
       
       // 카운트 증가
       const { error: updateError } = await supabase
-        .from('sms_request_tracking')
+        .from('sms_request_logs')
         .update({ 
           sent_count: rateLimit.sent_count + 1,
           last_sent_at: now.toISOString(),
@@ -139,7 +139,7 @@ async function checkRateLimit(phoneNumber, ipAddress) {
     } else {
       // 1분이 지났으면 카운트 리셋
       const { error: updateError } = await supabase
-        .from('sms_request_tracking')
+        .from('sms_request_logs')
         .update({ 
           sent_count: 1,
           last_sent_at: now.toISOString(),

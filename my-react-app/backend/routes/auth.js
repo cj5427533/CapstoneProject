@@ -13,5 +13,6 @@ router.post('/check-username', authController.checkUsername);
 router.post('/request-password-reset', authController.requestPasswordReset);
 router.post('/reset-password', authController.resetPassword);
 router.get('/me', authController.getMe);
+router.delete('/account', authController.deleteAccount); // 사용자 탈퇴 (DELETE 대신 status 변경)
 
 module.exports = router;

@@ -120,7 +120,7 @@ exports.getDangerousShopsDetailed = async (req, res) => {
     const supabase = require('../config/supabase');
     
     const { data: reports, error: reportsError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .select('shop_id')
       .not('shop_id', 'is', null);
 
@@ -142,12 +142,12 @@ exports.getDangerousShopsDetailed = async (req, res) => {
     const shopsWithStats = await Promise.all(
       shops.map(async (shop) => {
         const { count: reportCount } = await supabase
-          .from('reports')
+          .from('shop_reports')
           .select('id', { count: 'exact', head: true })
           .eq('shop_id', shop.id);
 
         const { data: ratings } = await supabase
-          .from('ratings')
+          .from('shop_ratings')
           .select('rating')
           .eq('shop_id', shop.id);
 
@@ -182,7 +182,7 @@ exports.getRecommendedShopsDetailed = async (req, res) => {
     const supabase = require('../config/supabase');
     
     const { data: ratings, error: ratingsError } = await supabase
-      .from('ratings')
+      .from('shop_ratings')
       .select('shop_id')
       .not('shop_id', 'is', null);
 
@@ -204,12 +204,12 @@ exports.getRecommendedShopsDetailed = async (req, res) => {
     const shopsWithStats = await Promise.all(
       shops.map(async (shop) => {
         const { count: reportCount } = await supabase
-          .from('reports')
+          .from('shop_reports')
           .select('id', { count: 'exact', head: true })
           .eq('shop_id', shop.id);
 
         const { data: shopRatings } = await supabase
-          .from('ratings')
+          .from('shop_ratings')
           .select('rating')
           .eq('shop_id', shop.id);
 

@@ -4,6 +4,7 @@
 const supabase = require('../config/supabase');
 const { normalizeUrl } = require('../utils/url');
 const shopService = require('./shopService');
+const { ensureUserId } = require('../utils/anonymousUser');
 
 /**
  * 신고 생성
@@ -13,10 +14,13 @@ async function createReport(reportData, userId = null) {
   
   const normalizedUrl = normalizeUrl(shopUrl);
   
+  // user_id가 없으면 익명 사용자 ID로 설정 (NOT NULL 제약조건 대응)
+  const finalUserId = await ensureUserId(userId);
+  
   // 쇼핑몰 생성 또는 조회
   const { shop, error: shopError } = await shopService.createShopIfNotExists(
     normalizedUrl,
-    userId,
+    finalUserId,
     'report',
     null
   );
@@ -35,7 +39,7 @@ async function createReport(reportData, userId = null) {
   // 중복 신고 체크
   if (reporterName) {
     const { data: existingReports, error: checkError } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .select('id')
       .eq('shop_id', shopId)
       .eq('reporter_name', reporterName);
@@ -51,9 +55,10 @@ async function createReport(reportData, userId = null) {
   const evidenceFilePaths = evidenceFiles ? evidenceFiles.map(file => `/uploads/${file.filename}`) : [];
   
   const { data: newReport, error: reportError } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .insert({
       shop_id: shopId,
+      user_id: finalUserId, // NOT NULL 제약조건 대응
       categories: JSON.stringify(categories),
       description: description,
       reporter_name: reporterName,
@@ -76,7 +81,7 @@ async function createReport(reportData, userId = null) {
  */
 async function getUserReports(reporterName) {
   const { data: reports, error } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .select(`
       *,
       shops (id, url, name)
@@ -109,7 +114,7 @@ async function getUserShopReport(reporterName, shopUrl) {
   const shopId = shops.parent_shop_id || shops.id;
 
   const { data: reports, error: reportError } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .select('*')
     .eq('shop_id', shopId)
     .eq('reporter_name', reporterName)
@@ -127,7 +132,7 @@ async function getUserShopReport(reporterName, shopUrl) {
 async function deleteReport(reportId, reporterName) {
   // 기존 신고 확인 및 권한 체크
   const { data: existingReport, error: checkError } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .select('*')
     .eq('id', reportId)
     .single();
@@ -143,7 +148,7 @@ async function deleteReport(reportId, reporterName) {
   }
 
   const { error: deleteError } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .delete()
     .eq('id', reportId);
 
@@ -158,7 +163,7 @@ async function updateReport(reportId, updateData, reporterName) {
   
   // 기존 신고 확인 및 권한 체크
   const { data: existingReport, error: checkError } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .select('*')
     .eq('id', reportId)
     .single();
@@ -174,7 +179,7 @@ async function updateReport(reportId, updateData, reporterName) {
   }
 
   const { data: updatedReport, error: updateError } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .update({
       categories: JSON.stringify(categories),
       description: description
@@ -193,7 +198,7 @@ async function updateReport(reportId, updateData, reporterName) {
  */
 async function getAllReports() {
   const { data, error } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .select(`*, shops (id, url, name)`)
     .eq('status', 'approved')
     .order('created_at', { ascending: false });

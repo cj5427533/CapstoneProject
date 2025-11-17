@@ -532,7 +532,7 @@ async function searchShop(url, userId = null, req = null) {
  */
 async function getShopReports(shopId) {
   const { data: reports, error } = await supabase
-    .from('reports')
+    .from('shop_reports')
     .select('*')
     .eq('shop_id', shopId)
     .order('created_at', { ascending: false });
@@ -546,7 +546,7 @@ async function getShopReports(shopId) {
  */
 async function getShopRatings(shopId) {
   const { data: ratings, error } = await supabase
-    .from('ratings')
+    .from('shop_ratings')
     .select('rating')
     .eq('shop_id', shopId);
 
@@ -582,7 +582,7 @@ async function getShopRatings(shopId) {
  */
 async function getShopReviews(shopId) {
   const { data: ratings, error } = await supabase
-    .from('ratings')
+    .from('shop_ratings')
     .select('id, rating, comment, created_at, user_id')
     .eq('shop_id', shopId)
     .order('created_at', { ascending: false });
@@ -618,7 +618,7 @@ async function getShopReviews(shopId) {
 async function getDangerousShops() {
   try {
     const { data: shopReports, error } = await supabase
-      .from('reports')
+      .from('shop_reports')
       .select(`shop_id, shops!inner (id, url, name)`);
 
     if (error) {
@@ -642,7 +642,7 @@ async function getDangerousShops() {
     // 각 쇼핑몰의 평점 정보도 가져오기
     const shopIds = Object.keys(reportCounts).map(id => parseInt(id));
     const { data: ratings, error: ratingsError } = await supabase
-      .from('ratings')
+      .from('shop_ratings')
       .select('shop_id, rating')
       .in('shop_id', shopIds);
 
@@ -693,7 +693,7 @@ async function getDangerousShops() {
  */
 async function getTopRatedShops() {
   const { data: shopRatings, error } = await supabase
-    .from('ratings')
+    .from('shop_ratings')
     .select(`shop_id, rating, shops!inner (id, url, name)`);
 
   if (error) throw error;

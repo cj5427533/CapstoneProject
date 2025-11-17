@@ -276,3 +276,20 @@ exports.getMe = [verifyTokenMiddleware, async (req, res) => {
   }
 }];
 
+/**
+ * 사용자 탈퇴 (CASCADE 전략 변경 대응)
+ * DELETE 대신 status를 'deleted'로 변경
+ */
+exports.deleteAccount = [verifyTokenMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    await userService.deleteUser(userId);
+    
+    return success(res, null, '계정이 탈퇴 처리되었습니다.');
+  } catch (err) {
+    console.error('계정 탈퇴 오류:', err);
+    return error(res, `계정 탈퇴에 실패했습니다. ${err.message}`, 500);
+  }
+}];
+
