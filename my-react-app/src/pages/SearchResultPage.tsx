@@ -279,7 +279,7 @@ export function SearchResultPage() {
 
   if (loading) {
     return (
-      <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
+      <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: '#ffffff', minHeight: '100vh' }}>
         <Skeleton className="h-24 w-full" />
         <div className="space-y-3">
           <Skeleton className="h-10 w-2/3" />
@@ -328,7 +328,7 @@ export function SearchResultPage() {
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
 
   return (
-    <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
+    <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: '#ffffff', minHeight: '100vh' }}>
       <div className="space-y-4">
         {/* 쇼핑몰 기본 정보 카드 */}
         <div className="rounded-lg border bg-card text-card-foreground shadow">
