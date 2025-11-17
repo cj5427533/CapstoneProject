@@ -485,7 +485,7 @@ export function AdminPage() {
       const nameMatch = (shop.name || '').toLowerCase().includes(searchLower);
       if (!urlMatch && !nameMatch) return false;
     }
-    // 위험도 필터는 현재 구현되지 않았으므로 일단 통과
+    // 매우주의도 필터는 현재 구현되지 않았으므로 일단 통과
     return true;
   });
 
@@ -614,9 +614,9 @@ export function AdminPage() {
 
   // 관리자 대시보드
   return (
-    <div className="min-h-screen bg-muted/40">
+    <div className="min-h-screen bg-white">
       {/* 고정 헤더 */}
-      <div className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
+      <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">여기몰까 Admin Console</h1>
@@ -765,11 +765,11 @@ export function AdminPage() {
                     onChange={(e) => setShopFilter({ ...shopFilter, riskLevel: e.target.value as any })}
                     className="px-3 py-2 rounded-md border border-border bg-background text-sm"
                   >
-                    <option value="all">전체 위험도</option>
+                    <option value="all">전체 매우주의도</option>
                     <option value="safe">안전</option>
                     <option value="caution">주의</option>
-                    <option value="dangerous">위험</option>
-                    <option value="critical">심각</option>
+                    <option value="dangerous">매우주의</option>
+                    <option value="critical">주의</option>
                   </select>
                   <Button
                     onClick={handleDeleteUnknownShops}

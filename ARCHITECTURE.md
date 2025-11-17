@@ -119,13 +119,14 @@
 │   Supabase      │  │   SolAPI    │  │ Gmail SMTP   │  │ OpenRouter   │
 │   PostgreSQL    │  │  (SMS 인증)  │  │ (이메일 발송) │  │ AI (Claude)  │
 │                 │  └─────────────┘  └──────────────┘  └──────────────┘
-│  14개 테이블     │
+│  15개 테이블     │
 │  • users        │
 │  • shops        │
-│  • reports      │
-│  • ratings      │
+│  • shop_reports │
+│  • shop_ratings │
 │  • community_*  │
-│  • ai_cache     │
+│  • ai_analysis_cache_entries │
+│  • business_registrations │
 └─────────────────┘
 ```
 
@@ -381,149 +382,208 @@ CapstoneProject/
 
 ## 7. 데이터베이스 스키마
 
-### 7.1 테이블 목록 (14개)
+### 7.1 테이블 목록 (15개)
 
 **데이터베이스**: Supabase PostgreSQL
+
+**최신 마이그레이션 반영**:
+- 001: 테이블 네이밍 리팩토링 (reports→shop_reports, ratings→shop_ratings 등)
+- 002: 인덱스 구조 최적화 (복합 인덱스 추가)
+- 003: NULL 처리 전략 개선 (익명 사용자 도입, user_id NOT NULL)
+- 004: CASCADE 전략 재고 (ON DELETE CASCADE → ON DELETE RESTRICT)
+- 005: ENUM 도입 (verification_source_enum)
+- add_evidence_files: shop_reports.evidence_files 컬럼 추가
+- add_shop_tracking_and_search_logs: shops 추적 컬럼 및 shop_search_logs 테이블 추가
 
 #### 사용자 & 인증 (4개)
 1. **users** - 사용자 정보
    - `id` (bigserial, PK)
-   - `username` (varchar)
-   - `email` (varchar, unique)
-   - `password` (varchar, SHA-256 해시)
-   - `phone_number` (varchar)
+   - `username` (varchar, unique, not null)
+   - `email` (varchar, unique, not null)
+   - `password` (varchar, not null, SHA-256 해시)
+   - `phone_number` (varchar, unique, not null)
+   - `status` (varchar, 'active', 'unregistered', 'deleted', 'anonymous')
    - `created_at`, `updated_at` (timestamptz)
 
 2. **password_reset_tokens** - 비밀번호 재설정 토큰
    - `id` (bigserial, PK)
-   - `user_id` (bigint, FK → users.id)
-   - `token` (varchar, unique)
-   - `expires_at` (timestamptz)
-   - `used` (boolean)
+   - `user_id` (bigint, FK → users.id, not null, ON DELETE RESTRICT)
+   - `token` (varchar, unique, not null)
+   - `expires_at` (timestamptz, not null)
+   - `used` (boolean, default: false)
    - `created_at` (timestamptz)
 
 3. **sms_verifications** - SMS 인증 정보
    - `id` (bigserial, PK)
-   - `phone_number` (varchar)
-   - `verification_code` (varchar, 6자리)
-   - `is_verified` (boolean)
+   - `phone_number` (varchar, not null)
+   - `verification_code` (varchar, not null, 6자리)
+   - `is_verified` (boolean, default: false)
    - `expires_at` (timestamptz)
    - `created_at` (timestamptz)
 
-4. **sms_request_tracking** - SMS 발송 추적
+4. **sms_request_logs** - SMS 발송 추적 및 레이트 리밋
    - `id` (bigserial, PK)
-   - `phone_number` (varchar)
-   - `ip_address` (varchar)
-   - `sent_count` (integer)
-   - `last_sent_at` (timestamptz)
+   - `phone_number` (varchar, not null)
+   - `ip_address` (inet)
+   - `sent_count` (integer, default: 1)
+   - `last_sent_at` (timestamptz, default: now())
    - `created_at`, `updated_at` (timestamptz)
 
-#### 쇼핑몰 & 신고 (4개)
+#### 쇼핑몰 & 신고 (5개)
 5. **shops** - 쇼핑몰 정보
    - `id` (bigserial, PK)
-   - `url` (varchar, unique, 정규화된 URL)
+   - `url` (varchar(500), unique, not null, 정규화된 URL)
    - `name` (varchar, 웹 스크래핑으로 자동 추출)
-   - `parent_shop_id` (bigint, FK → shops.id, 자기참조)
-   - `search_count` (integer)
+   - `parent_shop_id` (bigint, FK → shops.id, 자기참조, ON DELETE RESTRICT)
+   - `search_count` (integer, default: 0)
+   - `created_by_user_id` (bigint, FK → users.id, ON DELETE SET NULL)
+   - `created_via` (varchar(50), 'report', 'rating', 'admin', 'search' 등)
    - `created_at`, `updated_at` (timestamptz)
 
-6. **reports** - 신고 내역
+6. **shop_reports** - 신고 내역 (구 reports)
    - `id` (bigserial, PK)
-   - `shop_id` (bigint, FK → shops.id)
-   - `user_id` (bigint, FK → users.id, nullable)
+   - `shop_id` (bigint, FK → shops.id, not null, ON DELETE RESTRICT)
+   - `user_id` (bigint, FK → users.id, not null, ON DELETE RESTRICT)
    - `reporter_name` (varchar)
-   - `reporter_phone` (varchar, nullable)
-   - `categories` (text, JSON 배열)
-   - `description` (text)
-   - `evidence_files` (text, JSON 배열, 파일 경로)
-   - `status` (varchar, 'pending'/'approved'/'rejected')
+   - `reporter_phone` (varchar(20))
+   - `categories` (text, not null, JSON 배열)
+   - `description` (text, not null)
+   - `evidence_type` (varchar(50), default: 'NONE')
+   - `evidence_files` (text, JSON 배열 형식, 파일 경로)
+   - `evidence_verified` (boolean, default: false)
+   - `verification_score` (integer, default: 0)
+   - `report_type` (varchar(50), default: 'GENERAL_REVIEW')
    - `created_at`, `updated_at` (timestamptz)
 
-7. **ratings** - 평점 및 리뷰
+7. **shop_ratings** - 평점 및 리뷰 (구 ratings)
    - `id` (bigserial, PK)
-   - `shop_id` (bigint, FK → shops.id)
-   - `user_id` (bigint, FK → users.id, nullable)
-   - `rating` (integer, 1-5)
+   - `shop_id` (bigint, FK → shops.id, not null, ON DELETE RESTRICT)
+   - `user_id` (bigint, FK → users.id, not null, ON DELETE RESTRICT)
+   - `rating` (integer, not null, CHECK: rating >= 1 AND rating <= 5)
    - `comment` (text, nullable, 리뷰 내용)
    - `created_at` (timestamptz)
 
-8. **uploaded_files** - 업로드된 파일 메타데이터
+8. **report_evidence_attachments** - 신고 증빙 파일 (구 uploaded_files)
    - `id` (bigserial, PK)
-   - `report_id` (bigint, FK → reports.id)
-   - `file_path` (varchar)
-   - `file_name` (varchar)
-   - `file_size` (bigint)
-   - `mime_type` (varchar)
-   - `created_at` (timestamptz)
+   - `report_id` (bigint, FK → shop_reports.id, not null, ON DELETE RESTRICT)
+   - `file_name` (varchar(255), not null)
+   - `file_path` (varchar(500), not null)
+   - `file_size` (bigint, not null)
+   - `file_type` (varchar(100), not null)
+   - `upload_date` (timestamptz, default: now())
+   - `verification_status` (varchar(20), default: 'PENDING', 'PENDING', 'VERIFIED', 'REJECTED')
+
+9. **shop_search_logs** - 쇼핑몰 검색 로그
+   - `id` (bigserial, PK)
+   - `normalized_url` (varchar(255), not null)
+   - `raw_url` (text)
+   - `user_id` (bigint, FK → users.id, ON DELETE SET NULL)
+   - `ip_address` (varchar(64))
+   - `user_agent` (text)
+   - `created_at` (timestamptz, not null, default: now())
 
 #### 커뮤니티 (3개)
-9. **community_posts** - 커뮤니티 게시글
-   - `id` (bigserial, PK)
-   - `user_id` (bigint, FK → users.id)
-   - `title` (varchar)
-   - `content` (text)
-   - `views` (integer, 기본값 0)
-   - `likes` (integer, 기본값 0)
-   - `comments_count` (integer, 기본값 0)
-   - `created_at`, `updated_at` (timestamptz)
-
-10. **community_comments** - 커뮤니티 댓글
+10. **community_posts** - 커뮤니티 게시글
     - `id` (bigserial, PK)
-    - `post_id` (bigint, FK → community_posts.id)
-    - `user_id` (bigint, FK → users.id)
-    - `content` (text)
+    - `user_id` (bigint, FK → users.id, not null, ON DELETE RESTRICT)
+    - `title` (varchar(100), not null)
+    - `content` (text, not null)
+    - `views` (integer, default: 0)
+    - `likes` (integer, default: 0)
     - `created_at`, `updated_at` (timestamptz)
 
-11. **community_post_likes** - 게시글 좋아요
+11. **community_comments** - 커뮤니티 댓글
     - `id` (bigserial, PK)
-    - `post_id` (bigint, FK → community_posts.id)
-    - `user_id` (bigint, FK → users.id)
-    - `created_at` (timestamptz)
-    - UNIQUE 제약: (post_id, user_id)
-
-#### 분석 & 캐시 (3개)
-12. **ai_analysis_cache** - AI 분석 결과 캐시
-    - `id` (bigserial, PK)
-    - `shop_id` (bigint, FK → shops.id)
-    - `analysis_type` (varchar)
-    - `analysis_result` (jsonb)
-    - `created_at`, `updated_at` (timestamptz)
-
-13. **web_analysis** - 웹 분석 결과
-    - `id` (bigserial, PK)
-    - `shop_id` (bigint, FK → shops.id)
-    - `analysis_data` (jsonb)
+    - `post_id` (bigint, FK → community_posts.id, not null, ON DELETE RESTRICT)
+    - `user_id` (bigint, FK → users.id, not null, ON DELETE RESTRICT)
+    - `content` (varchar(500), not null)
     - `created_at` (timestamptz)
 
-14. **business_registrations** - 사업자 등록 정보
+12. **community_post_likes** - 게시글 좋아요
     - `id` (bigserial, PK)
-    - `shop_id` (bigint, FK → shops.id)
-    - `business_number` (varchar)
-    - `business_name` (varchar)
-    - `representative` (varchar)
-    - `address` (text)
+    - `post_id` (bigint, FK → community_posts.id, not null, ON DELETE RESTRICT)
+    - `user_id` (bigint, FK → users.id, not null, ON DELETE RESTRICT)
+    - `created_at` (timestamptz)
+    - UNIQUE 제약: (post_id, user_id) - 중복 좋아요 방지
+
+#### 분석 & 사업자 등록 (3개)
+13. **ai_analysis_cache_entries** - AI 분석 결과 캐시 (구 ai_analysis_cache)
+    - `id` (bigserial, PK)
+    - `shop_id` (bigint, FK → shops.id, not null, ON DELETE RESTRICT)
+    - `analysis_type` (varchar(50), not null, 'RISK_ANALYSIS', 'BUSINESS_ANALYSIS', 'WEB_ANALYSIS' 등)
+    - `analysis_result` (text, not null, JSON 형태)
+    - `analysis_date` (timestamptz, default: now())
+    - `expires_at` (timestamptz, not null)
+    - `created_at` (timestamptz)
+
+14. **web_analysis_results** - 웹 분석 결과 (구 web_analysis)
+    - `id` (bigserial, PK)
+    - `shop_id` (bigint, FK → shops.id, not null, ON DELETE RESTRICT)
+    - `suspicious_keywords` (text, JSON 형태)
+    - `price_analysis` (text, JSON 형태)
+    - `technical_analysis` (text, JSON 형태)
+    - `domain_analysis` (text, JSON 형태)
+    - `analysis_date` (timestamptz, default: now())
+    - `analysis_source` (varchar(50), default: 'AUTO', 'AUTO', 'MANUAL')
+    - `confidence_score` (integer, default: 0, 0-100)
+    - `created_at` (timestamptz)
+
+15. **business_registrations** - 사업자 등록 정보
+    - `id` (bigserial, PK)
+    - `shop_id` (bigint, FK → shops.id, not null, ON DELETE RESTRICT)
+    - `business_number` (varchar(20))
+    - `registration_date` (date)
+    - `business_status` (varchar(20), default: 'UNKNOWN', 'ACTIVE', 'SUSPENDED', 'CLOSED', 'UNKNOWN')
+    - `business_type` (varchar(100))
+    - `capital_amount` (bigint)
+    - `representative_name` (varchar(100))
+    - `business_address` (text)
+    - `phone_number` (varchar(20))
+    - `email` (varchar(255))
+    - `last_verified` (timestamptz, default: now())
+    - `verification_source` (varchar, ENUM: 'API', 'MANUAL', 'CRAWLING', 기본값: 'MANUAL')
     - `created_at`, `updated_at` (timestamptz)
 
 ### 7.2 주요 관계
 
 ```
-users (1) ──→ (N) reports
-users (1) ──→ (N) ratings
-users (1) ──→ (N) community_posts
-users (1) ──→ (N) community_comments
+users (1) ──→ (N) password_reset_tokens
+users (1) ──→ (N) shop_reports (ON DELETE RESTRICT)
+users (1) ──→ (N) shop_ratings (ON DELETE RESTRICT)
+users (1) ──→ (N) community_posts (ON DELETE RESTRICT)
+users (1) ──→ (N) community_comments (ON DELETE RESTRICT)
+users (1) ──→ (N) community_post_likes (ON DELETE RESTRICT)
+users (1) ──→ (0..1) shops (created_by_user_id, ON DELETE SET NULL)
+users (1) ──→ (0..1) shop_search_logs (ON DELETE SET NULL)
 
-shops (1) ──→ (N) reports
-shops (1) ──→ (N) ratings
-shops (1) ──→ (N) shops (parent_shop_id, 자기참조)
-shops (1) ──→ (N) ai_analysis_cache
-shops (1) ──→ (N) web_analysis
-shops (1) ──→ (N) business_registrations
+shops (1) ──→ (N) shops (parent_shop_id, 자기참조, ON DELETE RESTRICT)
+shops (1) ──→ (N) shop_reports (ON DELETE RESTRICT)
+shops (1) ──→ (N) shop_ratings (ON DELETE RESTRICT)
+shops (1) ──→ (N) ai_analysis_cache_entries (ON DELETE RESTRICT)
+shops (1) ──→ (N) web_analysis_results (ON DELETE RESTRICT)
+shops (1) ──→ (N) business_registrations (ON DELETE RESTRICT)
 
-reports (1) ──→ (N) uploaded_files
+shop_reports (1) ──→ (N) report_evidence_attachments (ON DELETE RESTRICT)
 
-community_posts (1) ──→ (N) community_comments
-community_posts (1) ──→ (N) community_post_likes
+community_posts (1) ──→ (N) community_comments (ON DELETE RESTRICT)
+community_posts (1) ──→ (N) community_post_likes (ON DELETE RESTRICT)
 ```
+
+### 7.3 주요 인덱스
+
+**복합 인덱스 (마이그레이션 002)**:
+- `idx_shop_reports_shop_id_status` (shop_id, report_type)
+- `idx_shop_ratings_shop_id_rating` (shop_id, rating)
+
+**단일 컬럼 인덱스**:
+- users: email, phone_number, created_at
+- shops: url, parent_shop_id, created_by_user_id, created_via, created_at, search_count
+- shop_reports: shop_id, user_id, created_at, evidence_type, report_type, verification_score
+- shop_ratings: shop_id, user_id, created_at, rating
+- sms_verifications: phone_number, verification_code
+- sms_request_logs: phone_number, ip_address
+- shop_search_logs: normalized_url, user_id, created_at
+- business_registrations: shop_id, business_number, business_status
 
 ---
 
@@ -806,6 +866,7 @@ POST /api/phishing/detect
   ↓ Supabase shops 테이블 조회
   ↓ (없으면) getWebsiteTitle() - 웹 스크래핑
   ↓ (없으면) shops 테이블에 INSERT
+  ↓ shop_search_logs 테이블에 검색 로그 기록
   ↓ 응답 반환
 [SearchResultPage.tsx]
   ↓ getShopReports(), getShopRatings()
@@ -876,7 +937,7 @@ POST /api/phishing/detect
   ↓ normalizeUrl() - URL 정규화
   ↓ Supabase shops 테이블 조회/생성
   ↓ 중복 신고 체크 (같은 사용자, 같은 쇼핑몰)
-  ↓ Supabase reports 테이블에 INSERT
+  ↓ Supabase shop_reports 테이블에 INSERT
   ↓ 응답 반환
 [ReportFormPage.tsx]
   ↓ toast.success() - 성공 메시지
@@ -902,8 +963,8 @@ POST /api/phishing/detect
   ↓ JWT 토큰에서 user_id 추출 (선택적)
   ↓ normalizeUrl() - URL 정규화
   ↓ Supabase shops 테이블 조회/생성
-  ↓ Supabase ratings 테이블에 INSERT
-    - shop_id, rating, comment, user_id (있으면)
+  ↓ Supabase shop_ratings 테이블에 INSERT
+    - shop_id, rating, comment, user_id (NOT NULL)
   ↓ 응답 반환
 [ReviewForm.tsx]
   ↓ onReviewSubmitted() 콜백 호출
@@ -915,9 +976,9 @@ POST /api/phishing/detect
   ↓ getShopReviews() 호출
   ↓ GET /api/shops/:shopId/reviews
 [server.js - GET /api/shops/:shopId/reviews]
-  ↓ Supabase ratings 테이블 조회
+  ↓ Supabase shop_ratings 테이블 조회
   ↓ comment가 있는 리뷰만 필터링
-  ↓ user_id가 있으면 users 테이블에서 username 조회
+  ↓ users 테이블에서 username 조회 (user_id는 NOT NULL)
   ↓ 응답 반환
 [ReviewsList.tsx]
   ↓ 리뷰 목록 업데이트
@@ -977,7 +1038,7 @@ POST /api/phishing/detect
 
 **레이트 리밋**:
 - 제한: 5회/분
-- 추적: Supabase `sms_request_tracking` 테이블
+- 추적: Supabase `sms_request_logs` 테이블
 - 함수: `checkRateLimit()` (backend/server.js:712-781)
 
 ### 10.3 입력 검증
@@ -1107,7 +1168,7 @@ const supabase = createClient(
 - 배치 처리: 5개씩 묶어서 처리
 - Rate Limiting: 1초 간격
 - 에러 핸들링: 실패 시 기본값 반환
-- AI 분석 결과 캐싱: `ai_analysis_cache` 테이블에 저장하여 재사용
+- AI 분석 결과 캐싱: `ai_analysis_cache_entries` 테이블에 저장하여 재사용
 
 ---
 
@@ -1219,7 +1280,8 @@ npm start
 
 - **캐싱**: 웹사이트 타이틀 캐싱 (24시간, 메모리 기반)
 - **배치 처리**: AI 분석 시 5개씩 묶어서 처리 (1초 간격)
-- **AI 분석 결과 캐싱**: `ai_analysis_cache` 테이블에 저장하여 중복 분석 방지
+- **AI 분석 결과 캐싱**: `ai_analysis_cache_entries` 테이블에 저장하여 중복 분석 방지
+- **검색 로그**: `shop_search_logs` 테이블에 검색 이력 기록
 - **Rate Limiting**: SMS 발송 레이트 리밋 (5회/분)
 - **데이터베이스 인덱싱**: 자주 조회되는 컬럼에 인덱스 추가 (user_id, shop_id, created_at 등)
 
@@ -1262,8 +1324,8 @@ npm start
 
 **로직**:
 1. 같은 루트 도메인 감지
-2. 자식 쇼핑몰의 모든 `reports`를 부모로 이동
-3. 자식 쇼핑몰의 모든 `ratings`를 부모로 이동
+2. 자식 쇼핑몰의 모든 `shop_reports`를 부모로 이동
+3. 자식 쇼핑몰의 모든 `shop_ratings`를 부모로 이동
 4. 자식 쇼핑몰에 `parent_shop_id` 설정
 
 ### 18.3 가짜 리뷰 탐지 알고리즘
@@ -1289,7 +1351,8 @@ npm start
 
 2. **파일 저장**:
    - 물리적 저장: `backend/uploads/` 디렉토리
-   - DB 저장: `reports.evidence_files` (JSON 배열, 파일 경로)
+   - DB 저장: `shop_reports.evidence_files` (JSON 배열, 파일 경로)
+   - 메타데이터: `report_evidence_attachments` 테이블에 파일 정보 저장
 
 3. **파일 서빙**:
    - 정적 파일 서빙: `app.use('/uploads', express.static(...))`
@@ -1460,6 +1523,15 @@ npm run build
 - ✅ **shadcn/ui 도입**: 고품질 UI 컴포넌트 라이브러리 통합
 - ✅ **백엔드 라우터 분리**: routes 디렉토리로 라우터 모듈화
 - ✅ **데이터베이스 확장**: 커뮤니티 관련 테이블 3개 추가 (community_posts, community_comments, community_post_likes)
+- ✅ **데이터베이스 리팩토링**: 테이블 네이밍 개선 (reports→shop_reports, ratings→shop_ratings 등)
+- ✅ **데이터베이스 구조 개선**: 
+  - shop_search_logs 테이블 추가 (검색 로그 추적)
+  - report_evidence_attachments 테이블 추가 (증빙 파일 메타데이터)
+  - shops 테이블에 created_by_user_id, created_via 컬럼 추가
+  - shop_reports 테이블에 evidence_type, evidence_verified, verification_score, report_type 컬럼 추가
+  - user_id NOT NULL 제약 추가 (익명 사용자 도입)
+  - ON DELETE CASCADE → ON DELETE RESTRICT 변경 (데이터 무결성 강화)
+  - 인덱스 구조 최적화 (복합 인덱스 추가)
 - ✅ **보안 강화**: XSS 방지, 레이트 리밋, 파일 업로드 검증
 - ✅ **성능 최적화**: AI 분석 배치 처리, 캐싱 시스템 개선
 

@@ -149,7 +149,7 @@ export function ReportFormPage() {
           <div className="text-center space-y-3">
             <h1 className="text-4xl font-bold">피해사례 제보</h1>
             <p className="text-lg text-slate-600">
-              피해를 경험한 쇼핑몰 정보를 공유해 주세요. 여러 이용자의 제보가 모일수록 위험 쇼핑몰을 더 빠르게 찾아낼 수 있습니다.
+              피해를 경험한 쇼핑몰 정보를 공유해 주세요. 여러 이용자의 제보가 모일수록 매우주의 쇼핑몰을 더 빠르게 찾아낼 수 있습니다.
             </p>
             <p className="text-base text-slate-500">
               기본 정보 입력 → 증빙 자료 업로드 → 제출 순으로 간단하게 제보할 수 있으며, 모든 정보는 안전하게 관리됩니다.

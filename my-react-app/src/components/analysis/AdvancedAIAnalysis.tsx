@@ -379,7 +379,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
 
                 {/* 실시간 피싱 검사 결과 */}
                 {analysisResults.phishingAlert && (() => {
-                  // 피싱 점수는 높을수록 위험하므로, 신뢰도 점수는 100 - phishingScore
+                  // 피싱 점수는 높을수록 매우주의하므로, 신뢰도 점수는 100 - phishingScore
                   const trustScore = 100 - analysisResults.phishingAlert.phishingScore;
                   const riskStatus = getRiskStatus(analysisResults.phishingAlert.phishingScore);
                   const riskLevelKorean = getRiskLevelKorean(analysisResults.phishingAlert.phishingScore);

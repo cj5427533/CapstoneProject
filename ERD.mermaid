@@ -1,0 +1,218 @@
+%% ============================================================================
+%% "여기몰까" 데이터베이스 ERD (Mermaid 형식)
+%% ============================================================================
+%% 최신 마이그레이션까지 반영된 최신 스키마
+%% 
+%% 적용된 마이그레이션:
+%% - 001: 테이블 네이밍 리팩토링 (reports→shop_reports, ratings→shop_ratings 등)
+%% - 002: 인덱스 구조 최적화 (복합 인덱스 추가)
+%% - 003: NULL 처리 전략 개선 (익명 사용자 도입, user_id NOT NULL)
+%% - 004: CASCADE 전략 재고 (ON DELETE CASCADE → ON DELETE RESTRICT)
+%% - 005: ENUM 도입 (verification_source_enum)
+%% - add_evidence_files: shop_reports.evidence_files 컬럼 추가
+%% - add_shop_tracking_and_search_logs: shops 추적 컬럼 및 shop_search_logs 테이블 추가
+%% ============================================================================
+
+erDiagram
+    %% ========= Users & Auth =========
+    
+    users {
+        bigint id PK
+        string username "unique"
+        string email "unique"
+        string password
+        string phone_number "unique"
+        string status "active, unregistered, deleted, anonymous"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    password_reset_tokens {
+        bigint id PK
+        bigint user_id FK
+        string token "unique"
+        timestamp expires_at
+        bool used
+        timestamp created_at
+    }
+    
+    %% ========= Shops & Reports/Ratings =========
+    
+    shops {
+        bigint id PK
+        string url "unique, 정규화된 URL"
+        string name
+        bigint parent_shop_id FK "자기 참조: 부모 쇼핑몰"
+        int search_count
+        bigint created_by_user_id FK "ON DELETE SET NULL"
+        string created_via "report, rating, admin, search 등"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    shop_reports {
+        bigint id PK
+        bigint shop_id FK
+        bigint user_id FK
+        string reporter_name
+        string reporter_phone
+        string categories
+        string description
+        string evidence_type "default: NONE"
+        string evidence_files "JSON 배열 형식"
+        bool evidence_verified
+        int verification_score
+        string report_type "default: GENERAL_REVIEW"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    shop_ratings {
+        bigint id PK
+        bigint shop_id FK
+        bigint user_id FK
+        int rating "CHECK: rating >= 1 AND rating <= 5"
+        string comment
+        timestamp created_at
+    }
+    
+    report_evidence_attachments {
+        bigint id PK
+        bigint report_id FK
+        string file_name
+        string file_path
+        bigint file_size
+        string file_type
+        timestamp upload_date
+        string verification_status "PENDING, VERIFIED, REJECTED"
+    }
+    
+    shop_search_logs {
+        bigint id PK
+        string normalized_url
+        string raw_url
+        bigint user_id FK "ON DELETE SET NULL"
+        string ip_address
+        string user_agent
+        timestamp created_at
+    }
+    
+    %% ========= SMS =========
+    
+    sms_verifications {
+        bigint id PK
+        string phone_number
+        string verification_code
+        bool is_verified
+        timestamp expires_at
+        timestamp created_at
+    }
+    
+    sms_request_logs {
+        bigint id PK
+        string phone_number
+        string ip_address
+        int sent_count
+        timestamp last_sent_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% ========= Community =========
+    
+    community_posts {
+        bigint id PK
+        bigint user_id FK
+        string title
+        string content
+        int views
+        int likes
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    community_comments {
+        bigint id PK
+        bigint post_id FK
+        bigint user_id FK
+        string content
+        timestamp created_at
+    }
+    
+    community_post_likes {
+        bigint id PK
+        bigint post_id FK
+        bigint user_id FK "UNIQUE(post_id, user_id)"
+        timestamp created_at
+    }
+    
+    %% ========= Analysis & Biz Reg =========
+    
+    ai_analysis_cache_entries {
+        bigint id PK
+        bigint shop_id FK
+        string analysis_type "RISK_ANALYSIS, BUSINESS_ANALYSIS, WEB_ANALYSIS 등"
+        string analysis_result "JSON 형태"
+        timestamp analysis_date
+        timestamp expires_at
+        timestamp created_at
+    }
+    
+    web_analysis_results {
+        bigint id PK
+        bigint shop_id FK
+        string suspicious_keywords "JSON 형태"
+        string price_analysis "JSON 형태"
+        string technical_analysis "JSON 형태"
+        string domain_analysis "JSON 형태"
+        timestamp analysis_date
+        string analysis_source "AUTO, MANUAL"
+        int confidence_score "0-100"
+        timestamp created_at
+    }
+    
+    business_registrations {
+        bigint id PK
+        bigint shop_id FK
+        string business_number
+        date registration_date
+        string business_status "ACTIVE, SUSPENDED, CLOSED, UNKNOWN"
+        string business_type
+        bigint capital_amount
+        string representative_name
+        string business_address
+        string phone_number
+        string email
+        timestamp last_verified
+        string verification_source "ENUM: API, MANUAL, CRAWLING"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% ========= Relationships =========
+    
+    %% Users & Auth
+    users ||--o{ password_reset_tokens : "has"
+    
+    %% Shops & Reports/Ratings
+    shops ||--o{ shops : "parent_shop"
+    users }o--o{ shops : "created_by"
+    shops ||--o{ shop_reports : "has"
+    users ||--o{ shop_reports : "reports"
+    shops ||--o{ shop_ratings : "has"
+    users ||--o{ shop_ratings : "rates"
+    shop_reports ||--o{ report_evidence_attachments : "has"
+    users }o--o{ shop_search_logs : "searches"
+    
+    %% Community
+    users ||--o{ community_posts : "writes"
+    community_posts ||--o{ community_comments : "has"
+    users ||--o{ community_comments : "comments"
+    community_posts ||--o{ community_post_likes : "has"
+    users ||--o{ community_post_likes : "likes"
+    
+    %% Analysis & Biz Reg
+    shops ||--o{ ai_analysis_cache_entries : "has"
+    shops ||--o{ web_analysis_results : "has"
+    shops ||--o{ business_registrations : "has"
+

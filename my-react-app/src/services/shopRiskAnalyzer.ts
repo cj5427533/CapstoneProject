@@ -272,7 +272,7 @@ export class ShopRiskAnalyzer {
         businessInfoMissing: 1
       };
     } else {
-      // 위험한 쇼핑몰: 신규 도메인, 의심 패턴, 사업자 정보 대부분 부족
+      // 매우주의한 쇼핑몰: 신규 도메인, 의심 패턴, 사업자 정보 대부분 부족
       return {
         domainAge: 5 + Math.abs(hash % 25), // 5-30일
         hasSuspiciousPattern: true,

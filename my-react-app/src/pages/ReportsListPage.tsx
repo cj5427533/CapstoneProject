@@ -127,7 +127,7 @@ export function ReportsListPage() {
             <div className="text-center space-y-3">
               <h1 className="text-4xl font-bold">피해사례 제보 목록</h1>
               <p className="text-lg text-slate-600">
-                실제 이용자들이 경험한 피해사례를 한눈에 확인하고, 위험 신호를 빠르게 파악해 보세요.
+                실제 이용자들이 경험한 피해사례를 한눈에 확인하고, 매우주의 신호를 빠르게 파악해 보세요.
               </p>
               <p className="text-base text-slate-500">
                 카테고리별 필터로 원하는 사례만 모아볼 수 있으며, 상세 페이지에서 쇼핑몰 분석도 이어서 확인할 수 있습니다.

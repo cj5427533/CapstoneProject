@@ -379,7 +379,7 @@ export const mockReports = {
     }
   ],
   
-  // 신뢰도가 낮은 쇼핑몰 신고 (많은 수의 심각한 신고)
+  // 신뢰도가 낮은 쇼핑몰 신고 (많은 수의 주의한 신고)
   'dangerous-shop-1': [
     {
       id: 'danger-report-1',
@@ -578,10 +578,10 @@ export const mockRiskAnalysis = {
     riskScore: 90,
     riskLevel: 'HIGH' as const,
     concerns: [
-      '개인정보 유출 관련 심각한 신고 다수',
+      '개인정보 유출 관련 주의한 신고 다수',
       '사기/피싱 관련 신고가 빈번함',
       '가짜 리뷰 패턴이 명확하게 발견됨',
-      '환불 및 배송 문제가 심각함'
+      '환불 및 배송 문제가 주의함'
     ],
     recommendations: [
       '이 쇼핑몰 이용을 절대 권하지 않습니다',
@@ -598,7 +598,7 @@ export const mockRiskAnalysis = {
     riskLevel: 'HIGH' as const,
     concerns: [
       '완전한 사기 쇼핑몰으로 판단됨',
-      '개인정보 유출과 사기 관련 신고가 매우 심각함',
+      '개인정보 유출과 사기 관련 신고가 매우 주의함',
       '고객센터가 존재하지 않음',
       '모든 리뷰가 가짜로 추정됨',
       '환불 시스템이 전혀 작동하지 않음'

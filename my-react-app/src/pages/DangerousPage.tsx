@@ -17,7 +17,7 @@ export function DangerousPage() {
         setDangerousPages(dangerous);
         setLastUpdate(new Date());
       } catch (error) {
-        console.error('위험 페이지 로드 에러:', error);
+        console.error('매우주의 페이지 로드 에러:', error);
       } finally {
         setIsLoading(false);
       }
@@ -29,7 +29,7 @@ export function DangerousPage() {
     // 30초마다 자동 새로고침
     const interval = setInterval(() => {
       loadDangerousPages();
-      console.log('위험 페이지 자동 새로고침');
+      console.log('매우주의 페이지 자동 새로고침');
     }, 30000);
 
     // cleanup
@@ -42,7 +42,7 @@ export function DangerousPage() {
     <div className="dangerous-page">
       <div className="page-container">
         <div className="page-header">
-          <h1>위험 쇼핑몰</h1>
+          <h1>매우주의 쇼핑몰</h1>
           <p className="page-subtitle">
             신고가 접수된 모든 쇼핑몰 목록입니다. 이용에 주의하세요.
           </p>

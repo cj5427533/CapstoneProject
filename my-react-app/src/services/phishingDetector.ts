@@ -454,7 +454,7 @@ export class PhishingDetector {
       const result = data.result;
       
       return {
-        phishingScore: 100 - result.phishingScore, // 백엔드는 낮을수록 위험, 프론트는 높을수록 위험
+        phishingScore: 100 - result.phishingScore, // 백엔드는 낮을수록 매우주의, 프론트는 높을수록 매우주의
         riskLevel: result.riskLevel,
         reasons: result.reasons,
         recommendations: result.recommendations,

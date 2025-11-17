@@ -283,6 +283,12 @@ exports.getStats = async (req, res) => {
       supabase.from('users').select('id', { count: 'exact', head: true })
     ]);
 
+    // 에러 체크
+    if (shopsResult.error) throw shopsResult.error;
+    if (reportsResult.error) throw reportsResult.error;
+    if (ratingsResult.error) throw ratingsResult.error;
+    if (usersResult.error) throw usersResult.error;
+
     // 최근 14일 신고 추이
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - 14);
@@ -360,27 +366,32 @@ exports.getStats = async (req, res) => {
     
     // AI 분석 캐시에서 신뢰도 점수 조회 시도
     const { data: aiAnalysisData, error: aiAnalysisError } = await supabase
-      .from('ai_analysis_cache')
+      .from('ai_analysis_cache_entries')
       .select('shop_id, analysis_result')
       .eq('analysis_type', 'RISK_ANALYSIS')
       .gt('expires_at', new Date().toISOString());
 
-    // 신고 수 기반으로 신뢰도 점수 추정 (AI 분석 결과가 없는 경우)
-    const { data: shopsWithReports, error: shopsError } = await supabase
-      .from('shops')
-      .select(`
-        id,
-        shop_reports!inner(id)
-      `);
+    // 에러가 있어도 계속 진행 (AI 분석 데이터가 없을 수 있음)
+    if (aiAnalysisError && aiAnalysisError.code !== 'PGRST116') {
+      console.warn('AI 분석 캐시 조회 오류 (무시):', aiAnalysisError);
+    }
 
-    if (shopsError && shopsError.code !== 'PGRST116') throw shopsError;
+    // 신고 수 기반으로 신뢰도 점수 추정 (AI 분석 결과가 없는 경우)
+    // 모든 신고를 조회하여 shop_id별로 집계
+    const { data: allReportsForCount, error: reportsCountError } = await supabase
+      .from('shop_reports')
+      .select('shop_id');
 
     const shopReportCounts = new Map();
-    if (shopsWithReports) {
-      shopsWithReports.forEach(shop => {
-        const count = Array.isArray(shop.shop_reports) ? shop.shop_reports.length : 1;
-        shopReportCounts.set(shop.id, count);
+    if (!reportsCountError && allReportsForCount) {
+      allReportsForCount.forEach(report => {
+        if (report.shop_id) {
+          const current = shopReportCounts.get(report.shop_id) || 0;
+          shopReportCounts.set(report.shop_id, current + 1);
+        }
       });
+    } else if (reportsCountError && reportsCountError.code !== 'PGRST116') {
+      console.warn('신고 수 집계 오류 (무시):', reportsCountError);
     }
 
     // AI 분석 결과에서 신뢰도 점수 추출
@@ -470,7 +481,14 @@ exports.getStats = async (req, res) => {
     });
   } catch (err) {
     console.error('통계 조회 오류:', err);
-    return error(res, '통계 조회 실패', 500);
+    console.error('에러 상세:', {
+      message: err.message,
+      code: err.code,
+      details: err.details,
+      hint: err.hint,
+      stack: err.stack
+    });
+    return error(res, `통계 조회 실패: ${err.message || '알 수 없는 오류'}`, 500);
   }
 };
 
