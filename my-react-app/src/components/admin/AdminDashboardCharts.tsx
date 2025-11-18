@@ -15,25 +15,25 @@ export function AdminDashboardCharts({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* 신고 추이 차트 */}
       {reportsByDate && reportsByDate.length > 0 && (
-        <Card className="rounded-2xl shadow-md border-border">
+        <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
           <CardHeader>
-            <h3 className="text-lg font-bold text-foreground">📈 최근 14일 신고 추이</h3>
+            <h3 className="text-lg font-bold text-gray-900">📈 최근 14일 신고 추이</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {reportsByDate.map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{item.date}</span>
+                  <span className="text-sm text-gray-600">{item.date}</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-32 bg-muted rounded-full h-2">
+                    <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-primary h-2 rounded-full"
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{
                           width: `${Math.min((item.count / Math.max(...reportsByDate.map(d => d.count))) * 100, 100)}%`
                         }}
                       />
                     </div>
-                    <span className="text-sm font-medium text-foreground w-8 text-right">{item.count}</span>
+                    <span className="text-sm font-medium text-gray-900 w-8 text-right">{item.count}</span>
                   </div>
                 </div>
               ))}
@@ -44,9 +44,9 @@ export function AdminDashboardCharts({
 
       {/* 신뢰도 분포 차트 */}
       {riskDistribution && riskDistribution.length > 0 && (
-        <Card className="rounded-2xl shadow-md border-border">
+        <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
           <CardHeader>
-            <h3 className="text-lg font-bold text-foreground">📊 신뢰도분포</h3>
+            <h3 className="text-lg font-bold text-gray-900">📊 신뢰도분포</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -89,14 +89,14 @@ export function AdminDashboardCharts({
                 return (
                   <div key={index} className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-medium text-gray-900">
                         {levelLabels[item.level] || item.level}
                       </span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-gray-600">
                         {item.count}개 ({percentage.toFixed(1)}%)
                       </span>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="h-2 rounded-full transition-all"
                         style={{ 
@@ -116,9 +116,9 @@ export function AdminDashboardCharts({
 
       {/* 신고 카테고리별 분포 */}
       {reportsByCategory && reportsByCategory.length > 0 && (
-        <Card className="rounded-2xl shadow-md border-border lg:col-span-2">
+        <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
           <CardHeader>
-            <h3 className="text-lg font-bold text-foreground">📋 신고 카테고리별 분포</h3>
+            <h3 className="text-lg font-bold text-gray-900">📋 신고 카테고리별 분포</h3>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -127,18 +127,18 @@ export function AdminDashboardCharts({
                 const percentage = total > 0 ? (item.count / total) * 100 : 0;
                 
                 return (
-                  <div key={index} className="p-4 bg-muted/50 rounded-lg">
+                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-foreground">{item.category}</span>
-                      <span className="text-sm text-muted-foreground">{item.count}건</span>
+                      <span className="text-sm font-medium text-gray-900">{item.category}</span>
+                      <span className="text-sm text-gray-600">{item.count}건</span>
                     </div>
-                    <div className="w-full bg-background rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-primary h-2 rounded-full"
+                        className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <span className="text-xs text-muted-foreground mt-1 block">
+                    <span className="text-xs text-gray-600 mt-1 block">
                       {percentage.toFixed(1)}%
                     </span>
                   </div>
@@ -153,9 +153,9 @@ export function AdminDashboardCharts({
       {(!reportsByDate || reportsByDate.length === 0) &&
        (!riskDistribution || riskDistribution.length === 0) &&
        (!reportsByCategory || reportsByCategory.length === 0) && (
-        <Card className="rounded-2xl shadow-md border-border lg:col-span-2">
+        <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">차트 데이터가 없습니다.</p>
+            <p className="text-gray-600">차트 데이터가 없습니다.</p>
           </CardContent>
         </Card>
       )}

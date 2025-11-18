@@ -645,7 +645,7 @@ export async function getTopRatedPages(): Promise<TopRatedShop[]> {
   }
 }
 
-// 사용자 정보 조회
+// 사용자 정보 조회 (userId로)
 export async function getCurrentUser(userId: number): Promise<{ user: User }> {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -664,6 +664,27 @@ export async function getCurrentUser(userId: number): Promise<{ user: User }> {
     return response.json();
   } catch (error) {
     console.error('사용자 정보 조회 에러:', error);
+    throw error;
+  }
+}
+
+// 현재 로그인한 사용자 정보 조회 (JWT 토큰 사용)
+export async function getMe(): Promise<{ user: User }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '사용자 정보 조회에 실패했습니다.');
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  } catch (error) {
+    console.error('현재 사용자 정보 조회 에러:', error);
     throw error;
   }
 }

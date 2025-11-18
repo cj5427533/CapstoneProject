@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import { getMe } from '../utils/api';
 import {
   getAdminStats,
   getAdminShops,
@@ -110,7 +111,7 @@ interface CommunityComment {
 
 export function AdminPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, user: currentUser, loading, logout } = useAuth();
+  const { isAuthenticated, user: currentUser, loading, logout, updateUser } = useAuth();
   
   const [currentTab, setCurrentTab] = useState<'stats' | 'shops' | 'reports' | 'ratings' | 'users' | 'community'>('stats');
   
@@ -252,6 +253,19 @@ export function AdminPage() {
       await updateUserRole(userId, newRole);
       alert(`사용자 권한이 ${roleText}로 변경되었습니다.`);
       loadUsers();
+      
+      // 변경된 사용자가 현재 로그인한 사용자라면 AuthContext의 사용자 정보도 업데이트
+      if (currentUser && currentUser.id === userId) {
+        try {
+          const meResponse = await getMe();
+          if (meResponse.user) {
+            updateUser(meResponse.user);
+          }
+        } catch (error) {
+          console.error('현재 사용자 정보 업데이트 실패:', error);
+          // 사용자 정보 업데이트 실패해도 권한 변경은 성공했으므로 계속 진행
+        }
+      }
     } catch (error: any) {
       console.error('사용자 권한 변경 실패:', error);
       alert('사용자 권한 변경에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
@@ -599,9 +613,9 @@ export function AdminPage() {
   // 로딩 중
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="max-w-md w-full bg-card p-8 rounded-lg shadow-lg text-center">
-          <p className="text-muted-foreground">로딩 중...</p>
+      <div className="min-h-screen flex items-center justify-center bg-white p-4">
+        <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg text-center border border-gray-200">
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
@@ -616,11 +630,11 @@ export function AdminPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* 고정 헤더 */}
-      <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">여기몰까 Admin Console</h1>
-            <Badge className="text-xs bg-background">관리자</Badge>
+            <h1 className="text-2xl font-bold text-gray-900">여기몰까 Admin Console</h1>
+            <Badge className="text-xs bg-green-100 text-green-700 border-green-300">관리자</Badge>
           </div>
           <Button 
             onClick={handleLogout} 
@@ -636,8 +650,8 @@ export function AdminPage() {
             <Button
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 currentTab === 'stats' 
-                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                  : 'bg-background text-foreground hover:bg-muted border border-border'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('stats')}
             >
@@ -646,8 +660,8 @@ export function AdminPage() {
             <Button
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 currentTab === 'shops' 
-                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                  : 'bg-background text-foreground hover:bg-muted border border-border'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('shops')}
             >
@@ -656,8 +670,8 @@ export function AdminPage() {
             <Button
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 currentTab === 'reports' 
-                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                  : 'bg-background text-foreground hover:bg-muted border border-border'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('reports')}
             >
@@ -666,8 +680,8 @@ export function AdminPage() {
             <Button
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 currentTab === 'ratings' 
-                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                  : 'bg-background text-foreground hover:bg-muted border border-border'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('ratings')}
             >
@@ -676,8 +690,8 @@ export function AdminPage() {
             <Button
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 currentTab === 'users' 
-                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                  : 'bg-background text-foreground hover:bg-muted border border-border'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('users')}
             >
@@ -686,8 +700,8 @@ export function AdminPage() {
             <Button
               className={`px-4 py-2 rounded-lg font-medium transition-all ${
                 currentTab === 'community' 
-                  ? 'bg-primary text-primary-foreground shadow-sm' 
-                  : 'bg-background text-foreground hover:bg-muted border border-border'
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('community')}
             >
@@ -700,34 +714,34 @@ export function AdminPage() {
       <div className="max-w-[1400px] mx-auto px-6 py-8">
         {/* 통계 탭 */}
         {currentTab === 'stats' && (
-          <Card className="rounded-2xl shadow-md border-border">
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-2xl font-bold text-foreground">📊 시스템 통계</h2>
+              <h2 className="text-2xl font-bold text-gray-900">📊 시스템 통계</h2>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <Card className="bg-white border-blue-200 border-2">
                   <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 쇼핑몰 수</h3>
-                    <div className="text-4xl font-bold text-primary">{stats?.totalShops ?? 0}</div>
+                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 쇼핑몰 수</h3>
+                    <div className="text-4xl font-bold text-blue-600">{stats?.totalShops ?? 0}</div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
+                <Card className="bg-white border-red-200 border-2">
                   <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 피해 사례 제보 수</h3>
-                    <div className="text-4xl font-bold text-destructive">{stats?.totalReports ?? 0}</div>
+                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 피해 사례 제보 수</h3>
+                    <div className="text-4xl font-bold text-red-600">{stats?.totalReports ?? 0}</div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
+                <Card className="bg-white border-gray-200 border-2">
                   <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 평점 수</h3>
-                    <div className="text-4xl font-bold text-warning">{stats?.totalRatings ?? 0}</div>
+                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 평점 수</h3>
+                    <div className="text-4xl font-bold text-gray-900">{stats?.totalRatings ?? 0}</div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+                <Card className="bg-white border-gray-200 border-2">
                   <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">총 사용자 수</h3>
-                    <div className="text-4xl font-bold text-success">{stats?.totalUsers ?? 0}</div>
+                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 사용자 수</h3>
+                    <div className="text-4xl font-bold text-gray-900">{stats?.totalUsers ?? 0}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -748,10 +762,10 @@ export function AdminPage() {
 
         {/* 쇼핑몰 관리 탭 */}
         {currentTab === 'shops' && (
-          <Card className="rounded-2xl shadow-md border-border">
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-foreground">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
+                <h2 className="text-2xl font-bold text-gray-900">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
                 <div className="flex gap-2">
                   <Input
                     type="text"
@@ -763,7 +777,7 @@ export function AdminPage() {
                   <select
                     value={shopFilter.riskLevel}
                     onChange={(e) => setShopFilter({ ...shopFilter, riskLevel: e.target.value as any })}
-                    className="px-3 py-2 rounded-md border border-border bg-background text-sm"
+                    className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm"
                   >
                     <option value="all">전체 매우주의도</option>
                     <option value="safe">안전</option>
@@ -783,25 +797,25 @@ export function AdminPage() {
             <CardContent>
             {filteredShops.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">쇼핑몰 데이터가 없습니다.</p>
+                <p className="text-gray-600">쇼핑몰 데이터가 없습니다.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">URL</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">이름</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">부모 쇼핑몰</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">등록일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">URL</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">이름</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">부모 쇼핑몰</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">등록일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredShops.map((shop) => (
-                    <tr key={shop.id} className={`border-b border-border hover:bg-muted/30 ${shop.parent_shop_id ? 'bg-yellow-50' : ''}`}>
-                      <td className="px-4 py-3 text-foreground">{shop.id}</td>
+                    <tr key={shop.id} className={`border-b border-gray-200 hover:bg-gray-50 ${shop.parent_shop_id ? 'bg-yellow-50' : ''}`}>
+                      <td className="px-4 py-3 text-gray-900">{shop.id}</td>
                       <td className="px-4 py-3">
                         <a 
                           href={`/search?url=${encodeURIComponent(shop.url)}`} 
@@ -812,7 +826,7 @@ export function AdminPage() {
                           {shop.url}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-foreground">
+                      <td className="px-4 py-3 text-gray-900">
                         {editingShopId === shop.id ? (
                           <div className="space-y-2">
                           <input
@@ -820,10 +834,10 @@ export function AdminPage() {
                             value={editingShopName}
                             onChange={(e) => setEditingShopName(e.target.value)}
                               placeholder="쇼핑몰 이름을 입력하세요 (예: 신지모루)"
-                            className="w-full px-3 py-2 border-2 border-border rounded-md text-base transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            className="w-full px-3 py-2 border-2 border-gray-300 rounded-md text-base transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                             autoFocus
                           />
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-gray-500">
                               현재 URL: {shop.url}
                             </p>
                           </div>
@@ -832,9 +846,9 @@ export function AdminPage() {
                             {shop.name && shop.name !== shop.url ? (
                               <span className="font-medium">{shop.name}</span>
                             ) : shop.name ? (
-                              <span className="text-muted-foreground italic">{shop.name} (URL과 동일)</span>
+                              <span className="text-gray-500 italic">{shop.name} (URL과 동일)</span>
                             ) : (
-                              <span className="text-muted-foreground italic">(이름 없음 - URL: {shop.url})</span>
+                              <span className="text-gray-500 italic">(이름 없음 - URL: {shop.url})</span>
                             )}
                           </div>
                         )}
@@ -845,10 +859,10 @@ export function AdminPage() {
                             → #{shop.parent_shop_id} 에 병합됨
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-gray-500">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-foreground">{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-gray-900">{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2 flex-wrap">
                           {editingShopId === shop.id ? (
@@ -876,7 +890,7 @@ export function AdminPage() {
                                 value={mergeTargetId}
                                 onChange={(e) => setMergeTargetId(e.target.value)}
                                 placeholder="대상 ID"
-                                className="w-24 px-2 py-1.5 border-2 border-border rounded-md text-sm transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                                className="w-24 px-2 py-1.5 border-2 border-gray-300 rounded-md text-sm transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                 autoFocus
                               />
                               <button 
@@ -937,15 +951,15 @@ export function AdminPage() {
 
         {/* 신고 관리 탭 */}
         {currentTab === 'reports' && (
-          <Card className="rounded-2xl shadow-md border-border">
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-foreground">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
+                <h2 className="text-2xl font-bold text-gray-900">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
                 <div className="flex gap-2">
                   <select
                     value={reportFilter}
                     onChange={(e) => setReportFilter(e.target.value as any)}
-                    className="px-3 py-2 rounded-md border border-border bg-background text-sm"
+                    className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm"
                   >
                     <option value="all">전체</option>
                     <option value="today">오늘 신고</option>
@@ -959,34 +973,34 @@ export function AdminPage() {
             <CardContent>
             {filteredReports.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">피해 사례 제보 데이터가 없습니다.</p>
+                <p className="text-gray-600">피해 사례 제보 데이터가 없습니다.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">쇼핑몰</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">카테고리</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">제보자</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">제보일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">상태</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50 text-xs">관리</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">쇼핑몰</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">카테고리</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">제보자</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">제보일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">상태</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50 text-xs">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredReports.map((report) => (
                     <tr 
                       key={report.id} 
-                      className="border-b border-border hover:bg-muted/30 cursor-pointer"
+                      className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
                       onClick={() => setSelectedReport(report)}
                     >
-                      <td className="px-3 py-2 text-foreground text-sm">{report.id}</td>
-                      <td className="px-3 py-2 text-foreground text-sm max-w-xs truncate" title={report.shops?.name || report.shops?.url}>
+                      <td className="px-3 py-2 text-gray-900 text-sm">{report.id}</td>
+                      <td className="px-3 py-2 text-gray-900 text-sm max-w-xs truncate" title={report.shops?.name || report.shops?.url}>
                         {report.shops?.name || report.shops?.url}
                       </td>
-                      <td className="px-3 py-2 text-foreground text-sm">
+                      <td className="px-3 py-2 text-gray-900 text-sm">
                         {(() => {
                           try {
                             return JSON.parse(report.categories).join(', ');
@@ -995,8 +1009,8 @@ export function AdminPage() {
                           }
                         })()}
                       </td>
-                      <td className="px-3 py-2 text-foreground text-sm">{report.reporter_name || '익명'}</td>
-                      <td className="px-3 py-2 text-foreground text-sm">{new Date(report.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-3 py-2 text-gray-900 text-sm">{report.reporter_name || '익명'}</td>
+                      <td className="px-3 py-2 text-gray-900 text-sm">{new Date(report.created_at).toLocaleString('ko-KR')}</td>
                       <td className="px-3 py-2">
                         <Badge 
                           className={
@@ -1022,7 +1036,7 @@ export function AdminPage() {
                           <select
                             value={report.status || 'pending'}
                             onChange={(e) => handleUpdateReportStatus(report.id, e.target.value as any)}
-                            className="px-2 py-1 rounded-md border border-border bg-background text-xs"
+                            className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <option value="pending">대기중</option>
@@ -1048,27 +1062,27 @@ export function AdminPage() {
             onClick={() => setSelectedReport(null)}
           >
             <Card 
-              className="max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+              className="max-w-3xl w-full max-h-[90vh] overflow-y-auto bg-white"
               onClick={(e) => e.stopPropagation()}
             >
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-foreground">신고 상세 정보</h3>
+                  <h3 className="text-xl font-bold text-gray-900">신고 상세 정보</h3>
                   <Button variant="ghost" onClick={() => setSelectedReport(null)}>✕</Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">신고 ID</label>
-                  <p className="text-foreground">{selectedReport.id}</p>
+                  <label className="text-sm font-medium text-gray-600">신고 ID</label>
+                  <p className="text-gray-900">{selectedReport.id}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">쇼핑몰</label>
-                  <p className="text-foreground">{selectedReport.shops?.name || selectedReport.shops?.url}</p>
+                  <label className="text-sm font-medium text-gray-600">쇼핑몰</label>
+                  <p className="text-gray-900">{selectedReport.shops?.name || selectedReport.shops?.url}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">카테고리</label>
-                  <p className="text-foreground">
+                  <label className="text-sm font-medium text-gray-600">카테고리</label>
+                  <p className="text-gray-900">
                     {(() => {
                       try {
                         return JSON.parse(selectedReport.categories).join(', ');
@@ -1079,24 +1093,24 @@ export function AdminPage() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">상세 설명</label>
-                  <p className="text-foreground whitespace-pre-wrap bg-muted/30 p-3 rounded-md">{selectedReport.description}</p>
+                  <label className="text-sm font-medium text-gray-600">상세 설명</label>
+                  <p className="text-gray-900 whitespace-pre-wrap bg-gray-100 p-3 rounded-md">{selectedReport.description}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">제보자</label>
-                  <p className="text-foreground">{selectedReport.reporter_name || '익명'}</p>
+                  <label className="text-sm font-medium text-gray-600">제보자</label>
+                  <p className="text-gray-900">{selectedReport.reporter_name || '익명'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">제보일</label>
-                  <p className="text-foreground">{new Date(selectedReport.created_at).toLocaleString('ko-KR')}</p>
+                  <label className="text-sm font-medium text-gray-600">제보일</label>
+                  <p className="text-gray-900">{new Date(selectedReport.created_at).toLocaleString('ko-KR')}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">상태</label>
+                  <label className="text-sm font-medium text-gray-600">상태</label>
                   <div className="mt-2">
                     <select
                       value={selectedReport.status || 'pending'}
                       onChange={(e) => handleUpdateReportStatus(selectedReport.id, e.target.value as any)}
-                      className="px-3 py-2 rounded-md border border-border bg-background"
+                      className="px-3 py-2 rounded-md border border-gray-300 bg-white"
                     >
                       <option value="pending">대기중</option>
                       <option value="approved">승인</option>
@@ -1124,7 +1138,7 @@ export function AdminPage() {
                   
                   return (
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">증빙 자료 ({evidenceFiles.length}개)</label>
+                      <label className="text-sm font-medium text-gray-600">증빙 자료 ({evidenceFiles.length}개)</label>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         {evidenceFiles.map((fileUrl: string, index: number) => {
                           const imageUrl = fileUrl.startsWith('http') 
@@ -1136,7 +1150,7 @@ export function AdminPage() {
                               key={index}
                               src={imageUrl}
                               alt={`증빙 자료 ${index + 1}`}
-                              className="w-full h-auto rounded-md border border-border cursor-pointer"
+                              className="w-full h-auto rounded-md border border-gray-300 cursor-pointer"
                               onClick={() => setSelectedImage(imageUrl)}
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -1172,10 +1186,10 @@ export function AdminPage() {
 
         {/* 평점 관리 탭 */}
         {currentTab === 'ratings' && (
-          <Card className="rounded-2xl shadow-md border-border">
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-foreground">⭐ 평점 관리 ({ratings.length}개)</h2>
+                <h2 className="text-2xl font-bold text-gray-900">⭐ 평점 관리 ({ratings.length}개)</h2>
                 <Button 
                   onClick={handleGenerateMockRatings}
                   className="bg-success text-white hover:bg-success/90"
@@ -1187,42 +1201,42 @@ export function AdminPage() {
             <CardContent>
             {ratings.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">평점 데이터가 없습니다.</p>
+                <p className="text-gray-600">평점 데이터가 없습니다.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">쇼핑몰</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">평점</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">리뷰 내용</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">등록일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">쇼핑몰</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">평점</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">리뷰 내용</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">등록일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ratings.map((rating) => (
-                    <tr key={rating.id} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-4 py-3 text-foreground">{rating.id}</td>
-                      <td className="px-4 py-3 text-foreground max-w-xs truncate">{rating.shops?.name || rating.shops?.url}</td>
-                      <td className="px-4 py-3 text-foreground">
+                    <tr key={rating.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-900">{rating.id}</td>
+                      <td className="px-4 py-3 text-gray-900 max-w-xs truncate">{rating.shops?.name || rating.shops?.url}</td>
+                      <td className="px-4 py-3 text-gray-900">
                         <span className="text-yellow-500">
                           {'⭐'.repeat(rating.rating)}
                         </span>
                         {rating.rating}점
                       </td>
-                      <td className="px-4 py-3 text-foreground max-w-md break-words">
+                      <td className="px-4 py-3 text-gray-900 max-w-md break-words">
                         {rating.comment ? (
                           <span className={rating.comment.includes('[테스트 데이터]') ? 'text-orange-600 font-bold' : ''}>
                             {rating.comment}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground italic">리뷰 없음</span>
+                          <span className="text-gray-500 italic">리뷰 없음</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-foreground">{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-gray-900">{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
                       <td className="px-4 py-3">
                         <button 
                           onClick={() => handleDeleteRating(rating.id)}
@@ -1243,48 +1257,48 @@ export function AdminPage() {
 
         {/* 사용자 관리 탭 */}
         {currentTab === 'users' && (
-          <Card className="rounded-2xl shadow-md border-border">
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-2xl font-bold text-foreground">👥 사용자 관리 ({users.length}명)</h2>
+              <h2 className="text-2xl font-bold text-gray-900">👥 사용자 관리 ({users.length}명)</h2>
             </CardHeader>
             <CardContent>
             {users.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">사용자 데이터가 없습니다.</p>
+                <p className="text-gray-600">사용자 데이터가 없습니다.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">사용자명</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">이메일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">전화번호</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">권한</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">가입일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">사용자명</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">이메일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">전화번호</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">권한</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">가입일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {users.map((user) => (
-                    <tr key={user.id} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-4 py-3 text-foreground">{user.id}</td>
-                      <td className="px-4 py-3 text-foreground">{user.username}</td>
-                      <td className="px-4 py-3 text-foreground">{user.email}</td>
-                      <td className="px-4 py-3 text-foreground">{user.phone_number}</td>
+                    <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-900">{user.id}</td>
+                      <td className="px-4 py-3 text-gray-900">{user.username}</td>
+                      <td className="px-4 py-3 text-gray-900">{user.email}</td>
+                      <td className="px-4 py-3 text-gray-900">{user.phone_number}</td>
                       <td className="px-4 py-3">
                         <Badge 
                           className={
                             user.role === 'admin' 
-                              ? 'bg-primary/20 text-primary border-primary' 
-                              : 'bg-muted/20 text-muted-foreground border-border'
+                              ? 'bg-blue-100 text-blue-700 border-blue-300' 
+                              : 'bg-gray-100 text-gray-700 border-gray-300'
                           }
                         >
                           {user.role === 'admin' ? '관리자' : '일반 사용자'}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-foreground">{new Date(user.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-gray-900">{new Date(user.created_at).toLocaleString('ko-KR')}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           {user.role === 'admin' ? (
@@ -1317,49 +1331,49 @@ export function AdminPage() {
 
         {/* 커뮤니티 관리 탭 */}
         {currentTab === 'community' && (
-          <Card className="rounded-2xl shadow-md border-border">
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-2xl font-bold text-foreground">💬 커뮤니티 관리</h2>
+              <h2 className="text-2xl font-bold text-gray-900">💬 커뮤니티 관리</h2>
             </CardHeader>
             <CardContent>
             
             {/* 게시글 관리 */}
             <div className="mb-12">
-              <h3 className="text-lg font-semibold text-foreground mb-4">📝 게시글 관리 ({communityPosts.length}개)</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">📝 게시글 관리 ({communityPosts.length}개)</h3>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">제목</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">내용 미리보기</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성자</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">조회수</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">좋아요</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">댓글수</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">제목</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">내용 미리보기</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">작성자</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">조회수</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">좋아요</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">댓글수</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">작성일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {communityPosts.map((post) => (
-                      <tr key={post.id} className="border-b border-border hover:bg-muted/30">
-                        <td className="px-4 py-3 text-foreground">{post.id}</td>
-                        <td className="px-4 py-3 text-foreground max-w-xs truncate" title={post.title}>
+                      <tr key={post.id} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{post.id}</td>
+                        <td className="px-4 py-3 text-gray-900 max-w-xs truncate" title={post.title}>
                           {post.title.length > 30 ? post.title.substring(0, 30) + '...' : post.title}
                         </td>
-                        <td className="px-4 py-3 text-foreground max-w-md truncate" title={post.content}>
+                        <td className="px-4 py-3 text-gray-900 max-w-md truncate" title={post.content}>
                           {post.content.length > 50 ? post.content.substring(0, 50) + '...' : post.content}
                         </td>
-                        <td className="px-4 py-3 text-foreground">
+                        <td className="px-4 py-3 text-gray-900">
                           {post.author}
                           <br />
-                          <span className="text-sm text-muted-foreground">{post.author_email}</span>
+                          <span className="text-sm text-gray-500">{post.author_email}</span>
                         </td>
-                        <td className="px-4 py-3 text-foreground">{post.views}</td>
-                        <td className="px-4 py-3 text-foreground">{post.likes}</td>
-                        <td className="px-4 py-3 text-foreground">{post.comments_count}</td>
-                        <td className="px-4 py-3 text-foreground">{new Date(post.created_at).toLocaleString('ko-KR')}</td>
+                        <td className="px-4 py-3 text-gray-900">{post.views}</td>
+                        <td className="px-4 py-3 text-gray-900">{post.likes}</td>
+                        <td className="px-4 py-3 text-gray-900">{post.comments_count}</td>
+                        <td className="px-4 py-3 text-gray-900">{new Date(post.created_at).toLocaleString('ko-KR')}</td>
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityPost(post.id, post.title)}
@@ -1377,35 +1391,35 @@ export function AdminPage() {
 
             {/* 댓글 관리 */}
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-4">💭 댓글 관리 ({communityComments.length}개)</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">💭 댓글 관리 ({communityComments.length}개)</h3>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-border">
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">댓글 내용</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성자</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">게시글 제목</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">작성일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-foreground bg-muted/50">관리</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">댓글 내용</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">작성자</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">게시글 제목</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">작성일</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {communityComments.map((comment) => (
-                      <tr key={comment.id} className="border-b border-border hover:bg-muted/30">
-                        <td className="px-4 py-3 text-foreground">{comment.id}</td>
-                        <td className="px-4 py-3 text-foreground max-w-md truncate" title={comment.content}>
+                      <tr key={comment.id} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{comment.id}</td>
+                        <td className="px-4 py-3 text-gray-900 max-w-md truncate" title={comment.content}>
                           {comment.content.length > 50 ? comment.content.substring(0, 50) + '...' : comment.content}
                         </td>
-                        <td className="px-4 py-3 text-foreground">
+                        <td className="px-4 py-3 text-gray-900">
                           {comment.author}
                           <br />
-                          <span className="text-sm text-muted-foreground">{comment.author_email}</span>
+                          <span className="text-sm text-gray-500">{comment.author_email}</span>
                         </td>
-                        <td className="px-4 py-3 text-foreground max-w-xs truncate" title={comment.post_title}>
+                        <td className="px-4 py-3 text-gray-900 max-w-xs truncate" title={comment.post_title}>
                           {comment.post_title.length > 30 ? comment.post_title.substring(0, 30) + '...' : comment.post_title}
                         </td>
-                        <td className="px-4 py-3 text-foreground">{new Date(comment.created_at).toLocaleString('ko-KR')}</td>
+                        <td className="px-4 py-3 text-gray-900">{new Date(comment.created_at).toLocaleString('ko-KR')}</td>
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityComment(comment.id)}

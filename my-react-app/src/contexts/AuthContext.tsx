@@ -6,6 +6,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (user: User) => void;
   logout: () => void;
+  updateUser: (userData: User) => void;
   loading: boolean;
 }
 
@@ -57,11 +58,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     removeAuthToken(); // JWT 토큰도 제거
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('userId', userData.id.toString());
+    // 즉시 리렌더링 강제
+    window.dispatchEvent(new Event('storage'));
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     login,
     logout,
+    updateUser,
     loading
   };
 
