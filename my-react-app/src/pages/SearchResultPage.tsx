@@ -449,11 +449,10 @@ export function SearchResultPage() {
         </details>
       </div>
 
-
-
-      <div className="reports-section">
+      {/* 피해 사례 제보 섹션 */}
+      <div className="reports-section rounded-lg border bg-white shadow p-6">
         <div className="section-header">
-          <h2>피해 사례 제보 목록</h2>
+          <h2 className="text-2xl font-bold text-gray-900">피해 사례 제보 목록</h2>
           <button onClick={handleNewReport} className="report-button">
             피해 사례 제보
           </button>
@@ -509,10 +508,10 @@ export function SearchResultPage() {
       )}
 
       {/* 리뷰 섹션 */}
-      {shop && shop.id > 0 && (
-        <div className="reviews-section">
+      {shop && (
+        <div className="reviews-section rounded-lg border bg-white shadow p-6">
           <div className="section-header">
-            <h2>사용자 리뷰</h2>
+            <h2 className="text-2xl font-bold text-gray-900">사용자 리뷰</h2>
             {isAuthenticated && (
               <button 
                 className="write-review-button"
@@ -523,7 +522,7 @@ export function SearchResultPage() {
             )}
           </div>
 
-          {showReviewForm && (
+          {showReviewForm && shop.id > 0 && (
             <ReviewForm 
               shopId={shop.id}
               shopUrl={url}
@@ -531,11 +530,17 @@ export function SearchResultPage() {
             />
           )}
 
-          <ReviewsList 
-            shopId={shop.id}
-            onReviewAdded={handleReviewSubmitted}
-            refreshKey={reviewRefreshKey}
-          />
+          {shop.id > 0 ? (
+            <ReviewsList 
+              shopId={shop.id}
+              onReviewAdded={handleReviewSubmitted}
+              refreshKey={reviewRefreshKey}
+            />
+          ) : (
+            <div className="text-center py-8 text-gray-600">
+              <p>리뷰를 보려면 쇼핑몰 정보를 먼저 등록해주세요.</p>
+            </div>
+          )}
         </div>
       )}
 

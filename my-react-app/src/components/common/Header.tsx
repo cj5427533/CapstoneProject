@@ -37,15 +37,15 @@ export function Header() {
   }, [isAdminDropdownOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white/90 backdrop-blur shadow-sm">
-      <div className="container-custom flex h-16 items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 sm:h-16 bg-white/90 backdrop-blur shadow-sm">
+      <div className="container-custom flex h-14 sm:h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link
             to="/"
-            className="flex items-center gap-2 text-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+            className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
           >
-            <img src={logoMark} alt="여기몰까 로고" className="h-9 w-9 object-contain" />
-            <span>여기몰까</span>
+            <img src={logoMark} alt="여기몰까 로고" className="h-8 w-8 sm:h-9 sm:w-9 object-contain" />
+            <span className="hidden sm:inline">여기몰까</span>
           </Link>
           <nav aria-label="Primary" className="hidden md:flex items-center gap-4 text-sm">
             <NavLinkItem to="/" label="홈" />

@@ -12,20 +12,20 @@ export function AdminDashboardCharts({
   reportsByCategory
 }: AdminDashboardChartsProps) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* 신고 추이 차트 */}
       {reportsByDate && reportsByDate.length > 0 && (
         <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
-          <CardHeader>
-            <h3 className="text-lg font-bold text-gray-900">📈 최근 14일 신고 추이</h3>
+          <CardHeader className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900">📈 최근 14일 신고 추이</h3>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-2 sm:space-y-3">
               {reportsByDate.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{item.date}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
+                <div key={index} className="flex items-center justify-between gap-2 sm:gap-3">
+                  <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.date}</span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
                       <div
                         className="bg-blue-600 h-2 rounded-full"
                         style={{
@@ -33,7 +33,7 @@ export function AdminDashboardCharts({
                         }}
                       />
                     </div>
-                    <span className="text-sm font-medium text-gray-900 w-8 text-right">{item.count}</span>
+                    <span className="text-xs sm:text-sm font-medium text-gray-900 w-6 sm:w-8 text-right flex-shrink-0">{item.count}</span>
                   </div>
                 </div>
               ))}
@@ -45,11 +45,11 @@ export function AdminDashboardCharts({
       {/* 신뢰도 분포 차트 */}
       {riskDistribution && riskDistribution.length > 0 && (
         <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
-          <CardHeader>
-            <h3 className="text-lg font-bold text-gray-900">📊 신뢰도분포</h3>
+          <CardHeader className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900">📊 신뢰도분포</h3>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-3 sm:space-y-4">
               {riskDistribution
                 .sort((a, b) => {
                   // 레벨 순서: VERY_HIGH → HIGH → MEDIUM → LOW → VERY_LOW
@@ -87,18 +87,18 @@ export function AdminDashboardCharts({
                 const percentage = total > 0 ? (item.count / total) * 100 : 0;
                 
                 return (
-                  <div key={index} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">
+                  <div key={index} className="space-y-1.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                      <span className="text-xs sm:text-sm font-medium text-gray-900">
                         {levelLabels[item.level] || item.level}
                       </span>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-xs sm:text-sm text-gray-600">
                         {item.count}개 ({percentage.toFixed(1)}%)
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-2">
                       <div
-                        className="h-2 rounded-full transition-all"
+                        className="h-2.5 sm:h-2 rounded-full transition-all"
                         style={{ 
                           width: `${percentage}%`,
                           backgroundColor: levelColors[item.level] || '#6B7280',
@@ -117,20 +117,20 @@ export function AdminDashboardCharts({
       {/* 신고 카테고리별 분포 */}
       {reportsByCategory && reportsByCategory.length > 0 && (
         <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
-          <CardHeader>
-            <h3 className="text-lg font-bold text-gray-900">📋 신고 카테고리별 분포</h3>
+          <CardHeader className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900">📋 신고 카테고리별 분포</h3>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {reportsByCategory.map((item, index) => {
                 const total = reportsByCategory.reduce((sum, r) => sum + r.count, 0);
                 const percentage = total > 0 ? (item.count / total) * 100 : 0;
                 
                 return (
-                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900">{item.category}</span>
-                      <span className="text-sm text-gray-600">{item.count}건</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 truncate pr-2">{item.category}</span>
+                      <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.count}건</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
@@ -154,8 +154,8 @@ export function AdminDashboardCharts({
        (!riskDistribution || riskDistribution.length === 0) &&
        (!reportsByCategory || reportsByCategory.length === 0) && (
         <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
-          <CardContent className="p-8 text-center">
-            <p className="text-gray-600">차트 데이터가 없습니다.</p>
+          <CardContent className="p-6 sm:p-8 text-center">
+            <p className="text-sm sm:text-base text-gray-600">차트 데이터가 없습니다.</p>
           </CardContent>
         </Card>
       )}

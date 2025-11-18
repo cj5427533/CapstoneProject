@@ -631,117 +631,123 @@ export function AdminPage() {
     <div className="min-h-screen bg-white">
       {/* 고정 헤더 */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-[1400px] mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">여기몰까 Admin Console</h1>
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">여기몰까 Admin Console</h1>
             <Badge className="text-xs bg-green-100 text-green-700 border-green-300">관리자</Badge>
           </div>
           <Button 
             onClick={handleLogout} 
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="min-h-[44px] w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 touch-manipulation"
           >
             로그아웃
           </Button>
         </div>
         
         {/* 탭 영역 */}
-        <div className="max-w-[1400px] mx-auto px-6">
-          <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <Button
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
                 currentTab === 'stats' 
                   ? 'bg-blue-600 text-white shadow-sm' 
                   : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('stats')}
             >
-              📊 통계
+              📊 <span className="hidden sm:inline">통계</span>
+              <span className="sm:hidden">통계</span>
             </Button>
             <Button
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
                 currentTab === 'shops' 
                   ? 'bg-blue-600 text-white shadow-sm' 
                   : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('shops')}
             >
-              🏪 쇼핑몰 관리
+              🏪 <span className="hidden sm:inline">쇼핑몰 관리</span>
+              <span className="sm:hidden">쇼핑몰</span>
             </Button>
             <Button
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
                 currentTab === 'reports' 
                   ? 'bg-blue-600 text-white shadow-sm' 
                   : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('reports')}
             >
-              ⚠️ 피해 사례 제보 관리
+              ⚠️ <span className="hidden md:inline">피해 사례 제보 관리</span>
+              <span className="md:hidden">제보 관리</span>
             </Button>
             <Button
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
                 currentTab === 'ratings' 
                   ? 'bg-blue-600 text-white shadow-sm' 
                   : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('ratings')}
             >
-              ⭐ 평점 관리
+              ⭐ <span className="hidden sm:inline">평점 관리</span>
+              <span className="sm:hidden">평점</span>
             </Button>
             <Button
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
                 currentTab === 'users' 
                   ? 'bg-blue-600 text-white shadow-sm' 
                   : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('users')}
             >
-              👥 사용자 관리
+              👥 <span className="hidden sm:inline">사용자 관리</span>
+              <span className="sm:hidden">사용자</span>
             </Button>
             <Button
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
                 currentTab === 'community' 
                   ? 'bg-blue-600 text-white shadow-sm' 
                   : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
               }`}
               onClick={() => setCurrentTab('community')}
             >
-              💬 커뮤니티 관리
+              💬 <span className="hidden sm:inline">커뮤니티 관리</span>
+              <span className="sm:hidden">커뮤니티</span>
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 md:py-8">
         {/* 통계 탭 */}
         {currentTab === 'stats' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-2xl font-bold text-gray-900">📊 시스템 통계</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">📊 시스템 통계</h2>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 <Card className="bg-white border-blue-200 border-2">
-                  <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 쇼핑몰 수</h3>
-                    <div className="text-4xl font-bold text-blue-600">{stats?.totalShops ?? 0}</div>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">총 쇼핑몰 수</h3>
+                    <div className="text-3xl sm:text-4xl font-bold text-blue-600">{stats?.totalShops ?? 0}</div>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-red-200 border-2">
-                  <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 피해 사례 제보 수</h3>
-                    <div className="text-4xl font-bold text-red-600">{stats?.totalReports ?? 0}</div>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">총 피해 사례 제보 수</h3>
+                    <div className="text-3xl sm:text-4xl font-bold text-red-600">{stats?.totalReports ?? 0}</div>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-gray-200 border-2">
-                  <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 평점 수</h3>
-                    <div className="text-4xl font-bold text-gray-900">{stats?.totalRatings ?? 0}</div>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">총 평점 수</h3>
+                    <div className="text-3xl sm:text-4xl font-bold text-gray-900">{stats?.totalRatings ?? 0}</div>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-gray-200 border-2">
-                  <CardContent className="p-6 text-center">
-                    <h3 className="text-sm font-medium text-gray-600 mb-2">총 사용자 수</h3>
-                    <div className="text-4xl font-bold text-gray-900">{stats?.totalUsers ?? 0}</div>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">총 사용자 수</h3>
+                    <div className="text-3xl sm:text-4xl font-bold text-gray-900">{stats?.totalUsers ?? 0}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -764,20 +770,20 @@ export function AdminPage() {
         {currentTab === 'shops' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
-                <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Input
                     type="text"
                     placeholder="URL 또는 이름 검색..."
                     value={shopFilter.search}
                     onChange={(e) => setShopFilter({ ...shopFilter, search: e.target.value })}
-                    className="w-64"
+                    className="w-full sm:w-64 min-h-[44px]"
                   />
                   <select
                     value={shopFilter.riskLevel}
                     onChange={(e) => setShopFilter({ ...shopFilter, riskLevel: e.target.value as any })}
-                    className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm"
+                    className="min-h-[44px] px-3 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation"
                   >
                     <option value="all">전체 매우주의도</option>
                     <option value="safe">안전</option>
@@ -787,7 +793,7 @@ export function AdminPage() {
                   </select>
                   <Button
                     onClick={handleDeleteUnknownShops}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="min-h-[44px] w-full sm:w-auto bg-red-600 text-white hover:bg-red-700 touch-manipulation"
                   >
                     알 수 없는 쇼핑몰 삭제
                   </Button>
@@ -800,33 +806,34 @@ export function AdminPage() {
                 <p className="text-gray-600">쇼핑몰 데이터가 없습니다.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">URL</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">이름</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">부모 쇼핑몰</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">등록일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
-                    </tr>
-                  </thead>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <table className="min-w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">ID</th>
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">URL</th>
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">이름</th>
+                        <th className="hidden md:table-cell px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-50">부모 쇼핑몰</th>
+                        <th className="hidden lg:table-cell px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-50">등록일</th>
+                        <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">관리</th>
+                      </tr>
+                    </thead>
                   <tbody>
                     {filteredShops.map((shop) => (
                     <tr key={shop.id} className={`border-b border-gray-200 hover:bg-gray-50 ${shop.parent_shop_id ? 'bg-yellow-50' : ''}`}>
-                      <td className="px-4 py-3 text-gray-900">{shop.id}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-gray-900">{shop.id}</td>
+                      <td className="px-3 sm:px-4 py-3">
                         <a 
                           href={`/search?url=${encodeURIComponent(shop.url)}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline break-all"
+                          className="text-blue-600 hover:underline break-all text-xs sm:text-sm"
                         >
                           {shop.url}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-gray-900">
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-gray-900">
                         {editingShopId === shop.id ? (
                           <div className="space-y-2">
                           <input
@@ -853,7 +860,7 @@ export function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="hidden md:table-cell px-4 py-3 text-sm">
                         {shop.parent_shop_id ? (
                           <span className="text-orange-600 font-bold">
                             → #{shop.parent_shop_id} 에 병합됨
@@ -862,14 +869,14 @@ export function AdminPage() {
                           <span className="text-gray-500">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-900">{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
-                      <td className="px-4 py-3">
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-900">{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
+                      <td className="px-3 sm:px-4 py-3">
                         <div className="flex gap-2 flex-wrap">
                           {editingShopId === shop.id ? (
                             <>
                               <button 
                                 onClick={() => handleUpdateShopName(shop.id)}
-                                className="px-3 py-1.5 bg-success text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-success/90"
+                                className="min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-700 touch-manipulation"
                               >
                                 저장
                               </button>
@@ -878,7 +885,7 @@ export function AdminPage() {
                                   setEditingShopId(null);
                                   setEditingShopName('');
                                 }}
-                                className="px-3 py-1.5 bg-secondary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-secondary/90"
+                                className="min-h-[44px] px-4 py-2 bg-gray-500 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-600 touch-manipulation"
                               >
                                 취소
                               </button>
@@ -895,7 +902,7 @@ export function AdminPage() {
                               />
                               <button 
                                 onClick={() => handleMergeShops(shop.id)}
-                                className="px-3 py-1.5 bg-success text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-success/90"
+                                className="min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-700 touch-manipulation"
                               >
                                 병합
                               </button>
@@ -904,7 +911,7 @@ export function AdminPage() {
                                   setMergingShopId(null);
                                   setMergeTargetId('');
                                 }}
-                                className="px-3 py-1.5 bg-secondary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-secondary/90"
+                                className="min-h-[44px] px-4 py-2 bg-gray-500 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-600 touch-manipulation"
                               >
                                 취소
                               </button>
@@ -916,7 +923,7 @@ export function AdminPage() {
                                   setEditingShopId(shop.id);
                                   setEditingShopName(shop.name || '');
                                 }}
-                                className="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-primary-hover"
+                                className="min-h-[44px] px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-blue-700 touch-manipulation"
                               >
                                 수정
                               </button>
@@ -925,13 +932,13 @@ export function AdminPage() {
                                   setMergingShopId(shop.id);
                                   setMergeTargetId('');
                                 }}
-                                className="px-3 py-1.5 bg-warning text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-warning/90"
+                                className="min-h-[44px] px-4 py-2 bg-yellow-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-yellow-700 touch-manipulation"
                               >
                                 병합
                               </button>
                               <button 
                                 onClick={() => handleDeleteShop(shop.id, shop.name || shop.url)}
-                                className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
+                                className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
                               >
                                 삭제
                               </button>
@@ -943,6 +950,7 @@ export function AdminPage() {
                   ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
             </CardContent>
@@ -953,13 +961,13 @@ export function AdminPage() {
         {currentTab === 'reports' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
-                <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
+                <div className="flex gap-2 w-full sm:w-auto">
                   <select
                     value={reportFilter}
                     onChange={(e) => setReportFilter(e.target.value as any)}
-                    className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm"
+                    className="min-h-[44px] w-full sm:w-auto px-3 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation"
                   >
                     <option value="all">전체</option>
                     <option value="today">오늘 신고</option>
@@ -1188,11 +1196,11 @@ export function AdminPage() {
         {currentTab === 'ratings' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">⭐ 평점 관리 ({ratings.length}개)</h2>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⭐ 평점 관리 ({ratings.length}개)</h2>
                 <Button 
                   onClick={handleGenerateMockRatings}
-                  className="bg-success text-white hover:bg-success/90"
+                  className="min-h-[44px] px-4 py-2 bg-green-600 text-white hover:bg-green-700 touch-manipulation text-sm sm:text-base"
                 >
                   목업 리뷰 생성
                 </Button>
@@ -1240,7 +1248,7 @@ export function AdminPage() {
                       <td className="px-4 py-3">
                         <button 
                           onClick={() => handleDeleteRating(rating.id)}
-                          className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
+                          className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
                         >
                           삭제
                         </button>
@@ -1259,7 +1267,7 @@ export function AdminPage() {
         {currentTab === 'users' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-2xl font-bold text-gray-900">👥 사용자 관리 ({users.length}명)</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">👥 사용자 관리 ({users.length}명)</h2>
             </CardHeader>
             <CardContent>
             {users.length === 0 ? (
@@ -1304,7 +1312,7 @@ export function AdminPage() {
                           {user.role === 'admin' ? (
                             <button 
                               onClick={() => handleUpdateUserRole(user.id, 'user')}
-                              className="px-3 py-1.5 bg-secondary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-secondary/90"
+                              className="min-h-[44px] px-4 py-2 bg-gray-500 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-600 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                               disabled={user.id === currentUser?.id}
                             >
                               일반 사용자로 변경
@@ -1312,7 +1320,7 @@ export function AdminPage() {
                           ) : (
                             <button 
                               onClick={() => handleUpdateUserRole(user.id, 'admin')}
-                              className="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-primary-hover"
+                              className="min-h-[44px] px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-blue-700 touch-manipulation"
                             >
                               관리자로 지정
                             </button>
@@ -1333,13 +1341,13 @@ export function AdminPage() {
         {currentTab === 'community' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-2xl font-bold text-gray-900">💬 커뮤니티 관리</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">💬 커뮤니티 관리</h2>
             </CardHeader>
             <CardContent>
             
             {/* 게시글 관리 */}
             <div className="mb-12">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">📝 게시글 관리 ({communityPosts.length}개)</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">📝 게시글 관리 ({communityPosts.length}개)</h3>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -1377,7 +1385,7 @@ export function AdminPage() {
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityPost(post.id, post.title)}
-                            className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
+                            className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
                           >
                             삭제
                           </button>
@@ -1391,7 +1399,7 @@ export function AdminPage() {
 
             {/* 댓글 관리 */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">💭 댓글 관리 ({communityComments.length}개)</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">💭 댓글 관리 ({communityComments.length}개)</h3>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -1423,7 +1431,7 @@ export function AdminPage() {
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityComment(comment.id)}
-                            className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-danger-hover"
+                            className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
                           >
                             삭제
                           </button>
