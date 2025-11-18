@@ -107,7 +107,8 @@ async function loginUser(email, password) {
       username: user.username,
       email: user.email,
       phoneNumber: user.phone_number,
-      status: user.status || 'active'
+      status: user.status || 'active',
+      role: user.role || 'user' // role 필드 추가
     }
   };
 }
