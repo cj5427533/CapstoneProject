@@ -64,6 +64,7 @@
 │                    클라이언트 레이어 (Frontend)                   │
 │                                                                 │
 │  React 18.3.1 + TypeScript 5.5.4 + Vite 5.4.0                 │
+│  Tailwind CSS 3.4.1 (반응형 디자인)                             │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  Pages (18개)                                            │  │
 │  │  • HomePage, SearchResultPage, ReportPage               │  │
@@ -92,6 +93,7 @@
 │                    백엔드 레이어 (Backend)                        │
 │                                                                 │
 │  Express.js 5.1.0 + Node.js                                    │
+│  Layered Architecture (Routes/Controllers/Services)            │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  미들웨어                                                  │  │
 │  │  • CORS (모든 오리진 허용)                                 │  │
@@ -100,13 +102,26 @@
 │  │  • 입력 검증 (XSS 방지, sanitizeInput)                    │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  라우터 (6개)                                             │  │
+│  │  Routes (7개)                                            │  │
 │  │  • /api/auth (인증)                                       │  │
 │  │  • /api/shops (쇼핑몰)                                    │  │
 │  │  • /api/reports (신고)                                    │  │
 │  │  • /api/community (커뮤니티)                              │  │
 │  │  • /api/ai (AI 분석)                                      │  │
+│  │  • /api/phishing (피싱 탐지)                              │  │
 │  │  • /api/admin (관리자)                                    │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Controllers (6개)                                       │  │
+│  │  • authController, shopController                        │  │
+│  │  • reportController, ratingController                    │  │
+│  │  • aiController, adminController                         │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Services (7개)                                          │  │
+│  │  • userService, shopService, reportService               │  │
+│  │  • aiService, trustScoreService                          │  │
+│  │  • smsService, emailService                              │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                 │
 │  Port: 3001                                                     │
@@ -150,24 +165,37 @@ CapstoneProject/
 │   ├── src/
 │   │   ├── pages/              # 페이지 컴포넌트 (18개)
 │   │   ├── components/         # 재사용 컴포넌트 (25개+)
+│   │   │   ├── admin/          # 관리자 컴포넌트
+│   │   │   ├── analysis/       # AI 분석 컴포넌트
+│   │   │   ├── common/         # 공통 컴포넌트 (Header, Footer)
 │   │   │   ├── report/         # 신고 관련 컴포넌트
+│   │   │   ├── shop/           # 쇼핑몰 관련 컴포넌트
 │   │   │   ├── theme/          # 테마 관련 컴포넌트
 │   │   │   └── ui/             # UI 기본 컴포넌트 (shadcn/ui)
 │   │   ├── services/           # 비즈니스 로직 (8개)
 │   │   ├── utils/              # 유틸리티 함수
 │   │   ├── contexts/           # React Context (AuthContext)
 │   │   ├── types/              # TypeScript 타입 정의
+│   │   ├── styles/             # 스타일 파일
+│   │   │   ├── base.css        # 기본 스타일
+│   │   │   ├── components.css  # 컴포넌트 스타일
+│   │   │   └── layout.css      # 레이아웃 스타일
+│   │   ├── index.css           # Tailwind CSS 초기화
 │   │   └── styles.css          # 전역 스타일
 │   ├── backend/
-│   │   ├── routes/             # API 라우터 (6개)
+│   │   ├── routes/             # API 라우터 (7개)
+│   │   ├── controllers/        # 컨트롤러 (6개)
+│   │   ├── services/           # 서비스 레이어 (7개)
 │   │   ├── middleware/         # 미들웨어
 │   │   ├── migrations/         # 데이터베이스 마이그레이션
 │   │   ├── uploads/            # 업로드된 파일 저장소
 │   │   └── server.js           # 메인 서버 파일
 │   ├── package.json
+│   ├── tailwind.config.js      # Tailwind CSS 설정
+│   ├── postcss.config.js       # PostCSS 설정
 │   └── vite.config.ts
 ├── ARCHITECTURE.md             # 이 문서
-├── SYSTEM_ARCHITECTURE.md      # 상세 아키텍처
+├── SYSTEM_ARCHITECTURE.mermaid # 시스템 아키텍처 다이어그램
 └── ERD.mermaid                 # 데이터베이스 ERD
 ```
 
@@ -184,8 +212,11 @@ CapstoneProject/
 | Vite | 5.4.0 | 빌드 도구 | `vite.config.ts` |
 | React Router | 6.26.2 | 클라이언트 라우팅 | `src/App.tsx` |
 | React Toastify | 11.0.5 | 알림 메시지 | 전역 사용 |
-| Tailwind CSS | 3.4.1 | CSS 프레임워크 | `tailwind.config.js` |
+| Tailwind CSS | 3.4.1 | CSS 프레임워크 (반응형 디자인) | `tailwind.config.js` |
+| PostCSS | 8.4.33 | CSS 후처리기 | `postcss.config.js` |
+| Autoprefixer | 10.4.17 | CSS 벤더 프리픽스 자동 추가 | `postcss.config.js` |
 | class-variance-authority | 0.7.0 | 컴포넌트 변형 | `src/components/ui/` |
+| tailwind-merge | 2.6.0 | Tailwind 클래스 병합 유틸리티 | `src/lib/utils.ts` |
 | Recharts | 3.4.1 | 차트 및 데이터 시각화 | `src/components/admin/` |
 | shadcn/ui | - | UI 컴포넌트 라이브러리 | `src/components/ui/` |
 
@@ -260,7 +291,6 @@ CapstoneProject/
 
 #### AI 분석 컴포넌트
 - `AdvancedAIAnalysis.tsx` - 고급 AI 분석 결과 표시
-- `EnhancedAIAnalysis.tsx` - 향상된 AI 분석
 - `FakeReviewAnalysis.tsx` - 가짜 리뷰 분석 결과
 - `MockShopAnalysis.tsx` - 목업 쇼핑몰 분석
 - `MockShopSelector.tsx` - 목업 쇼핑몰 선택기
@@ -320,63 +350,78 @@ CapstoneProject/
 
 ## 6. 백엔드 구조
 
-### 6.1 메인 서버 파일
+### 6.1 아키텍처 패턴
 
-**파일 위치**: `backend/server.js` (3,445줄)
+**Layered Architecture (계층형 아키텍처)**:
+- **Routes Layer**: API 엔드포인트 정의 및 요청 라우팅
+- **Controllers Layer**: 비즈니스 로직 조율 및 응답 처리
+- **Services Layer**: 핵심 비즈니스 로직 및 외부 서비스 통합
+- **Models Layer**: 데이터베이스 스키마 및 데이터 접근
+
+### 6.2 메인 서버 파일
+
+**파일 위치**: `backend/server.js`
 
 **주요 기능**:
 - Express 앱 초기화
 - 미들웨어 설정 (CORS, JSON 파싱, 파일 업로드)
-- 라우터 등록
+- 라우터 등록 및 연결
+- 정적 파일 서빙 (업로드된 이미지)
 - 서버 시작 (Port 3001)
 
-### 6.2 라우터 모듈 (6개)
+### 6.3 라우터 모듈 (7개)
 
 **파일 위치**: `backend/routes/`
 
 | 라우터 | 파일명 | 주요 엔드포인트 |
 |--------|--------|----------------|
 | 인증 | `auth.js` | 회원가입, 로그인, SMS 인증, 비밀번호 재설정 |
-| 쇼핑몰 | `index.js` | 쇼핑몰 검색, 조회, 위험/추천 목록 |
+| 쇼핑몰 | `shops.js` | 쇼핑몰 검색, 조회, 위험/추천 목록 |
+| 쇼핑몰 (구버전) | `index.js` | 쇼핑몰 관련 엔드포인트 (레거시) |
 | 신고 | `reports.js` | 신고 작성, 조회, 수정, 삭제 |
 | 커뮤니티 | `community.js` | 게시글, 댓글, 좋아요 |
-| AI 분석 | `ai-analysis.js` | 가짜 리뷰 탐지, 쇼핑몰 위험도 분석 |
+| AI 분석 | `ai-analysis.js` | 가짜 리뷰 탐지, 쇼핑몰 위험도 분석, 피싱 탐지 |
 | 관리자 | `admin.js` | 관리자 전용 API (통계, 신고/쇼핑몰/커뮤니티 관리) |
 
-### 6.3 미들웨어
+### 6.4 컨트롤러 모듈 (6개)
+
+**파일 위치**: `backend/controllers/`
+
+| 컨트롤러 | 파일명 | 설명 |
+|----------|--------|------|
+| 인증 | `authController.js` | 인증 관련 비즈니스 로직 |
+| 쇼핑몰 | `shopController.js` | 쇼핑몰 관련 비즈니스 로직 |
+| 신고 | `reportController.js` | 신고 관련 비즈니스 로직 |
+| 평점 | `ratingController.js` | 평점 및 리뷰 관련 비즈니스 로직 |
+| AI 분석 | `aiController.js` | AI 분석 관련 비즈니스 로직 |
+| 관리자 | `adminController.js` | 관리자 기능 관련 비즈니스 로직 |
+
+### 6.5 서비스 모듈 (7개)
+
+**파일 위치**: `backend/services/`
+
+| 서비스 | 파일명 | 설명 |
+|--------|--------|------|
+| 사용자 | `userService.js` | 사용자 관련 서비스 로직 |
+| 쇼핑몰 | `shopService.js` | 쇼핑몰 관련 서비스 로직 |
+| 신고 | `reportService.js` | 신고 관련 서비스 로직 |
+| AI 분석 | `aiService.js` | AI 분석 서비스 로직 |
+| 신뢰도 점수 | `trustScoreService.js` | 신뢰도 점수 계산 로직 |
+| SMS | `smsService.js` | SMS 발송 서비스 |
+| 이메일 | `emailService.js` | 이메일 발송 서비스 |
+
+### 6.6 미들웨어
 
 **파일 위치**: `backend/middleware/`
 
 - `errorHandler.js` - 에러 핸들링 미들웨어
+- `verifyToken.js` - JWT 토큰 검증 미들웨어
+- `requireAdmin.js` - 관리자 권한 확인 미들웨어
 
 **서버 파일 내 미들웨어**:
 - `cors()` - CORS 설정 (모든 오리진 허용)
 - `express.json()` - JSON 파싱
 - `multer` - 파일 업로드 (10MB 제한, PNG/JPG만)
-- `verifyToken()` - JWT 토큰 검증
-
-### 6.4 주요 함수
-
-**서버 파일 내 정의된 함수**:
-
-| 함수명 | 설명 | 위치 |
-|--------|------|------|
-| `sanitizeInput()` | XSS 방지 입력 정제 | 라인 17-24 |
-| `validateEmail()` | 이메일 형식 검증 | 라인 26-29 |
-| `validatePhoneNumber()` | 전화번호 형식 검증 | 라인 31-34 |
-| `validateUrl()` | URL 형식 검증 | 라인 36-43 |
-| `generateToken()` | JWT 토큰 생성 | 라인 49-59 |
-| `verifyToken()` | JWT 토큰 검증 | 라인 61-75 |
-| `hashPassword()` | 비밀번호 해싱 (SHA-256) | 라인 702-705 |
-| `verifyPassword()` | 비밀번호 검증 | 라인 707-710 |
-| `normalizeUrl()` | URL 정규화 | 라인 571-637 |
-| `getWebsiteTitle()` | 웹사이트 타이틀 추출 | 라인 356-539 |
-| `sendPasswordResetEmail()` | 비밀번호 재설정 이메일 발송 | 라인 172-350 |
-| `sendSolAPI()` | SMS 발송 (SolAPI) | 라인 659-700 |
-| `checkRateLimit()` | SMS 레이트 리밋 확인 | 라인 712-781 |
-| `checkSSL()` | SSL 인증서 검증 | 라인 2610-2651 |
-| `checkRedirects()` | 리다이렉트 체인 추적 | 라인 2653-2703 |
-| `fetchPageContent()` | 웹 페이지 콘텐츠 가져오기 | 라인 2735-2775 |
 
 ---
 
@@ -1275,6 +1320,7 @@ npm start
 - **코드 스플리팅**: React Router 기반 자동 코드 스플리팅
 - **이미지 최적화**: Vite 빌드 시 자동 최적화
 - **디바운싱**: 검색 입력 디바운싱 (HomePage.tsx)
+- **반응형 디자인**: Tailwind CSS 유틸리티 클래스 및 CSS 미디어 쿼리 활용
 
 ### 16.2 백엔드
 
@@ -1284,6 +1330,50 @@ npm start
 - **검색 로그**: `shop_search_logs` 테이블에 검색 이력 기록
 - **Rate Limiting**: SMS 발송 레이트 리밋 (5회/분)
 - **데이터베이스 인덱싱**: 자주 조회되는 컬럼에 인덱스 추가 (user_id, shop_id, created_at 등)
+
+---
+
+## 16.5 반응형 디자인
+
+### 16.5.1 구현 방식
+
+**Tailwind CSS 기반 반응형 디자인**:
+- **유틸리티 클래스**: `sm:`, `md:`, `lg:`, `xl:`, `2xl:` 브레이크포인트 사용
+- **모바일 우선 접근**: 기본 스타일은 모바일에 맞추고, 큰 화면에서 확장
+- **CSS 미디어 쿼리**: 복잡한 반응형 스타일은 `styles.css`에 미디어 쿼리로 구현
+
+### 16.5.2 브레이크포인트
+
+| 화면 크기 | Tailwind 클래스 | 용도 |
+|---------|----------------|------|
+| ~640px | 기본 (모바일) | 스마트폰 |
+| 640px~ | `sm:` | 큰 스마트폰 |
+| 768px~ | `md:` | 태블릿 |
+| 1024px~ | `lg:` | 작은 데스크톱 |
+| 1280px~ | `xl:` | 데스크톱 |
+| 1536px~ | `2xl:` | 큰 데스크톱 |
+
+### 16.5.3 주요 반응형 기능
+
+**모바일 네비게이션**:
+- 데스크톱: 가로 메뉴 표시
+- 모바일: 햄버거 메뉴 버튼 및 드롭다운 메뉴
+
+**그리드 레이아웃**:
+- 데스크톱: 다중 열 그리드 (예: `grid-cols-3`)
+- 태블릿: 2열 그리드 (예: `sm:grid-cols-2`)
+- 모바일: 1열 그리드 (예: `grid-cols-1`)
+
+**터치 최적화**:
+- 최소 터치 타겟 크기: 48px (`min-h-[44px]`)
+- iOS 줌 방지: 입력 필드 `font-size: 16px`
+- 터치 피드백: `touch-manipulation` 클래스 사용
+
+**파일 위치**:
+- `src/index.css` - Tailwind CSS 초기화
+- `src/styles.css` - 전역 스타일 및 미디어 쿼리
+- `src/styles/layout.css` - 레이아웃 관련 반응형 스타일
+- `tailwind.config.js` - Tailwind 설정 및 커스텀 테마
 
 ---
 
@@ -1521,7 +1611,11 @@ npm run build
 - ✅ **다크/라이트 테마 지원**: Tailwind CSS 기반 테마 시스템 추가
 - ✅ **관리자 대시보드 개선**: 통계 차트 및 시각화 추가 (AdminDashboardCharts)
 - ✅ **shadcn/ui 도입**: 고품질 UI 컴포넌트 라이브러리 통합
-- ✅ **백엔드 라우터 분리**: routes 디렉토리로 라우터 모듈화
+- ✅ **반응형 디자인 구현**: Tailwind CSS 및 CSS 미디어 쿼리를 활용한 모바일/태블릿/데스크톱 대응
+- ✅ **백엔드 아키텍처 개선**: Layered Architecture 도입 (Routes/Controllers/Services 분리)
+- ✅ **백엔드 라우터 분리**: routes 디렉토리로 라우터 모듈화 (7개 라우터)
+- ✅ **컨트롤러 레이어 추가**: controllers 디렉토리로 비즈니스 로직 분리 (6개 컨트롤러)
+- ✅ **서비스 레이어 추가**: services 디렉토리로 핵심 로직 분리 (7개 서비스)
 - ✅ **데이터베이스 확장**: 커뮤니티 관련 테이블 3개 추가 (community_posts, community_comments, community_post_likes)
 - ✅ **데이터베이스 리팩토링**: 테이블 네이밍 개선 (reports→shop_reports, ratings→shop_ratings 등)
 - ✅ **데이터베이스 구조 개선**: 

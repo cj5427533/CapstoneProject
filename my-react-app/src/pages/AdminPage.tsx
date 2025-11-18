@@ -135,7 +135,7 @@ export function AdminPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reportFilter, setReportFilter] = useState<'all' | 'today' | 'pending' | 'approved' | 'rejected'>('all');
-  const [shopFilter, setShopFilter] = useState<{ search: string; riskLevel: 'all' | 'safe' | 'caution' | 'dangerous' | 'critical' }>({ search: '', riskLevel: 'all' });
+  const [shopFilter, setShopFilter] = useState<{ search: string; riskLevel: 'all' | 'VERY_HIGH' | 'HIGH' | 'MEDIUM' | 'LOW' | 'VERY_LOW' }>({ search: '', riskLevel: 'all' });
 
   // 관리자 인증 체크 (role 기반)
   useEffect(() => {
@@ -499,7 +499,12 @@ export function AdminPage() {
       const nameMatch = (shop.name || '').toLowerCase().includes(searchLower);
       if (!urlMatch && !nameMatch) return false;
     }
-    // 매우주의도 필터는 현재 구현되지 않았으므로 일단 통과
+    // 위험도 필터는 현재 백엔드에서 위험도 정보를 반환하지 않아 구현되지 않음
+    // TODO: 백엔드에서 위험도 정보를 포함하여 반환하거나, 프론트엔드에서 계산하여 필터링 구현
+    if (shopFilter.riskLevel !== 'all') {
+      // 위험도 필터링 로직은 추후 구현 예정
+      return true;
+    }
     return true;
   });
 
@@ -778,18 +783,19 @@ export function AdminPage() {
                     placeholder="URL 또는 이름 검색..."
                     value={shopFilter.search}
                     onChange={(e) => setShopFilter({ ...shopFilter, search: e.target.value })}
-                    className="w-full sm:w-64 min-h-[44px]"
+                    className="w-full sm:w-64 min-h-[44px] bg-white"
                   />
                   <select
                     value={shopFilter.riskLevel}
                     onChange={(e) => setShopFilter({ ...shopFilter, riskLevel: e.target.value as any })}
                     className="min-h-[44px] px-3 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation"
                   >
-                    <option value="all">전체 매우주의도</option>
-                    <option value="safe">안전</option>
-                    <option value="caution">주의</option>
-                    <option value="dangerous">매우주의</option>
-                    <option value="critical">주의</option>
+                    <option value="all">전체</option>
+                    <option value="VERY_HIGH">매우높음</option>
+                    <option value="HIGH">높음</option>
+                    <option value="MEDIUM">주의필요</option>
+                    <option value="LOW">낮음</option>
+                    <option value="VERY_LOW">매우낮음</option>
                   </select>
                   <Button
                     onClick={handleDeleteUnknownShops}
@@ -876,7 +882,7 @@ export function AdminPage() {
                             <>
                               <button 
                                 onClick={() => handleUpdateShopName(shop.id)}
-                                className="min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-700 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-green-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-green-500 touch-manipulation"
                               >
                                 저장
                               </button>
@@ -885,7 +891,7 @@ export function AdminPage() {
                                   setEditingShopId(null);
                                   setEditingShopName('');
                                 }}
-                                className="min-h-[44px] px-4 py-2 bg-gray-500 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-600 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-gray-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-gray-500 touch-manipulation"
                               >
                                 취소
                               </button>
@@ -902,7 +908,7 @@ export function AdminPage() {
                               />
                               <button 
                                 onClick={() => handleMergeShops(shop.id)}
-                                className="min-h-[44px] px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-green-700 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-green-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-green-500 touch-manipulation"
                               >
                                 병합
                               </button>
@@ -911,7 +917,7 @@ export function AdminPage() {
                                   setMergingShopId(null);
                                   setMergeTargetId('');
                                 }}
-                                className="min-h-[44px] px-4 py-2 bg-gray-500 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-600 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-gray-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-gray-500 touch-manipulation"
                               >
                                 취소
                               </button>
@@ -923,7 +929,7 @@ export function AdminPage() {
                                   setEditingShopId(shop.id);
                                   setEditingShopName(shop.name || '');
                                 }}
-                                className="min-h-[44px] px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-blue-700 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-blue-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-blue-500 touch-manipulation"
                               >
                                 수정
                               </button>
@@ -932,13 +938,13 @@ export function AdminPage() {
                                   setMergingShopId(shop.id);
                                   setMergeTargetId('');
                                 }}
-                                className="min-h-[44px] px-4 py-2 bg-yellow-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-yellow-700 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-yellow-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-yellow-500 touch-manipulation"
                               >
                                 병합
                               </button>
                               <button 
                                 onClick={() => handleDeleteShop(shop.id, shop.name || shop.url)}
-                                className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
+                                className="h-8 px-3 py-1 bg-red-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-red-500 touch-manipulation"
                               >
                                 삭제
                               </button>
