@@ -68,7 +68,16 @@ export function SearchResultPage() {
         await withTimeout(loadMockShopData(shopUrl), 15000);
       } else {
         // 실제 쇼핑몰인 경우 API 호출
-        const { shop: shopData } = await withTimeout(searchOrCreateShop(shopUrl), 10000);
+        const result = await withTimeout(searchOrCreateShop(shopUrl), 10000);
+        const shopData = result?.shop;
+        
+        if (!shopData) {
+          console.error('쇼핑몰 데이터를 찾을 수 없습니다:', result);
+          setShop(null);
+          setLoading(false);
+          return;
+        }
+        
         setShop(shopData);
 
         // 유효한 쇼핑몰 ID가 있을 때만 신고 목록과 평점 데이터를 로드
@@ -79,8 +88,21 @@ export function SearchResultPage() {
               withTimeout(getShopRatings(shopData.id), 10000)
             ]);
 
-            setReports(reportsData);
-            setShopRating(ratingsData);
+            setReports(reportsData || []);
+            // ratingsData가 유효한지 확인
+            if (ratingsData && typeof ratingsData === 'object') {
+              setShopRating({
+                averageRating: ratingsData.averageRating ?? 0,
+                totalRatings: ratingsData.totalRatings ?? 0,
+                ratingDistribution: ratingsData.ratingDistribution || {}
+              });
+            } else {
+              setShopRating({
+                averageRating: 0,
+                totalRatings: 0,
+                ratingDistribution: {}
+              });
+            }
           } catch (dataErr) {
             console.error('신고/평점 데이터 로드 에러:', dataErr);
             // 부분 실패 시에도 기본값 설정
@@ -140,7 +162,13 @@ export function SearchResultPage() {
     if (mockShop) {
       // 실제 데이터베이스에서 shop을 찾거나 생성
       try {
-        const { shop: actualShop } = await withTimeout(searchOrCreateShop(shopUrl), 10000);
+        const result = await withTimeout(searchOrCreateShop(shopUrl), 10000);
+        const actualShop = result?.shop;
+        
+        if (!actualShop) {
+          console.error('쇼핑몰 데이터를 찾을 수 없습니다:', result);
+          return;
+        }
         
         setShop({
           id: actualShop.id,
@@ -418,8 +446,8 @@ export function SearchResultPage() {
           </summary>
           <div className="px-4 pb-4 pt-0 text-base leading-relaxed">
             <div className="flex items-center gap-3">
-              <Rating initialRating={Math.round(shopRating.averageRating)} readonly size="small" />
-              <span className="text-sm" style={{ color: '#64748b' }}>{shopRating.averageRating.toFixed(1)} / 5 · {shopRating.totalRatings}명</span>
+              <Rating initialRating={Math.round(shopRating.averageRating ?? 0)} readonly size="small" />
+              <span className="text-sm" style={{ color: '#64748b' }}>{(shopRating.averageRating ?? 0).toFixed(1)} / 5 · {shopRating.totalRatings ?? 0}명</span>
             </div>
             <div className="mt-4">
               {shopRating.totalRatings > 0 ? (
@@ -472,7 +500,7 @@ export function SearchResultPage() {
           </div>
         ) : (
           <div className="reports-list">
-            {reports.map((report) => {
+            {(Array.isArray(reports) ? reports : []).map((report) => {
               const categories = JSON.parse(report.categories);
               return (
                 <div key={report.id} className="report-card">

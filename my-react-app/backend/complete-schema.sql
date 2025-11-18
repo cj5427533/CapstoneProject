@@ -57,6 +57,31 @@ COMMENT ON COLUMN password_reset_tokens.token IS '재설정 토큰 (고유값)';
 COMMENT ON COLUMN password_reset_tokens.expires_at IS '토큰 만료일시';
 COMMENT ON COLUMN password_reset_tokens.used IS '토큰 사용 여부 (false: 미사용, true: 사용됨)';
 
+-- 사용자 로그인 기록 테이블
+-- 역할: 사용자 로그인 시도 기록 (성공/실패 모두 기록)
+-- 관계: users 테이블 참조 (ON DELETE CASCADE)
+CREATE TABLE IF NOT EXISTS user_login_logs (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    ip_address VARCHAR(64),
+    user_agent TEXT,
+    login_success BOOLEAN DEFAULT TRUE,
+    failure_reason VARCHAR(255), -- 'INVALID_PASSWORD', 'USER_NOT_FOUND', 'ACCOUNT_DELETED' 등
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+-- 주석 추가 (테이블 생성 후)
+COMMENT ON TABLE user_login_logs IS '사용자 로그인 기록 테이블 (성공/실패 모두 기록)';
+COMMENT ON COLUMN user_login_logs.user_id IS '로그인 시도한 사용자 ID (Foreign Key → users.id)';
+COMMENT ON COLUMN user_login_logs.ip_address IS '로그인 시도 IP 주소';
+COMMENT ON COLUMN user_login_logs.user_agent IS '로그인 시도 User-Agent';
+COMMENT ON COLUMN user_login_logs.login_success IS '로그인 성공 여부 (true: 성공, false: 실패)';
+COMMENT ON COLUMN user_login_logs.failure_reason IS '로그인 실패 사유 (성공 시 NULL)';
+
+-- users 테이블에 마지막 로그인 시간 컬럼 추가
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE;
+COMMENT ON COLUMN users.last_login_at IS '마지막 로그인 시간';
+
 -- ============================================================================
 -- 2. 쇼핑몰 관리 테이블
 -- ============================================================================
@@ -449,6 +474,12 @@ CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tok
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
 
+-- 사용자 로그인 기록 인덱스
+CREATE INDEX IF NOT EXISTS idx_user_login_logs_user_id ON user_login_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_login_logs_created_at ON user_login_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_user_login_logs_ip_address ON user_login_logs(ip_address);
+CREATE INDEX IF NOT EXISTS idx_user_login_logs_login_success ON user_login_logs(login_success);
+
 -- 커뮤니티 테이블 인덱스
 CREATE INDEX IF NOT EXISTS idx_community_posts_user_id ON community_posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_community_posts_created_at ON community_posts(created_at);
@@ -479,6 +510,7 @@ ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sms_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sms_request_tracking ENABLE ROW LEVEL SECURITY;
 ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_login_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE community_post_likes ENABLE ROW LEVEL SECURITY;
@@ -509,6 +541,9 @@ CREATE POLICY "Enable all operations for all users" ON sms_request_tracking FOR 
 
 DROP POLICY IF EXISTS "Enable all operations for all users" ON password_reset_tokens;
 CREATE POLICY "Enable all operations for all users" ON password_reset_tokens FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Enable all operations for all users" ON user_login_logs;
+CREATE POLICY "Enable all operations for all users" ON user_login_logs FOR ALL USING (true);
 
 DROP POLICY IF EXISTS "Enable all operations for all users" ON community_posts;
 CREATE POLICY "Enable all operations for all users" ON community_posts FOR ALL USING (true);
@@ -685,7 +720,7 @@ BEGIN
     RAISE NOTICE '스키마 생성 완료!';
     RAISE NOTICE '============================================================================';
     RAISE NOTICE '생성된 테이블:';
-    RAISE NOTICE '  - 사용자 관리: users, password_reset_tokens';
+    RAISE NOTICE '  - 사용자 관리: users, password_reset_tokens, user_login_logs';
     RAISE NOTICE '  - 쇼핑몰 관리: shops';
     RAISE NOTICE '  - 신고/평가: reports, ratings';
     RAISE NOTICE '  - SMS 인증: sms_verifications, sms_request_tracking';

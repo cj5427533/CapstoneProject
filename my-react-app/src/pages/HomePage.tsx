@@ -51,7 +51,14 @@ export function HomePage() {
 
       setIsPreviewLoading(true);
       try {
-        const { shop } = await searchOrCreateShop(searchUrl.trim());
+        const result = await searchOrCreateShop(searchUrl.trim());
+        const shop = result?.shop;
+        
+        if (!shop) {
+          console.warn('쇼핑몰 데이터가 없습니다:', result);
+          setShopData(null);
+          return;
+        }
         
         let reports = [];
         let ratings = null;
@@ -89,8 +96,20 @@ export function HomePage() {
   // URL 변경 시 디바운싱된 미리보기 검색 실행
   useEffect(() => {
     if (debouncedPreviewSearchRef.current && url.trim()) {
-      const normalizedUrl = normalizeUrlUtil(url);
-      debouncedPreviewSearchRef.current(normalizedUrl);
+      // URL 유효성 검증 먼저 수행
+      if (!validateUrl(url)) {
+        return;
+      }
+      
+      try {
+        const normalizedUrl = normalizeUrlUtil(url);
+        if (normalizedUrl && normalizedUrl.trim()) {
+          debouncedPreviewSearchRef.current(normalizedUrl);
+        }
+      } catch (error) {
+        console.error('URL 정규화 실패:', error);
+        // 정규화 실패 시 미리보기 검색하지 않음
+      }
     }
   }, [url]);
 
@@ -141,7 +160,10 @@ export function HomePage() {
 
   // URL 변경 시 실시간 검증
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputUrl = e.target.value;
+    let inputUrl = e.target.value;
+    
+    // 사용자가 직접 프로토콜을 입력하는 중이면 그대로 유지
+    // 하지만 프로토콜 없이 도메인만 입력하면 자동으로 https:// 추가하지 않음 (입력 필드에는 원본 유지)
     setUrl(inputUrl);
     
     // 에러 메시지 초기화
@@ -152,37 +174,51 @@ export function HomePage() {
       return;
     }
     
-    // URL 정규화
-    const normalizedUrl = normalizeUrl(inputUrl);
-    
-    // 유효성 검증 (normalizeUrl이 도메인만 반환하므로 원본 URL로 검증)
+    // 유효성 검증 먼저 수행 (프로토콜 없어도 검증 가능하도록)
     if (!validateUrl(inputUrl)) {
       setUrlError('올바른 URL 형식을 입력해주세요. (예: example.com 또는 https://example.com)');
+      return;
     }
+    
+    // 정규화는 디바운싱된 미리보기 검색에서 처리
   };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!url.trim()) {
+    const trimmedUrl = url.trim();
+    
+    if (!trimmedUrl) {
       setUrlError('URL을 입력해주세요.');
       return;
     }
     
-    const normalizedUrl = normalizeUrl(url);
-    
-    // 유효성 검증 (normalizeUrl이 도메인만 반환하므로 원본 URL로 검증)
-    if (!validateUrl(url)) {
+    // 유효성 검증 먼저 수행
+    if (!validateUrl(trimmedUrl)) {
       setUrlError('올바른 URL 형식을 입력해주세요. (예: example.com 또는 https://example.com)');
       return;
     }
     
-    setIsLoading(true);
-    // 검색 결과 페이지로 즉시 이동 (미리보기는 이미 디바운싱으로 처리됨)
-    setTimeout(() => {
-      navigate(`/search?url=${encodeURIComponent(normalizedUrl)}`);
+    try {
+      const normalizedUrl = normalizeUrl(trimmedUrl);
+      
+      if (!normalizedUrl || !normalizedUrl.trim()) {
+        setUrlError('URL을 정규화할 수 없습니다. 올바른 URL 형식을 입력해주세요.');
+        return;
+      }
+      
+      setIsLoading(true);
+      setUrlError(''); // 검색 시작 시 에러 메시지 제거
+      // 검색 결과 페이지로 즉시 이동 (미리보기는 이미 디바운싱으로 처리됨)
+      setTimeout(() => {
+        navigate(`/search?url=${encodeURIComponent(normalizedUrl)}`);
+        setIsLoading(false);
+      }, 500); // 미리보기가 보여진 후 잠시 대기
+    } catch (error) {
+      console.error('URL 정규화 실패:', error);
+      setUrlError('URL 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       setIsLoading(false);
-    }, 500); // 미리보기가 보여진 후 잠시 대기
+    }
   };
 
   return (

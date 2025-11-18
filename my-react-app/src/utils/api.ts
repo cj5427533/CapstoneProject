@@ -194,7 +194,59 @@ export async function searchOrCreateShop(url: string): Promise<{ shop: Shop; isN
 
     const data = await response.json();
     console.log('응답 데이터:', data);
-    return data;
+    console.log('응답 데이터 구조:', JSON.stringify(data, null, 2));
+    
+    // 백엔드 응답 구조 확인
+    // success 함수가 반환하는 구조: { success: true, shop: {...}, isNew: false, ... } 또는 { success: true, data: { shop: {...}, isNew: false } }
+    let shop = null;
+    let isNew = false;
+    
+    if (data.shop) {
+      // 직접 shop 필드가 있는 경우
+      shop = data.shop;
+      isNew = data.isNew || false;
+    } else if (data.data) {
+      // data 객체가 있는 경우
+      if (data.data.shop) {
+        shop = data.data.shop;
+        isNew = data.data.isNew || false;
+      } else if (typeof data.data === 'object' && !Array.isArray(data.data)) {
+        // data 자체가 shop 객체일 수도 있음
+        shop = data.data;
+        isNew = data.isNew || false;
+      }
+    }
+    
+    if (!shop) {
+      console.error('shop 객체를 찾을 수 없습니다. 응답 구조:', data);
+      throw new Error('Shop not found in response');
+    }
+    
+    // shop.id가 0이고 similarShops가 있으면, 가장 유사도가 높은 쇼핑몰을 사용
+    if (shop.id === 0 && data.data?.similarShops && data.data.similarShops.length > 0) {
+      const similarShop = data.data.similarShops[0];
+      if (similarShop.similarity === 1 && similarShop.id > 0) {
+        // 유사도가 1.0이고 ID가 있으면 동일한 쇼핑몰로 간주
+        console.log('유사 쇼핑몰 발견, 실제 쇼핑몰로 대체:', similarShop);
+        // 실제 쇼핑몰 정보를 다시 가져와야 하지만, 일단 similarShop 정보 사용
+        // URL이 정확히 일치하는 경우 similarShop을 사용
+        return {
+          shop: {
+            id: similarShop.id,
+            url: similarShop.url,
+            name: similarShop.name || null,
+            parent_shop_id: null,
+            created_at: null
+          },
+          isNew: false
+        };
+      }
+    }
+    
+    return {
+      shop,
+      isNew
+    };
   } catch (error) {
     console.error('API 호출 에러:', error);
     // 네트워크 에러나 서버 에러 시에도 기본 쇼핑몰 객체 반환
@@ -225,7 +277,18 @@ export async function getShopReports(shopId: number): Promise<Report[]> {
 
     const data = await response.json();
     console.log('피해 사례 제보 목록 데이터:', data);
-    return data;
+    
+    // 백엔드 응답 구조 확인: { success: true, data: [...] } 또는 직접 배열
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data.data && Array.isArray(data.data)) {
+      return data.data;
+    } else if (data.reports && Array.isArray(data.reports)) {
+      return data.reports;
+    } else {
+      console.warn('예상치 못한 신고 목록 응답 구조:', data);
+      return [];
+    }
   } catch (error) {
     console.error('피해 사례 제보 목록 조회 에러:', error);
     // 에러 시 빈 배열 반환
@@ -365,7 +428,23 @@ export async function getShopRatings(shopId: number): Promise<Rating> {
       throw new Error('Failed to fetch ratings');
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // 백엔드 응답 구조 확인: { success: true, data: {...} } 또는 직접 데이터
+    if (data.data) {
+      return data.data;
+    } else if (data.averageRating !== undefined || data.totalRatings !== undefined) {
+      // 직접 Rating 객체인 경우
+      return data;
+    } else {
+      // 예상치 못한 구조
+      console.warn('예상치 못한 평점 응답 구조:', data);
+      return {
+        averageRating: 0,
+        totalRatings: 0,
+        ratingDistribution: {}
+      };
+    }
   } catch (error) {
     console.error('평점 조회 에러:', error);
     // 에러 시 기본 평점 데이터 반환

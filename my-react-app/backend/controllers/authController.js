@@ -169,7 +169,7 @@ exports.login = async (req, res) => {
     }
 
     const cleanEmail = sanitizeInput(email);
-    const result = await userService.loginUser(cleanEmail, password);
+    const result = await userService.loginUser(cleanEmail, password, req);
 
     return success(res, result, '로그인 성공');
   } catch (err) {

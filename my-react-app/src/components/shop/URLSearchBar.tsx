@@ -29,7 +29,7 @@ export function URLSearchBar({ value, onChange, onSubmit, isLoading, errorText }
             </label>
             <Input
               id="shop-url"
-              type="url"
+              type="text"
               value={value}
               onChange={onChange}
               placeholder="example.com 또는 https://example.com"

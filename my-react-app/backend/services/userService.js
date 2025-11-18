@@ -66,51 +66,106 @@ async function registerUser(userData) {
 }
 
 /**
+ * 로그인 기록 저장
+ */
+async function logLoginAttempt(userId, req, success, failureReason = null) {
+  try {
+    const ipAddress = req ? (req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress) : null;
+    const userAgent = req ? req.headers['user-agent'] : null;
+
+    await supabase
+      .from('user_login_logs')
+      .insert({
+        user_id: userId,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        login_success: success,
+        failure_reason: failureReason
+      });
+  } catch (error) {
+    // 로그 기록 실패는 무시 (비즈니스 로직에 영향 없음)
+    console.error('로그인 기록 저장 오류:', error);
+  }
+}
+
+/**
  * 사용자 로그인
  */
-async function loginUser(email, password) {
-  // 사용자 조회 (탈퇴한 사용자는 제외)
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .neq('status', 'deleted') // 탈퇴한 사용자는 로그인 불가
-    .single();
+async function loginUser(email, password, req = null) {
+  let user = null;
+  let failureReason = null;
 
-  if (error && error.code === 'PGRST116') {
-    throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
-  }
-  
-  if (error) throw error;
-  
-  if (!user) {
-    throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
-  }
+  try {
+    // 사용자 조회 (탈퇴한 사용자는 제외)
+    const { data: foundUser, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .neq('status', 'deleted') // 탈퇴한 사용자는 로그인 불가
+      .single();
 
-  // 탈퇴한 사용자 확인
-  if (user.status === 'deleted' || user.status === 'unregistered') {
-    throw new Error('탈퇴한 계정입니다.');
-  }
-
-  // 비밀번호 확인
-  if (!verifyPassword(password, user.password)) {
-    throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
-  }
-
-  // JWT 토큰 생성
-  const token = generateToken(user);
-
-  return {
-    token,
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      phoneNumber: user.phone_number,
-      status: user.status || 'active',
-      role: user.role || 'user' // role 필드 추가
+    if (error && error.code === 'PGRST116') {
+      failureReason = 'USER_NOT_FOUND';
+      throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
-  };
+    
+    if (error) throw error;
+    
+    if (!foundUser) {
+      failureReason = 'USER_NOT_FOUND';
+      throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    user = foundUser;
+
+    // 탈퇴한 사용자 확인
+    if (user.status === 'deleted' || user.status === 'unregistered') {
+      failureReason = 'ACCOUNT_DELETED';
+      await logLoginAttempt(user.id, req, false, failureReason);
+      throw new Error('탈퇴한 계정입니다.');
+    }
+
+    // 비밀번호 확인
+    if (!verifyPassword(password, user.password)) {
+      failureReason = 'INVALID_PASSWORD';
+      await logLoginAttempt(user.id, req, false, failureReason);
+      throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+    }
+
+    // 로그인 성공 기록
+    await logLoginAttempt(user.id, req, true, null);
+
+    // users 테이블의 last_login_at 업데이트
+    await supabase
+      .from('users')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', user.id);
+
+    // JWT 토큰 생성
+    const token = generateToken(user);
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phoneNumber: user.phone_number,
+        status: user.status || 'active',
+        role: user.role || 'user' // role 필드 추가
+      }
+    };
+  } catch (error) {
+    // 사용자를 찾았지만 실패한 경우에만 기록
+    if (user && !failureReason) {
+      failureReason = 'UNKNOWN_ERROR';
+      await logLoginAttempt(user.id, req, false, failureReason);
+    } else if (!user) {
+      // 사용자를 찾지 못한 경우, 익명 사용자 ID로 기록 (또는 기록하지 않음)
+      // 이메일로 사용자를 찾을 수 없으므로 기록하지 않음
+    }
+    throw error;
+  }
 }
 
 /**
