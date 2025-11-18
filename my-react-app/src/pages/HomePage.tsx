@@ -240,16 +240,16 @@ export function HomePage() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {/* AI 기반 피싱 매우주의 분석 */}
+              {/* AI 기반 신뢰도 분석 */}
               <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-lg mb-3 sm:mb-4">
                   <svg className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">AI 기반 피싱 매우주의 분석</h3>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">AI 기반 신뢰도 분석</h3>
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  고급 AI 알고리즘이 도메인, SSL 인증서, 리뷰 패턴을 종합 분석하여 피싱 매우주의도를 실시간으로 평가합니다.
+                  고급 AI 알고리즘이 도메인, SSL 인증서, 리뷰 패턴을 종합 분석하여 쇼핑몰의 신뢰도를 실시간으로 평가합니다.
                 </p>
               </div>
 
