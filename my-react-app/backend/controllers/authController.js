@@ -270,8 +270,32 @@ exports.resetPassword = async (req, res) => {
  */
 exports.getMe = [verifyTokenMiddleware, async (req, res) => {
   try {
-    return success(res, { user: req.user });
+    // DB에서 최신 사용자 정보 조회 (role 포함)
+    const { data: user, error: dbError } = await supabase
+      .from('users')
+      .select('id, username, email, phone_number, role, status')
+      .eq('id', req.user.id)
+      .single();
+
+    if (dbError) throw dbError;
+
+    if (!user) {
+      return error(res, '사용자를 찾을 수 없습니다.', 404);
+    }
+
+    // 프론트엔드 형식에 맞게 변환
+    const userData = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      phoneNumber: user.phone_number,
+      role: user.role || 'user',
+      status: user.status || 'active'
+    };
+
+    return success(res, { user: userData });
   } catch (err) {
+    console.error('사용자 정보 조회 오류:', err);
     return error(res, '사용자 정보 조회 실패', 500);
   }
 }];
