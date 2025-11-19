@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
-import { getMe } from '../utils/api';
+import { getMe, getAuthToken, API_BASE_URL } from '../utils/api';
 import {
   getAdminStats,
   getAdminShops,
@@ -475,28 +475,42 @@ export function AdminPage() {
     }
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ status: 'approved' })
       });
 
       if (!response.ok) {
+        // 네트워크 오류 체크
+        if (!response.status) {
+          throw new Error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+        }
         const errorData = await response.json().catch(() => ({ message: '알 수 없는 오류' }));
-        throw new Error(errorData.message || '승인에 실패했습니다.');
+        throw new Error(errorData.message || `승인에 실패했습니다. (상태 코드: ${response.status})`);
       }
 
       await response.json();
-      alert('피해 사례 제보가 승인되었습니다.');
+      toast.success('피해 사례 제보가 승인되었습니다.');
       loadReports();
       loadAdminStats();
     } catch (error) {
       console.error('승인 처리 오류:', error);
-      alert('승인 처리에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      // 네트워크 오류 특별 처리
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED') || error instanceof TypeError) {
+        toast.error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+      } else {
+        toast.error(`승인 처리에 실패했습니다: ${errorMessage}`);
+      }
     }
   };
 
@@ -507,56 +521,90 @@ export function AdminPage() {
     }
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ status: 'rejected' })
       });
 
       if (!response.ok) {
+        // 네트워크 오류 체크
+        if (!response.status) {
+          throw new Error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+        }
         const errorData = await response.json().catch(() => ({ message: '알 수 없는 오류' }));
-        throw new Error(errorData.message || '거부에 실패했습니다.');
+        throw new Error(errorData.message || `거부에 실패했습니다. (상태 코드: ${response.status})`);
       }
 
       await response.json();
-      alert('피해 사례 제보가 거부되었습니다.');
+      toast.success('피해 사례 제보가 거부되었습니다.');
       loadReports();
       loadAdminStats();
     } catch (error) {
       console.error('거부 처리 오류:', error);
-      alert('거부 처리에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      // 네트워크 오류 특별 처리
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED')) {
+        toast.error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+      } else {
+        toast.error(`거부 처리에 실패했습니다: ${errorMessage}`);
+      }
     }
   };
 
   // 신고 상태 변경
   const handleUpdateReportStatus = async (reportId: number, status: 'pending' | 'approved' | 'rejected') => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/admin/reports/${reportId}`, {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ status })
       });
 
       if (!response.ok) {
+        // 네트워크 오류 체크
+        if (!response.status) {
+          throw new Error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+        }
         const errorData = await response.json().catch(() => ({ message: '알 수 없는 오류' }));
-        throw new Error(errorData.message || '상태 변경에 실패했습니다.');
+        throw new Error(errorData.message || `상태 변경에 실패했습니다. (상태 코드: ${response.status})`);
       }
 
       await response.json();
+      const statusLabels = {
+        pending: '대기중',
+        approved: '승인',
+        rejected: '거부'
+      };
+      toast.success(`피해 사례 제보 상태가 "${statusLabels[status]}"으로 변경되었습니다.`);
       loadReports();
       loadAdminStats();
       setSelectedReport(null);
     } catch (error) {
       console.error('상태 변경 오류:', error);
-      alert('상태 변경에 실패했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+      // 네트워크 오류 특별 처리
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_CONNECTION_REFUSED') || error instanceof TypeError) {
+        toast.error('서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+      } else {
+        toast.error(`상태 변경에 실패했습니다: ${errorMessage}`);
+      }
     }
   };
 
