@@ -4,20 +4,119 @@
 const supabase = require('../config/supabase');
 const { success, error } = require('../utils/response');
 const { sanitizeInput } = require('../utils/validation');
+const { normalizeSearchTerm } = require('../utils/fulltextSearch');
 
 /**
- * 쇼핑몰 목록 조회
+ * 쇼핑몰 목록 조회 (한국어 검색 지원 - pg_trgm + Full-Text Search 하이브리드)
+ * GET /api/admin/shops?search=검색어&page=1&limit=50&similarity=0.3
  */
 exports.getShops = async (req, res) => {
   try {
-    const { data: shops, error: dbError } = await supabase
-      .from('shops')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const similarityThreshold = parseFloat(req.query.similarity) || 0.3; // 기본값 0.3
+    const offset = (page - 1) * limit;
 
-    if (dbError) throw dbError;
+    let shops = [];
+    let totalCount = 0;
 
-    return success(res, { shops: shops || [] });
+    // 검색어가 있으면 한국어 검색 사용 (pg_trgm + Full-Text Search)
+    if (searchTerm && searchTerm.trim()) {
+      const normalizedSearch = normalizeSearchTerm(searchTerm);
+      
+      // 한국어 검색 RPC 함수 호출 (pg_trgm 기반)
+      const { data: searchResults, error: searchError } = await supabase.rpc(
+        'search_shops_korean',
+        {
+          search_term: normalizedSearch,
+          similarity_threshold: similarityThreshold,
+          page_limit: limit,
+          page_offset: offset
+        }
+      );
+
+      if (searchError) {
+        console.error('한국어 검색 오류:', searchError);
+        // 한국어 검색 실패 시 기존 Full-Text Search로 폴백
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc(
+          'search_shops_fulltext',
+          {
+            search_term: normalizedSearch,
+            page_limit: limit,
+            page_offset: offset
+          }
+        );
+
+        if (fallbackError) {
+          // Full-Text Search도 실패하면 기본 ilike로 폴백
+          const { data: basicData, error: basicError } = await supabase
+            .from('shops')
+            .select('*')
+            .or(`url.ilike.%${normalizedSearch}%,name.ilike.%${normalizedSearch}%`)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+          if (basicError) throw basicError;
+          shops = basicData || [];
+
+          const { count, error: countError } = await supabase
+            .from('shops')
+            .select('*', { count: 'exact', head: true })
+            .or(`url.ilike.%${normalizedSearch}%,name.ilike.%${normalizedSearch}%`);
+
+          totalCount = count || 0;
+        } else {
+          shops = fallbackData || [];
+          const { data: countData } = await supabase.rpc(
+            'count_shops_fulltext',
+            { search_term: normalizedSearch }
+          );
+          totalCount = countData || 0;
+        }
+      } else {
+        shops = searchResults || [];
+
+        // 개수 조회
+        const { data: countData, error: countError } = await supabase.rpc(
+          'count_shops_korean',
+          { 
+            search_term: normalizedSearch,
+            similarity_threshold: similarityThreshold
+          }
+        );
+
+        totalCount = countData || 0;
+      }
+    } else {
+      // 검색어가 없으면 일반 조회
+      const { data: shopsData, error: dbError } = await supabase
+        .from('shops')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (dbError) throw dbError;
+
+      shops = shopsData || [];
+      
+      // 총 개수 조회
+      const { count, error: countError } = await supabase
+        .from('shops')
+        .select('*', { count: 'exact', head: true });
+
+      totalCount = count || 0;
+    }
+
+    return success(res, {
+      shops: shops || [],
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     console.error('쇼핑몰 조회 오류:', err);
     return error(res, '쇼핑몰 조회 실패', 500);
@@ -81,19 +180,128 @@ exports.deleteShop = async (req, res) => {
 };
 
 /**
- * 전체 신고 조회
+ * 전체 신고 조회 (한국어 검색 지원 - pg_trgm + Full-Text Search 하이브리드)
+ * GET /api/admin/reports?search=검색어&page=1&limit=50&similarity=0.3
  */
 exports.getReports = async (req, res) => {
   try {
-    const { data: reports, error: dbError } = await supabase
-      .from('shop_reports')
-      .select(`
-        *,
-        shops (id, url, name)
-      `)
-      .order('created_at', { ascending: false });
+    const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const similarityThreshold = parseFloat(req.query.similarity) || 0.3;
+    const offset = (page - 1) * limit;
 
-    if (dbError) throw dbError;
+    let reports = [];
+    let totalCount = 0;
+
+    // 검색어가 있으면 한국어 검색 사용
+    if (searchTerm && searchTerm.trim()) {
+      const normalizedSearch = normalizeSearchTerm(searchTerm);
+      
+      // 한국어 검색 RPC 함수 호출
+      const { data: searchResults, error: searchError } = await supabase.rpc(
+        'search_reports_korean',
+        {
+          search_term: normalizedSearch,
+          similarity_threshold: similarityThreshold,
+          page_limit: limit,
+          page_offset: offset
+        }
+      );
+
+      if (searchError) {
+        console.error('한국어 검색 오류:', searchError);
+        // 한국어 검색 실패 시 기존 Full-Text Search로 폴백
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc(
+          'search_reports_fulltext',
+          {
+            search_term: normalizedSearch,
+            page_limit: limit,
+            page_offset: offset
+          }
+        );
+
+        if (fallbackError) {
+          // 기본 ilike로 폴백
+          const { data: basicData, error: basicError } = await supabase
+            .from('shop_reports')
+            .select(`
+              *,
+              shops (id, url, name)
+            `)
+            .or(`description.ilike.%${normalizedSearch}%,categories.ilike.%${normalizedSearch}%,reporter_name.ilike.%${normalizedSearch}%`)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+          if (basicError) throw basicError;
+          reports = basicData || [];
+
+          const { count, error: countError } = await supabase
+            .from('shop_reports')
+            .select('*', { count: 'exact', head: true })
+            .or(`description.ilike.%${normalizedSearch}%,categories.ilike.%${normalizedSearch}%,reporter_name.ilike.%${normalizedSearch}%`);
+
+          totalCount = count || 0;
+        } else {
+          reports = (fallbackData || []).map(report => ({
+            ...report,
+            shops: report.shop_url ? {
+              id: report.shop_id,
+              url: report.shop_url,
+              name: report.shop_name
+            } : null
+          }));
+
+          const { data: countData } = await supabase.rpc(
+            'count_reports_fulltext',
+            { search_term: normalizedSearch }
+          );
+          totalCount = countData || 0;
+        }
+      } else {
+        // RPC 함수 결과를 기존 형식으로 변환
+        reports = (searchResults || []).map(report => ({
+          ...report,
+          shops: report.shop_url ? {
+            id: report.shop_id,
+            url: report.shop_url,
+            name: report.shop_name
+          } : null
+        }));
+
+        // 개수 조회
+        const { data: countData, error: countError } = await supabase.rpc(
+          'count_reports_korean',
+          { 
+            search_term: normalizedSearch,
+            similarity_threshold: similarityThreshold
+          }
+        );
+
+        totalCount = countData || 0;
+      }
+    } else {
+      // 검색어가 없으면 일반 조회
+      const { data: reportsData, error: dbError } = await supabase
+        .from('shop_reports')
+        .select(`
+          *,
+          shops (id, url, name)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (dbError) throw dbError;
+
+      reports = reportsData || [];
+      
+      // 총 개수 조회
+      const { count, error: countError } = await supabase
+        .from('shop_reports')
+        .select('*', { count: 'exact', head: true });
+
+      totalCount = count || 0;
+    }
 
     // evidence_files를 JSON 파싱하여 배열로 변환
     const formattedReports = (reports || []).map(report => ({
@@ -102,7 +310,15 @@ exports.getReports = async (req, res) => {
       shops: report.shops ? (Array.isArray(report.shops) ? report.shops[0] : report.shops) : null
     }));
 
-    return success(res, formattedReports);
+    return success(res, {
+      reports: formattedReports,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     console.error('신고 조회 오류:', err);
     return error(res, '신고 조회 실패', 500);
@@ -166,21 +382,111 @@ exports.deleteReport = async (req, res) => {
 };
 
 /**
- * 전체 평점 조회
+ * 전체 평점 조회 (한국어 검색 지원)
+ * GET /api/admin/ratings?search=검색어&page=1&limit=50
  */
 exports.getRatings = async (req, res) => {
   try {
-    const { data: ratings, error: dbError } = await supabase
-      .from('shop_ratings')
-      .select(`
-        *,
-        shops (id, url, name)
-      `)
-      .order('created_at', { ascending: false });
+    const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
 
-    if (dbError) throw dbError;
+    let ratings = [];
+    let totalCount = 0;
 
-    return success(res, { ratings: ratings || [] });
+    // 검색어가 있으면 검색
+    if (searchTerm && searchTerm.trim()) {
+      const normalizedSearch = normalizeSearchTerm(searchTerm);
+      
+      // 먼저 검색어와 일치하는 shop_ratings를 조회
+      const { data: ratingsData, error: dbError } = await supabase
+        .from('shop_ratings')
+        .select(`
+          *,
+          shops (id, url, name)
+        `, { count: 'exact' })
+        .ilike('comment', `%${normalizedSearch}%`)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (dbError) throw dbError;
+
+      // 쇼핑몰 이름/URL로도 검색
+      const { data: shopsData } = await supabase
+        .from('shops')
+        .select('id')
+        .or(`name.ilike.%${normalizedSearch}%,url.ilike.%${normalizedSearch}%`);
+
+      const shopIds = shopsData?.map(s => s.id) || [];
+
+      if (shopIds.length > 0) {
+        const { data: ratingsByShop, error: shopError } = await supabase
+          .from('shop_ratings')
+          .select(`
+            *,
+            shops (id, url, name)
+          `)
+          .in('shop_id', shopIds)
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        if (!shopError && ratingsByShop) {
+          // 중복 제거 및 병합
+          const existingIds = new Set((ratingsData || []).map(r => r.id));
+          const newRatings = (ratingsByShop || []).filter(r => !existingIds.has(r.id));
+          ratings = [...(ratingsData || []), ...newRatings];
+        } else {
+          ratings = ratingsData || [];
+        }
+      } else {
+        ratings = ratingsData || [];
+      }
+      
+      // 총 개수 조회
+      const { count: commentCount } = await supabase
+        .from('shop_ratings')
+        .select('*', { count: 'exact', head: true })
+        .ilike('comment', `%${normalizedSearch}%`);
+
+      const { count: shopCount } = await supabase
+        .from('shop_ratings')
+        .select('*', { count: 'exact', head: true })
+        .in('shop_id', shopIds);
+
+      totalCount = (commentCount || 0) + (shopCount || 0);
+    } else {
+      // 검색어가 없으면 일반 조회
+      const { data: ratingsData, error: dbError } = await supabase
+        .from('shop_ratings')
+        .select(`
+          *,
+          shops (id, url, name)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (dbError) throw dbError;
+
+      ratings = ratingsData || [];
+      
+      // 총 개수 조회
+      const { count, error: countError } = await supabase
+        .from('shop_ratings')
+        .select('*', { count: 'exact', head: true });
+
+      totalCount = count || 0;
+    }
+
+    return success(res, {
+      ratings: ratings || [],
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     console.error('평점 조회 오류:', err);
     return error(res, '평점 조회 실패', 500);
@@ -209,18 +515,241 @@ exports.deleteRating = async (req, res) => {
 };
 
 /**
- * 전체 사용자 조회
+ * 전체 사용자 조회 (활동 분석 포함, 한국어 검색 지원)
+ * GET /api/admin/users?search=검색어&page=1&limit=50&similarity=0.3
  */
 exports.getUsers = async (req, res) => {
   try {
-    const { data: users, error: dbError } = await supabase
-      .from('users')
-      .select('id, username, email, phone_number, role, created_at')
-      .order('created_at', { ascending: false });
+    const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const similarityThreshold = parseFloat(req.query.similarity) || 0.3;
+    const offset = (page - 1) * limit;
 
-    if (dbError) throw dbError;
+    let users = [];
+    let totalCount = 0;
 
-    return success(res, { users: users || [] });
+    // 검색어가 있으면 한국어 검색 사용
+    if (searchTerm && searchTerm.trim()) {
+      const normalizedSearch = normalizeSearchTerm(searchTerm);
+      
+      // 한국어 검색 RPC 함수 호출
+      const { data: searchResults, error: searchError } = await supabase.rpc(
+        'search_users_korean',
+        {
+          search_term: normalizedSearch,
+          similarity_threshold: similarityThreshold,
+          page_limit: limit,
+          page_offset: offset
+        }
+      );
+
+      if (searchError) {
+        console.error('한국어 검색 오류:', searchError);
+        // 한국어 검색 실패 시 기존 Full-Text Search로 폴백
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc(
+          'search_users_fulltext',
+          {
+            search_term: normalizedSearch,
+            page_limit: limit,
+            page_offset: offset
+          }
+        );
+
+        if (fallbackError) {
+          // 기본 ilike로 폴백
+          const { data: basicData, error: basicError } = await supabase
+            .from('users')
+            .select('id, username, email, phone_number, role, created_at, last_login_at')
+            .or(`username.ilike.%${normalizedSearch}%,email.ilike.%${normalizedSearch}%,phone_number.ilike.%${normalizedSearch}%`)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+          if (basicError) throw basicError;
+          users = basicData || [];
+
+          const { count, error: countError } = await supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .or(`username.ilike.%${normalizedSearch}%,email.ilike.%${normalizedSearch}%,phone_number.ilike.%${normalizedSearch}%`);
+
+          totalCount = count || 0;
+        } else {
+          users = fallbackData || [];
+          const { data: countData } = await supabase.rpc(
+            'count_users_fulltext',
+            { search_term: normalizedSearch }
+          );
+          totalCount = countData || 0;
+        }
+      } else {
+        users = searchResults || [];
+
+        // 개수 조회
+        const { data: countData, error: countError } = await supabase.rpc(
+          'count_users_korean',
+          { 
+            search_term: normalizedSearch,
+            similarity_threshold: similarityThreshold
+          }
+        );
+
+        totalCount = countData || 0;
+      }
+    } else {
+      // 검색어가 없으면 일반 조회
+      const { data: usersData, error: dbError } = await supabase
+        .from('users')
+        .select('id, username, email, phone_number, role, created_at, last_login_at', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (dbError) throw dbError;
+
+      users = usersData || [];
+      
+      // 총 개수 조회
+      const { count, error: countError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+
+      totalCount = count || 0;
+    }
+
+    // 각 사용자의 활동 정보 조회
+    const usersWithActivity = await Promise.all((users || []).map(async (user) => {
+      // 로그인 통계
+      const { data: loginLogs, error: loginError } = await supabase
+        .from('user_login_logs')
+        .select('created_at, login_success')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      const successfulLogins = (loginLogs || []).filter(log => log.login_success === true);
+      const lastLogin = successfulLogins.length > 0 ? successfulLogs[0].created_at : null;
+      const loginCount = successfulLogins.length;
+
+      // 검색 활동 (최근 30일)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { count: searchCount, error: searchError } = await supabase
+        .from('shop_search_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // 신고 활동
+      const { count: reportCount, error: reportsError } = await supabase
+        .from('reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // 평점 활동
+      const { count: ratingCount, error: ratingsError } = await supabase
+        .from('ratings')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // 커뮤니티 활동
+      const { count: postCount, error: postsError } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      const { count: commentCount, error: commentsError } = await supabase
+        .from('community_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // 활성도 점수 계산 (0-100)
+      // 로그인: 30점, 검색: 20점, 신고: 20점, 평점: 15점, 커뮤니티: 15점
+      let activityScore = 0;
+      if (loginCount > 0) activityScore += Math.min(30, loginCount * 2);
+      if (searchCount > 0) activityScore += Math.min(20, searchCount);
+      if (reportCount > 0) activityScore += Math.min(20, reportCount * 5);
+      if (ratingCount > 0) activityScore += Math.min(15, ratingCount * 3);
+      if (postCount > 0) activityScore += Math.min(10, postCount * 5);
+      if (commentCount > 0) activityScore += Math.min(5, commentCount * 2);
+      activityScore = Math.min(100, activityScore);
+
+      // 활성도 레벨
+      let activityLevel = 'INACTIVE';
+      if (activityScore >= 70) activityLevel = 'VERY_ACTIVE';
+      else if (activityScore >= 40) activityLevel = 'ACTIVE';
+      else if (activityScore >= 20) activityLevel = 'MODERATE';
+      else if (activityScore > 0) activityLevel = 'LOW';
+      else activityLevel = 'INACTIVE';
+
+      // 최근 활동일 (로그인, 검색, 신고, 평점, 커뮤니티 중 가장 최근)
+      const recentActivities = [];
+      if (lastLogin) recentActivities.push(new Date(lastLogin));
+      
+      const { data: recentSearch, error: recentSearchError } = await supabase
+        .from('shop_search_logs')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (recentSearch?.created_at) recentActivities.push(new Date(recentSearch.created_at));
+
+      const { data: recentReport, error: recentReportError } = await supabase
+        .from('reports')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (recentReport?.created_at) recentActivities.push(new Date(recentReport.created_at));
+
+      const { data: recentRating, error: recentRatingError } = await supabase
+        .from('ratings')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (recentRating?.created_at) recentActivities.push(new Date(recentRating.created_at));
+
+      const { data: recentPost, error: recentPostError } = await supabase
+        .from('community_posts')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (recentPost?.created_at) recentActivities.push(new Date(recentPost.created_at));
+
+      const lastActivity = recentActivities.length > 0 
+        ? new Date(Math.max(...recentActivities.map(d => d.getTime()))).toISOString()
+        : null;
+
+      return {
+        ...user,
+        activity: {
+          loginCount,
+          lastLogin,
+          searchCount,
+          reportCount,
+          ratingCount,
+          postCount,
+          commentCount,
+          activityScore,
+          activityLevel,
+          lastActivity
+        }
+      };
+    }));
+
+    return success(res, {
+      users: usersWithActivity,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     console.error('사용자 조회 오류:', err);
     return error(res, '사용자 조회 실패', 500);
@@ -470,6 +999,89 @@ exports.getStats = async (req, res) => {
       { level: 'VERY_LOW', count: trustDistribution.VERY_LOW }
     ];
 
+    // 로그인 통계
+    const { data: allLoginLogs, error: loginLogsError } = await supabase
+      .from('user_login_logs')
+      .select('created_at, login_success, failure_reason')
+      .gte('created_at', daysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (loginLogsError && loginLogsError.code !== 'PGRST116') {
+      console.warn('로그인 로그 조회 오류 (무시):', loginLogsError);
+    }
+
+    // 최근 14일 로그인 추이
+    const loginsByDateMap = new Map();
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const dateStr = date.toISOString().split('T')[0];
+      loginsByDateMap.set(dateStr, { total: 0, success: 0, failed: 0 });
+    }
+
+    (allLoginLogs || []).forEach(log => {
+      const dateStr = new Date(log.created_at).toISOString().split('T')[0];
+      const current = loginsByDateMap.get(dateStr) || { total: 0, success: 0, failed: 0 };
+      current.total++;
+      if (log.login_success) {
+        current.success++;
+      } else {
+        current.failed++;
+      }
+      loginsByDateMap.set(dateStr, current);
+    });
+
+    const loginsByDate = Array.from(loginsByDateMap.entries()).map(([date, data]) => ({
+      date,
+      total: data.total,
+      success: data.success,
+      failed: data.failed
+    }));
+
+    // 전체 로그인 통계
+    const { data: allLoginLogsTotal, error: loginLogsTotalError } = await supabase
+      .from('user_login_logs')
+      .select('login_success', { count: 'exact', head: false });
+
+    let totalLogins = 0;
+    let successfulLogins = 0;
+    let failedLogins = 0;
+
+    if (!loginLogsTotalError && allLoginLogsTotal) {
+      totalLogins = allLoginLogsTotal.length;
+      successfulLogins = allLoginLogsTotal.filter(log => log.login_success === true).length;
+      failedLogins = allLoginLogsTotal.filter(log => log.login_success === false).length;
+    }
+
+    // 로그인 실패 사유별 집계
+    const failureReasonMap = new Map();
+    (allLoginLogs || []).forEach(log => {
+      if (!log.login_success && log.failure_reason) {
+        const current = failureReasonMap.get(log.failure_reason) || 0;
+        failureReasonMap.set(log.failure_reason, current + 1);
+      }
+    });
+
+    const loginsByFailureReason = Array.from(failureReasonMap.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // 오늘 로그인 통계
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: todayLogins, error: todayLoginsError } = await supabase
+      .from('user_login_logs')
+      .select('login_success', { count: 'exact', head: false })
+      .gte('created_at', todayStart.toISOString());
+
+    let todayTotalLogins = 0;
+    let todaySuccessfulLogins = 0;
+    if (!todayLoginsError && todayLogins) {
+      todayTotalLogins = todayLogins.length;
+      todaySuccessfulLogins = todayLogins.filter(log => log.login_success === true).length;
+    }
+
     return success(res, {
       totalShops: shopsResult.count || 0,
       totalReports: reportsResult.count || 0,
@@ -477,7 +1089,18 @@ exports.getStats = async (req, res) => {
       totalUsers: usersResult.count || 0,
       reportsByDate,
       riskDistribution: trustDistributionArray,
-      reportsByCategory
+      reportsByCategory,
+      loginStats: {
+        totalLogins,
+        successfulLogins,
+        failedLogins,
+        successRate: totalLogins > 0 ? ((successfulLogins / totalLogins) * 100).toFixed(1) : 0,
+        todayTotalLogins,
+        todaySuccessfulLogins,
+        todaySuccessRate: todayTotalLogins > 0 ? ((todaySuccessfulLogins / todayTotalLogins) * 100).toFixed(1) : 0
+      },
+      loginsByDate,
+      loginsByFailureReason
     });
   } catch (err) {
     console.error('통계 조회 오류:', err);
@@ -489,6 +1112,243 @@ exports.getStats = async (req, res) => {
       stack: err.stack
     });
     return error(res, `통계 조회 실패: ${err.message || '알 수 없는 오류'}`, 500);
+  }
+};
+
+/**
+ * 보안 모니터링 - 의심스러운 로그인 패턴 감지
+ */
+exports.getSecurityAlerts = async (req, res) => {
+  try {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // 1. 같은 IP에서 여러 계정 로그인 시도 감지 (최근 1시간)
+    const { data: recentLogins, error: recentLoginsError } = await supabase
+      .from('user_login_logs')
+      .select('ip_address, user_id, created_at, login_success')
+      .gte('created_at', oneHourAgo.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (recentLoginsError) throw recentLoginsError;
+
+    // IP별로 그룹화하여 여러 계정 시도 감지
+    const ipAccountMap = new Map();
+    (recentLogins || []).forEach(log => {
+      if (!log.ip_address) return;
+      if (!ipAccountMap.has(log.ip_address)) {
+        ipAccountMap.set(log.ip_address, {
+          ip: log.ip_address,
+          uniqueUsers: new Set(),
+          attempts: [],
+          failedAttempts: 0
+        });
+      }
+      const ipData = ipAccountMap.get(log.ip_address);
+      if (log.user_id) {
+        ipData.uniqueUsers.add(log.user_id);
+      }
+      ipData.attempts.push(log);
+      if (!log.login_success) {
+        ipData.failedAttempts++;
+      }
+    });
+
+    const suspiciousIPs = Array.from(ipAccountMap.values())
+      .filter(ipData => ipData.uniqueUsers.size >= 3 || ipData.failedAttempts >= 5)
+      .map(ipData => ({
+        type: 'MULTIPLE_ACCOUNTS_FROM_SAME_IP',
+        severity: ipData.uniqueUsers.size >= 5 ? 'HIGH' : 'MEDIUM',
+        ip: ipData.ip,
+        uniqueUserCount: ipData.uniqueUsers.size,
+        failedAttempts: ipData.failedAttempts,
+        totalAttempts: ipData.attempts.length,
+        lastAttempt: ipData.attempts[0]?.created_at,
+        description: `같은 IP(${ipData.ip})에서 ${ipData.uniqueUsers.size}개의 서로 다른 계정으로 로그인 시도`
+      }));
+
+    // 2. 짧은 시간 내 반복 실패 감지 (최근 1시간, 10분 내 5회 이상 실패)
+    const { data: failedLogins, error: failedLoginsError } = await supabase
+      .from('user_login_logs')
+      .select('ip_address, user_id, created_at, failure_reason')
+      .eq('login_success', false)
+      .gte('created_at', oneHourAgo.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (failedLoginsError) throw failedLoginsError;
+
+    const rapidFailures = [];
+    const ipFailureMap = new Map();
+    const userFailureMap = new Map();
+
+    (failedLogins || []).forEach(log => {
+      const logTime = new Date(log.created_at);
+      
+      // IP 기반 반복 실패 감지
+      if (log.ip_address) {
+        if (!ipFailureMap.has(log.ip_address)) {
+          ipFailureMap.set(log.ip_address, []);
+        }
+        const failures = ipFailureMap.get(log.ip_address);
+        failures.push(logTime);
+        
+        // 10분 내 5회 이상 실패
+        const recentFailures = failures.filter(time => 
+          (logTime - time) <= 10 * 60 * 1000
+        );
+        if (recentFailures.length >= 5 && !rapidFailures.find(f => f.ip === log.ip_address && f.type === 'RAPID_FAILURES_BY_IP')) {
+          rapidFailures.push({
+            type: 'RAPID_FAILURES_BY_IP',
+            severity: 'HIGH',
+            ip: log.ip_address,
+            failureCount: recentFailures.length,
+            timeWindow: '10분',
+            lastAttempt: log.created_at,
+            description: `IP ${log.ip_address}에서 10분 내 ${recentFailures.length}회 로그인 실패`
+          });
+        }
+      }
+
+      // 사용자 기반 반복 실패 감지
+      if (log.user_id) {
+        if (!userFailureMap.has(log.user_id)) {
+          userFailureMap.set(log.user_id, []);
+        }
+        const failures = userFailureMap.get(log.user_id);
+        failures.push(logTime);
+        
+        // 10분 내 5회 이상 실패
+        const recentFailures = failures.filter(time => 
+          (logTime - time) <= 10 * 60 * 1000
+        );
+        if (recentFailures.length >= 5 && !rapidFailures.find(f => f.userId === log.user_id && f.type === 'RAPID_FAILURES_BY_USER')) {
+          rapidFailures.push({
+            type: 'RAPID_FAILURES_BY_USER',
+            severity: 'MEDIUM',
+            userId: log.user_id,
+            failureCount: recentFailures.length,
+            timeWindow: '10분',
+            lastAttempt: log.created_at,
+            description: `사용자 ID ${log.user_id}에서 10분 내 ${recentFailures.length}회 로그인 실패`
+          });
+        }
+      }
+    });
+
+    // 3. 비정상적인 User-Agent 패턴 탐지 (최근 24시간)
+    const { data: allLogins, error: allLoginsError } = await supabase
+      .from('user_login_logs')
+      .select('user_agent, ip_address, created_at, login_success')
+      .gte('created_at', oneDayAgo.toISOString());
+
+    if (allLoginsError) throw allLoginsError;
+
+    const suspiciousUserAgents = [];
+    const userAgentMap = new Map();
+    
+    (allLogins || []).forEach(log => {
+      if (!log.user_agent) return;
+      
+      // 의심스러운 User-Agent 패턴 감지
+      const suspiciousPatterns = [
+        /bot|crawler|spider|scraper/i,
+        /curl|wget|python|java|go-http/i,
+        /^$/,
+        /^Mozilla\/5\.0$/i
+      ];
+      
+      const isSuspicious = suspiciousPatterns.some(pattern => pattern.test(log.user_agent));
+      
+      if (isSuspicious) {
+        if (!userAgentMap.has(log.user_agent)) {
+          userAgentMap.set(log.user_agent, {
+            userAgent: log.user_agent,
+            count: 0,
+            ips: new Set(),
+            lastSeen: log.created_at
+          });
+        }
+        const uaData = userAgentMap.get(log.user_agent);
+        uaData.count++;
+        if (log.ip_address) {
+          uaData.ips.add(log.ip_address);
+        }
+        if (new Date(log.created_at) > new Date(uaData.lastSeen)) {
+          uaData.lastSeen = log.created_at;
+        }
+      }
+    });
+
+    Array.from(userAgentMap.values())
+      .filter(uaData => uaData.count >= 3)
+      .forEach(uaData => {
+        suspiciousUserAgents.push({
+          type: 'SUSPICIOUS_USER_AGENT',
+          severity: uaData.count >= 10 ? 'HIGH' : 'MEDIUM',
+          userAgent: uaData.userAgent,
+          occurrenceCount: uaData.count,
+          uniqueIPs: uaData.ips.size,
+          lastSeen: uaData.lastSeen,
+          description: `의심스러운 User-Agent 패턴 감지: "${uaData.userAgent.substring(0, 50)}" (${uaData.count}회 발생)`
+        });
+      });
+
+    // 4. SMS 요청과 로그인 시도 연계 분석 (최근 1시간)
+    const { data: smsRequests, error: smsRequestsError } = await supabase
+      .from('sms_request_tracking')
+      .select('ip_address, phone_number, sent_count, last_sent_at')
+      .gte('last_sent_at', oneHourAgo.toISOString());
+
+    if (smsRequestsError) throw smsRequestsError;
+
+    const botPatterns = [];
+    (smsRequests || []).forEach(sms => {
+      if (!sms.ip_address) return;
+      
+      // 같은 IP에서 SMS 요청 후 로그인 시도가 많은 경우
+      const relatedLogins = (recentLogins || []).filter(log => 
+        log.ip_address === sms.ip_address &&
+        new Date(log.created_at) >= new Date(sms.last_sent_at)
+      );
+      
+      if (relatedLogins.length >= 3 && sms.sent_count >= 3) {
+        botPatterns.push({
+          type: 'BOT_PATTERN_SMS_AND_LOGIN',
+          severity: 'HIGH',
+          ip: sms.ip_address,
+          smsRequestCount: sms.sent_count,
+          loginAttempts: relatedLogins.length,
+          phoneNumber: sms.phone_number,
+          lastActivity: sms.last_sent_at,
+          description: `IP ${sms.ip_address}에서 SMS 요청 ${sms.sent_count}회 후 로그인 시도 ${relatedLogins.length}회 (봇 패턴 의심)`
+        });
+      }
+    });
+
+    // 모든 알림 통합 및 정렬 (심각도 순)
+    const allAlerts = [
+      ...suspiciousIPs,
+      ...rapidFailures,
+      ...suspiciousUserAgents,
+      ...botPatterns
+    ].sort((a, b) => {
+      const severityOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2 };
+      return severityOrder[a.severity] - severityOrder[b.severity];
+    });
+
+    return success(res, {
+      alerts: allAlerts,
+      summary: {
+        total: allAlerts.length,
+        high: allAlerts.filter(a => a.severity === 'HIGH').length,
+        medium: allAlerts.filter(a => a.severity === 'MEDIUM').length,
+        low: allAlerts.filter(a => a.severity === 'LOW').length
+      }
+    });
+  } catch (err) {
+    console.error('보안 알림 조회 오류:', err);
+    return error(res, `보안 알림 조회 실패: ${err.message || '알 수 없는 오류'}`, 500);
   }
 };
 

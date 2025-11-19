@@ -4,12 +4,16 @@ interface AdminDashboardChartsProps {
   reportsByDate?: { date: string; count: number }[];
   riskDistribution?: { level: string; count: number }[];
   reportsByCategory?: { category: string; count: number }[];
+  loginsByDate?: { date: string; total: number; success: number; failed: number }[];
+  loginsByFailureReason?: { reason: string; count: number }[];
 }
 
 export function AdminDashboardCharts({
   reportsByDate,
   riskDistribution,
-  reportsByCategory
+  reportsByCategory,
+  loginsByDate,
+  loginsByFailureReason
 }: AdminDashboardChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -149,10 +153,104 @@ export function AdminDashboardCharts({
         </Card>
       )}
 
+      {/* 로그인 추이 차트 */}
+      {loginsByDate && loginsByDate.length > 0 && (
+        <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
+          <CardHeader className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900">🔐 최근 14일 로그인 추이</h3>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="space-y-2 sm:space-y-3">
+              {loginsByDate.map((item, index) => {
+                const maxCount = Math.max(...loginsByDate.map(d => d.total), 1);
+                return (
+                  <div key={index} className="space-y-1">
+                    <div className="flex items-center justify-between gap-2 sm:gap-3">
+                      <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.date}</span>
+                      <div className="flex items-center gap-3 text-xs sm:text-sm">
+                        <span className="text-green-600">성공: {item.success}</span>
+                        <span className="text-red-600">실패: {item.failed}</span>
+                        <span className="text-gray-900 font-medium">총: {item.total}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex-1 bg-gray-200 rounded-full h-3 min-w-[60px] relative overflow-hidden">
+                        {item.success > 0 && (
+                          <div
+                            className="bg-green-600 h-3 rounded-l-full absolute left-0"
+                            style={{
+                              width: `${(item.success / maxCount) * 100}%`
+                            }}
+                          />
+                        )}
+                        {item.failed > 0 && (
+                          <div
+                            className="bg-red-600 h-3 rounded-r-full absolute"
+                            style={{
+                              width: `${(item.failed / maxCount) * 100}%`,
+                              left: `${(item.success / maxCount) * 100}%`
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 로그인 실패 사유별 분포 */}
+      {loginsByFailureReason && loginsByFailureReason.length > 0 && (
+        <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
+          <CardHeader className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900">⚠️ 로그인 실패 사유별 분포</h3>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {loginsByFailureReason.map((item, index) => {
+                const total = loginsByFailureReason.reduce((sum, r) => sum + r.count, 0);
+                const percentage = total > 0 ? (item.count / total) * 100 : 0;
+                const reasonLabels: { [key: string]: string } = {
+                  'INVALID_PASSWORD': '잘못된 비밀번호',
+                  'USER_NOT_FOUND': '사용자 없음',
+                  'ACCOUNT_DELETED': '삭제된 계정',
+                  'OTHER': '기타'
+                };
+                
+                return (
+                  <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 truncate pr-2">
+                        {reasonLabels[item.reason] || item.reason}
+                      </span>
+                      <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.count}건</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-red-600 h-2 rounded-full"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-600 mt-1 block">
+                      {percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 데이터가 없는 경우 */}
       {(!reportsByDate || reportsByDate.length === 0) &&
        (!riskDistribution || riskDistribution.length === 0) &&
-       (!reportsByCategory || reportsByCategory.length === 0) && (
+       (!reportsByCategory || reportsByCategory.length === 0) &&
+       (!loginsByDate || loginsByDate.length === 0) &&
+       (!loginsByFailureReason || loginsByFailureReason.length === 0) && (
         <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
           <CardContent className="p-6 sm:p-8 text-center">
             <p className="text-sm sm:text-base text-gray-600">차트 데이터가 없습니다.</p>

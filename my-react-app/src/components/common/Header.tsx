@@ -192,7 +192,7 @@ export function Header() {
             {isMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 mt-2 w-56 rounded-md border bg-popover text-popover-foreground shadow focus:outline-none"
+                className="absolute right-0 mt-2 w-56 rounded-md border bg-white text-black shadow-lg focus:outline-none z-50"
               >
                 <div className="p-1 text-sm">
                   <MobileMenuLink to="/" label="홈" onClick={() => setIsMenuOpen(false)} />
@@ -213,14 +213,14 @@ export function Header() {
                       )}
                     </>
                   )}
-                  <div className="my-1 h-px bg-border" />
+                  <div className="my-1 h-px bg-gray-200" />
                   {isAuthenticated ? (
                     <button
                       onClick={() => {
                         handleLogout();
                         setIsMenuOpen(false);
                       }}
-                      className="w-full rounded-sm px-3 py-2 text-left text-black hover:bg-muted hover:text-black"
+                      className="w-full rounded-sm px-3 py-2 text-left text-black hover:bg-gray-100 hover:text-black transition-colors"
                     >
                       로그아웃
                     </button>
@@ -264,7 +264,7 @@ function MobileMenuLink({ to, label, onClick }: { to: string; label: string; onC
     <Link
       to={to}
       onClick={onClick}
-      className="block rounded-sm px-3 py-2 text-black hover:bg-muted hover:text-black"
+      className="block rounded-sm px-3 py-2 text-black hover:bg-gray-100 hover:text-black transition-colors"
     >
       {label}
     </Link>

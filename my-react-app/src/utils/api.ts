@@ -793,10 +793,16 @@ export async function checkUsernameAvailability(username: string): Promise<{ ava
 
 // ==================== 관리자 API ====================
 
-// 전체 쇼핑몰 조회
-export async function getAdminShops() {
+// 전체 쇼핑몰 조회 (Full-Text Search 지원)
+export async function getAdminShops(options?: { search?: string; page?: number; limit?: number }) {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/shops`, {
+    const params = new URLSearchParams();
+    if (options?.search) params.append('search', options.search);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/admin/shops${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
@@ -805,8 +811,11 @@ export async function getAdminShops() {
       throw new Error(data.message || data.error || '쇼핑몰 조회에 실패했습니다.');
     }
     
-    // 백엔드가 { shops: [...] } 형태로 반환하거나 직접 배열로 반환할 수 있음
-    return data.shops || data.data || [];
+    // 백엔드가 { shops: [...], pagination: {...} } 형태로 반환
+    return {
+      shops: data.shops || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+    };
   } catch (error) {
     console.error('쇼핑몰 조회 에러:', error);
     throw error;
@@ -880,10 +889,16 @@ export async function deleteUnknownShops() {
   }
 }
 
-// 전체 피해 사례 제보 조회
-export async function getAdminReports() {
+// 전체 피해 사례 제보 조회 (Full-Text Search 지원)
+export async function getAdminReports(options?: { search?: string; page?: number; limit?: number }) {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/reports`, {
+    const params = new URLSearchParams();
+    if (options?.search) params.append('search', options.search);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/admin/reports${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
@@ -892,8 +907,11 @@ export async function getAdminReports() {
       throw new Error(data.message || data.error || '피해 사례 제보 조회에 실패했습니다.');
     }
     
-    // 백엔드가 배열을 직접 반환하거나 { reports: [...] } 형태로 반환할 수 있음
-    return Array.isArray(data) ? data : (data.reports || data.data || []);
+    // 백엔드가 { reports: [...], pagination: {...} } 형태로 반환
+    return {
+      reports: Array.isArray(data) ? data : (data.reports || data.data || []),
+      pagination: data.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+    };
   } catch (error) {
     console.error('피해 사례 제보 조회 에러:', error);
     throw error;
@@ -1103,10 +1121,16 @@ export async function storeAIAnalysisCache(
   }
 }
 
-// 전체 평점 조회
-export async function getAdminRatings() {
+// 전체 평점 조회 (검색 지원)
+export async function getAdminRatings(options?: { search?: string; page?: number; limit?: number }) {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/ratings`, {
+    const params = new URLSearchParams();
+    if (options?.search) params.append('search', options.search);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/admin/ratings${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
@@ -1115,8 +1139,11 @@ export async function getAdminRatings() {
       throw new Error(data.message || data.error || '평점 조회에 실패했습니다.');
     }
     
-    // 백엔드가 { ratings: [...] } 형태로 반환하거나 직접 배열로 반환할 수 있음
-    return data.ratings || data.data || [];
+    // 백엔드가 { ratings: [...], pagination: {...} } 형태로 반환
+    return {
+      ratings: data.ratings || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+    };
   } catch (error) {
     console.error('평점 조회 에러:', error);
     throw error;
@@ -1167,10 +1194,16 @@ export async function generateMockRatings(): Promise<{ success: boolean; message
   }
 }
 
-// 전체 사용자 조회
-export async function getAdminUsers() {
+// 전체 사용자 조회 (Full-Text Search 지원)
+export async function getAdminUsers(options?: { search?: string; page?: number; limit?: number }) {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/users`, {
+    const params = new URLSearchParams();
+    if (options?.search) params.append('search', options.search);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/admin/users${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
@@ -1179,10 +1212,32 @@ export async function getAdminUsers() {
       throw new Error(data.message || data.error || '사용자 조회에 실패했습니다.');
     }
     
-    // 백엔드가 { users: [...] } 형태로 반환하거나 직접 배열로 반환할 수 있음
-    return data.users || data.data || [];
+    // 백엔드가 { users: [...], pagination: {...} } 형태로 반환
+    return {
+      users: data.users || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+    };
   } catch (error) {
     console.error('사용자 조회 에러:', error);
+    throw error;
+  }
+}
+
+// 보안 알림 조회
+export async function getSecurityAlerts() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/security/alerts`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || data.error || '보안 알림 조회에 실패했습니다.');
+    }
+    
+    return data.data || data;
+  } catch (error) {
+    console.error('보안 알림 조회 에러:', error);
     throw error;
   }
 }
@@ -1526,10 +1581,16 @@ export const deleteCommunityComment = async (commentId: number, userId: number):
 
 // ==================== 관리자 커뮤니티 API ====================
 
-// 관리자: 모든 게시글 조회
-export const getAdminCommunityPosts = async (): Promise<any[]> => {
+// 관리자: 모든 게시글 조회 (검색 지원)
+export const getAdminCommunityPosts = async (options?: { search?: string; page?: number; limit?: number }): Promise<{ posts: any[]; pagination?: any }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/community/admin/posts`, {
+    const params = new URLSearchParams();
+    if (options?.search) params.append('search', options.search);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/community/admin/posts${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     });
 
@@ -1538,7 +1599,10 @@ export const getAdminCommunityPosts = async (): Promise<any[]> => {
     }
 
     const data = await response.json();
-    return data.posts || [];
+    return {
+      posts: data.posts || [],
+      pagination: data.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 }
+    };
   } catch (error) {
     console.error('관리자 게시글 목록 조회 에러:', error);
     throw error;
@@ -1563,10 +1627,16 @@ export const deleteAdminCommunityPost = async (postId: number): Promise<void> =>
   }
 };
 
-// 관리자: 모든 댓글 조회
-export const getAdminCommunityComments = async (): Promise<any[]> => {
+// 관리자: 모든 댓글 조회 (검색 지원)
+export const getAdminCommunityComments = async (options?: { search?: string; page?: number; limit?: number }): Promise<{ comments: any[]; pagination?: any }> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/community/admin/comments`, {
+    const params = new URLSearchParams();
+    if (options?.search) params.append('search', options.search);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/community/admin/comments${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     });
 
@@ -1575,7 +1645,10 @@ export const getAdminCommunityComments = async (): Promise<any[]> => {
     }
 
     const data = await response.json();
-    return data.comments || [];
+    return {
+      comments: data.comments || [],
+      pagination: data.pagination || { page: 1, limit: 100, total: 0, totalPages: 0 }
+    };
   } catch (error) {
     console.error('관리자 댓글 목록 조회 에러:', error);
     throw error;

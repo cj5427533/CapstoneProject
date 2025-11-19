@@ -39,4 +39,7 @@ router.get('/stats', adminController.getStats);
 // 신뢰도 분포
 router.get('/trust-distribution', adminController.getTrustDistribution);
 
+// 보안 모니터링
+router.get('/security/alerts', adminController.getSecurityAlerts);
+
 module.exports = router;

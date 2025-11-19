@@ -7,6 +7,8 @@
 %% - add_evidence_files: reports.evidence_files 컬럼 추가
 %% - add_shop_tracking_and_search_logs: shops 추적 컬럼 및 shop_search_logs 테이블 추가
 %% - add_user_login_logs: user_login_logs 테이블 추가 및 users.last_login_at 컬럼 추가
+%% - add_security_and_activity_tables: security_alerts, ip_blacklist, user_activity_summary 테이블 추가
+%% - add_sms_table_relationships: sms_verifications와 sms_request_tracking 테이블 관계 설정
 %% ============================================================================
 
 erDiagram
@@ -42,6 +44,47 @@ erDiagram
         timestamp created_at
     }
     
+    security_alerts {
+        bigint id PK
+        string alert_type "NOT NULL"
+        string severity "NOT NULL, HIGH, MEDIUM, LOW"
+        string ip_address
+        bigint user_id
+        string description "NOT NULL"
+        jsonb details
+        string status "default: PENDING"
+        bigint reviewed_by FK "ON DELETE SET NULL"
+        timestamp reviewed_at
+        timestamp resolved_at
+        timestamp created_at
+    }
+    
+    ip_blacklist {
+        bigint id PK
+        string ip_address "unique, NOT NULL"
+        bigint blocked_by FK "ON DELETE SET NULL"
+        string block_reason
+        string block_type "default: MANUAL, MANUAL|AUTO"
+        timestamp expires_at
+        timestamp created_at
+    }
+    
+    user_activity_summary {
+        bigint id PK
+        bigint user_id FK "unique, NOT NULL"
+        int login_count "default: 0"
+        timestamp last_login
+        int search_count_30d "default: 0"
+        int report_count "default: 0"
+        int rating_count "default: 0"
+        int post_count "default: 0"
+        int comment_count "default: 0"
+        int activity_score "default: 0, 0-100"
+        string activity_level "default: INACTIVE"
+        timestamp last_activity
+        timestamp calculated_at
+    }
+    
     %% ========= Shops & Reports/Ratings =========
     
     shops {
@@ -54,6 +97,16 @@ erDiagram
         string created_via "report, rating, admin, search 등"
         timestamp created_at
         timestamp updated_at
+    }
+    
+    shop_search_logs {
+        bigint id PK
+        string normalized_url "NOT NULL"
+        string raw_url
+        bigint user_id FK "ON DELETE SET NULL"
+        string ip_address
+        string user_agent
+        timestamp created_at "NOT NULL"
     }
     
     reports {
@@ -93,16 +146,6 @@ erDiagram
         string verification_status "PENDING, VERIFIED, REJECTED"
     }
     
-    shop_search_logs {
-        bigint id PK
-        string normalized_url "NOT NULL"
-        string raw_url
-        bigint user_id FK "ON DELETE SET NULL"
-        string ip_address
-        string user_agent
-        timestamp created_at "NOT NULL"
-    }
-    
     %% ========= SMS =========
     
     sms_verifications {
@@ -111,6 +154,8 @@ erDiagram
         string verification_code "NOT NULL"
         bool is_verified
         timestamp expires_at
+        bigint user_id FK "ON DELETE SET NULL"
+        bigint sms_request_tracking_id FK "ON DELETE SET NULL"
         timestamp created_at
     }
     
@@ -120,6 +165,7 @@ erDiagram
         string ip_address "INET 타입"
         int sent_count
         timestamp last_sent_at
+        bigint user_id FK "ON DELETE SET NULL"
         timestamp created_at
         timestamp updated_at
     }
@@ -200,16 +246,25 @@ erDiagram
     %% Users & Auth
     users ||--o{ password_reset_tokens : "has"
     users ||--o{ user_login_logs : "has"
+    users ||--o{ security_alerts : "reviewed_by"
+    users ||--o{ ip_blacklist : "blocked_by"
+    users ||--|| user_activity_summary : "has"
     
     %% Shops & Reports/Ratings
     shops ||--o{ shops : "parent_shop"
     users }o--o{ shops : "created_by"
+    shops ||--o{ shop_search_logs : "searched"
+    users }o--o{ shop_search_logs : "searches"
     shops ||--o{ reports : "has"
     users }o--o{ reports : "reports"
     shops ||--o{ ratings : "has"
     users }o--o{ ratings : "rates"
     reports ||--o{ uploaded_files : "has"
-    users }o--o{ shop_search_logs : "searches"
+    
+    %% SMS
+    users }o--o{ sms_verifications : "has"
+    users }o--o{ sms_request_tracking : "requests"
+    sms_request_tracking ||--o{ sms_verifications : "generates"
     
     %% Community
     users ||--o{ community_posts : "writes"

@@ -571,10 +571,15 @@ router.delete('/comments/:id', async (req, res) => {
 
 // ==================== 관리자 API ====================
 
-// 관리자: 모든 게시글 조회 (댓글 수 포함)
+// 관리자: 모든 게시글 조회 (댓글 수 포함, 검색 지원)
 router.get('/admin/posts', async (req, res) => {
   try {
-    const { data: posts, error } = await supabase
+    const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
       .from('community_posts')
       .select(`
         id,
@@ -586,8 +591,17 @@ router.get('/admin/posts', async (req, res) => {
         updated_at,
         user_id,
         users!community_posts_user_id_fkey (username, email)
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' });
+
+    // 검색어가 있으면 필터링
+    if (searchTerm && searchTerm.trim()) {
+      query = query.or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+    }
+
+    query = query.order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data: posts, error, count } = await query;
 
     if (error) throw error;
 
@@ -619,7 +633,13 @@ router.get('/admin/posts', async (req, res) => {
 
     res.json({
       success: true,
-      posts: postsWithCommentCount
+      posts: postsWithCommentCount,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
     });
   } catch (error) {
     console.error('관리자 게시글 목록 조회 오류:', error);
@@ -668,10 +688,15 @@ router.delete('/admin/posts/:id', async (req, res) => {
   }
 });
 
-// 관리자: 모든 댓글 조회
+// 관리자: 모든 댓글 조회 (검색 지원)
 router.get('/admin/comments', async (req, res) => {
   try {
-    const { data: comments, error } = await supabase
+    const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
       .from('community_comments')
       .select(`
         id,
@@ -681,8 +706,17 @@ router.get('/admin/comments', async (req, res) => {
         user_id,
         users!community_comments_user_id_fkey (username, email),
         community_posts!community_comments_post_id_fkey (title)
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' });
+
+    // 검색어가 있으면 필터링
+    if (searchTerm && searchTerm.trim()) {
+      query = query.or(`content.ilike.%${searchTerm}%`);
+    }
+
+    query = query.order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data: comments, error, count } = await query;
 
     if (error) throw error;
 
@@ -699,7 +733,13 @@ router.get('/admin/comments', async (req, res) => {
 
     res.json({
       success: true,
-      comments: formattedComments
+      comments: formattedComments,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
     });
   } catch (error) {
     console.error('관리자 댓글 목록 조회 오류:', error);

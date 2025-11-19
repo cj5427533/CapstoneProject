@@ -20,7 +20,8 @@ import {
   deleteAdminCommunityPost,
   getAdminCommunityComments,
   deleteAdminCommunityComment,
-  generateMockRatings
+  generateMockRatings,
+  getSecurityAlerts
 } from '../utils/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,17 @@ interface AdminStats {
   reportsByDate?: { date: string; count: number }[];
   riskDistribution?: { level: string; count: number }[];
   reportsByCategory?: { category: string; count: number }[];
+  loginStats?: {
+    totalLogins: number;
+    successfulLogins: number;
+    failedLogins: number;
+    successRate: string;
+    todayTotalLogins: number;
+    todaySuccessfulLogins: number;
+    todaySuccessRate: string;
+  };
+  loginsByDate?: { date: string; total: number; success: number; failed: number }[];
+  loginsByFailureReason?: { reason: string; count: number }[];
 }
 
 interface Shop {
@@ -113,7 +125,7 @@ export function AdminPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user: currentUser, loading, logout, updateUser } = useAuth();
   
-  const [currentTab, setCurrentTab] = useState<'stats' | 'shops' | 'reports' | 'ratings' | 'users' | 'community'>('stats');
+  const [currentTab, setCurrentTab] = useState<'stats' | 'shops' | 'reports' | 'ratings' | 'users' | 'community' | 'security'>('stats');
   
   const [stats, setStats] = useState<AdminStats>({
     totalShops: 0,
@@ -128,6 +140,8 @@ export function AdminPage() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [communityComments, setCommunityComments] = useState<CommunityComment[]>([]);
+  const [securityAlerts, setSecurityAlerts] = useState<any[]>([]);
+  const [securitySummary, setSecuritySummary] = useState<{ total: number; high: number; medium: number; low: number } | null>(null);
   const [editingShopId, setEditingShopId] = useState<number | null>(null);
   const [editingShopName, setEditingShopName] = useState('');
   const [mergingShopId, setMergingShopId] = useState<number | null>(null);
@@ -136,6 +150,11 @@ export function AdminPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reportFilter, setReportFilter] = useState<'all' | 'today' | 'pending' | 'approved' | 'rejected'>('all');
   const [shopFilter, setShopFilter] = useState<{ search: string; riskLevel: 'all' | 'VERY_HIGH' | 'HIGH' | 'MEDIUM' | 'LOW' | 'VERY_LOW' }>({ search: '', riskLevel: 'all' });
+  const [reportSearchTerm, setReportSearchTerm] = useState<string>('');
+  const [userSearchTerm, setUserSearchTerm] = useState<string>('');
+  const [ratingSearchTerm, setRatingSearchTerm] = useState<string>('');
+  const [communityPostSearchTerm, setCommunityPostSearchTerm] = useState<string>('');
+  const [communityCommentSearchTerm, setCommunityCommentSearchTerm] = useState<string>('');
 
   // 관리자 인증 체크 (role 기반)
   useEffect(() => {
@@ -171,71 +190,134 @@ export function AdminPage() {
     }
   };
 
-  // 쇼핑몰 데이터 로드
+  // 쇼핑몰 데이터 로드 (Full-Text Search 지원)
   const loadShops = async () => {
     try {
-      const shopsData = await getAdminShops();
+      const shopsData = await getAdminShops({
+        search: shopFilter.search || undefined,
+        page: 1,
+        limit: 100
+      });
       console.log('쇼핑몰 데이터:', shopsData);
-      setShops(Array.isArray(shopsData) ? shopsData : []);
+      // API가 { shops: [...], pagination: {...} } 형태로 반환
+      setShops(Array.isArray(shopsData) ? shopsData : (shopsData.shops || []));
     } catch (error) {
       console.error('쇼핑몰 조회 실패:', error);
       setShops([]);
     }
   };
 
-  // 피해 사례 제보 데이터 로드
+  // 피해 사례 제보 데이터 로드 (Full-Text Search 지원)
   const loadReports = async () => {
     try {
-      const reportsData = await getAdminReports();
+      const reportsData = await getAdminReports({
+        search: reportSearchTerm || undefined,
+        page: 1,
+        limit: 100
+      });
       console.log('피해 사례 제보 데이터:', reportsData);
-      setReports(Array.isArray(reportsData) ? reportsData : []);
+      // API가 { reports: [...], pagination: {...} } 형태로 반환
+      setReports(Array.isArray(reportsData) ? reportsData : (reportsData.reports || []));
     } catch (error) {
       console.error('피해 사례 제보 조회 실패:', error);
       setReports([]);
     }
   };
 
-  // 평점 데이터 로드
+  // 평점 데이터 로드 (검색 지원)
   const loadRatings = async () => {
     try {
-      const ratingsData = await getAdminRatings();
+      const ratingsData = await getAdminRatings({
+        search: ratingSearchTerm || undefined,
+        page: 1,
+        limit: 100
+      });
       console.log('평점 데이터:', ratingsData);
-      setRatings(Array.isArray(ratingsData) ? ratingsData : []);
+      // API가 { ratings: [...], pagination: {...} } 형태로 반환
+      if (Array.isArray(ratingsData)) {
+        setRatings(ratingsData);
+      } else if (ratingsData && typeof ratingsData === 'object' && 'ratings' in ratingsData) {
+        setRatings(Array.isArray(ratingsData.ratings) ? ratingsData.ratings : []);
+      } else {
+        setRatings([]);
+      }
     } catch (error) {
       console.error('평점 조회 실패:', error);
       setRatings([]);
     }
   };
 
-  // 사용자 데이터 로드
+  // 사용자 데이터 로드 (Full-Text Search 지원)
   const loadUsers = async () => {
     try {
-      const usersData = await getAdminUsers();
+      const usersData = await getAdminUsers({
+        search: userSearchTerm || undefined,
+        page: 1,
+        limit: 100
+      });
       console.log('사용자 데이터:', usersData);
-      setUsers(Array.isArray(usersData) ? usersData : []);
+      // API가 { users: [...], pagination: {...} } 형태로 반환
+      setUsers(Array.isArray(usersData) ? usersData : (usersData.users || []));
     } catch (error) {
       console.error('사용자 조회 실패:', error);
       setUsers([]);
     }
   };
 
-  // 커뮤니티 게시글 로드
+  // 커뮤니티 게시글 로드 (검색 지원)
   const loadCommunityPosts = async () => {
     try {
-      const postsData = await getAdminCommunityPosts();
-      setCommunityPosts(postsData);
+      const postsData = await getAdminCommunityPosts({
+        search: communityPostSearchTerm || undefined,
+        page: 1,
+        limit: 100
+      });
+      // API가 { posts: [...], pagination: {...} } 형태로 반환
+      if (Array.isArray(postsData)) {
+        setCommunityPosts(postsData);
+      } else if (postsData && typeof postsData === 'object' && 'posts' in postsData) {
+        setCommunityPosts(Array.isArray(postsData.posts) ? postsData.posts : []);
+      } else {
+        setCommunityPosts([]);
+      }
     } catch (error) {
       console.error('커뮤니티 게시글 조회 실패:', error);
+      setCommunityPosts([]);
     }
   };
 
-  // 커뮤니티 댓글 로드
+  // 커뮤니티 댓글 로드 (검색 지원)
   const loadCommunityComments = async () => {
     try {
-      const commentsData = await getAdminCommunityComments();
-      setCommunityComments(commentsData);
+      const commentsData = await getAdminCommunityComments({
+        search: communityCommentSearchTerm || undefined,
+        page: 1,
+        limit: 100
+      });
+      // API가 { comments: [...], pagination: {...} } 형태로 반환
+      if (Array.isArray(commentsData)) {
+        setCommunityComments(commentsData);
+      } else if (commentsData && typeof commentsData === 'object' && 'comments' in commentsData) {
+        setCommunityComments(Array.isArray(commentsData.comments) ? commentsData.comments : []);
+      } else {
+        setCommunityComments([]);
+      }
     } catch (error) {
       console.error('커뮤니티 댓글 조회 실패:', error);
+      setCommunityComments([]);
+    }
+  };
+
+  // 보안 알림 로드
+  const loadSecurityAlerts = async () => {
+    try {
+      const alertsData = await getSecurityAlerts();
+      setSecurityAlerts(alertsData.alerts || []);
+      setSecuritySummary(alertsData.summary || null);
+    } catch (error) {
+      console.error('보안 알림 조회 실패:', error);
+      setSecurityAlerts([]);
+      setSecuritySummary(null);
     }
   };
 
@@ -286,6 +368,7 @@ export function AdminPage() {
         await loadCommunityPosts();
         await loadCommunityComments();
       }
+      else if (currentTab === 'security') await loadSecurityAlerts();
       else if (currentTab === 'stats') await loadAdminStats();
     };
     
@@ -491,16 +574,32 @@ export function AdminPage() {
     return true;
   });
 
-  // 필터된 쇼핑몰 목록
-  const filteredShops = shops.filter(shop => {
-    if (shopFilter.search) {
-      const searchLower = shopFilter.search.toLowerCase();
-      const urlMatch = shop.url.toLowerCase().includes(searchLower);
-      const nameMatch = (shop.name || '').toLowerCase().includes(searchLower);
-      if (!urlMatch && !nameMatch) return false;
+  // 검색 실행 함수 (검색 버튼 클릭 시)
+  const handleSearch = () => {
+    if (currentTab === 'shops') {
+      loadShops();
+    } else if (currentTab === 'reports') {
+      loadReports();
+    } else if (currentTab === 'users') {
+      loadUsers();
+    } else if (currentTab === 'ratings') {
+      loadRatings();
+    } else if (currentTab === 'community') {
+      loadCommunityPosts();
+      loadCommunityComments();
     }
-    // 위험도 필터는 현재 백엔드에서 위험도 정보를 반환하지 않아 구현되지 않음
-    // TODO: 백엔드에서 위험도 정보를 포함하여 반환하거나, 프론트엔드에서 계산하여 필터링 구현
+  };
+
+  // Enter 키로 검색
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  // 필터된 쇼핑몰 목록 (서버 사이드 검색 사용, 클라이언트 필터링 제거)
+  // 위험도 필터는 현재 백엔드에서 위험도 정보를 반환하지 않아 구현되지 않음
+  const filteredShops = shops.filter(shop => {
     if (shopFilter.riskLevel !== 'all') {
       // 위험도 필터링 로직은 추후 구현 예정
       return true;
@@ -643,7 +742,7 @@ export function AdminPage() {
           </div>
           <Button 
             onClick={handleLogout} 
-            className="min-h-[44px] w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 touch-manipulation"
+            className="min-h-[44px] w-full sm:w-auto border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             로그아웃
           </Button>
@@ -653,10 +752,10 @@ export function AdminPage() {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <Button
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
                 currentTab === 'stats' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
               }`}
               onClick={() => setCurrentTab('stats')}
             >
@@ -664,10 +763,10 @@ export function AdminPage() {
               <span className="sm:hidden">통계</span>
             </Button>
             <Button
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
                 currentTab === 'shops' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
               }`}
               onClick={() => setCurrentTab('shops')}
             >
@@ -675,10 +774,10 @@ export function AdminPage() {
               <span className="sm:hidden">쇼핑몰</span>
             </Button>
             <Button
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
                 currentTab === 'reports' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
               }`}
               onClick={() => setCurrentTab('reports')}
             >
@@ -686,10 +785,10 @@ export function AdminPage() {
               <span className="md:hidden">제보 관리</span>
             </Button>
             <Button
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
                 currentTab === 'ratings' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
               }`}
               onClick={() => setCurrentTab('ratings')}
             >
@@ -697,10 +796,10 @@ export function AdminPage() {
               <span className="sm:hidden">평점</span>
             </Button>
             <Button
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
                 currentTab === 'users' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
               }`}
               onClick={() => setCurrentTab('users')}
             >
@@ -708,15 +807,26 @@ export function AdminPage() {
               <span className="sm:hidden">사용자</span>
             </Button>
             <Button
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap ${
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
                 currentTab === 'community' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
               }`}
               onClick={() => setCurrentTab('community')}
             >
               💬 <span className="hidden sm:inline">커뮤니티 관리</span>
               <span className="sm:hidden">커뮤니티</span>
+            </Button>
+            <Button
+              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all touch-manipulation whitespace-nowrap border border-gray-300 ${
+                currentTab === 'security' 
+                  ? 'bg-white text-gray-900 border-gray-400 shadow-sm' 
+                  : 'bg-white text-gray-900 hover:bg-gray-50'
+              }`}
+              onClick={() => setCurrentTab('security')}
+            >
+              🔒 <span className="hidden sm:inline">보안 모니터링</span>
+              <span className="sm:hidden">보안</span>
             </Button>
           </div>
         </div>
@@ -756,6 +866,38 @@ export function AdminPage() {
                   </CardContent>
                 </Card>
               </div>
+              
+              {/* 로그인 통계 카드 */}
+              {stats?.loginStats && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-6">
+                  <Card className="bg-white border-green-200 border-2">
+                    <CardContent className="p-4 sm:p-6 text-center">
+                      <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">총 로그인 수</h3>
+                      <div className="text-3xl sm:text-4xl font-bold text-green-600">{stats.loginStats.totalLogins}</div>
+                      <p className="text-xs text-gray-500 mt-1">성공률: {stats.loginStats.successRate}%</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white border-green-200 border-2">
+                    <CardContent className="p-4 sm:p-6 text-center">
+                      <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">성공한 로그인</h3>
+                      <div className="text-3xl sm:text-4xl font-bold text-green-600">{stats.loginStats.successfulLogins}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white border-red-200 border-2">
+                    <CardContent className="p-4 sm:p-6 text-center">
+                      <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">실패한 로그인</h3>
+                      <div className="text-3xl sm:text-4xl font-bold text-red-600">{stats.loginStats.failedLogins}</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white border-blue-200 border-2">
+                    <CardContent className="p-4 sm:p-6 text-center">
+                      <h3 className="text-xs sm:text-sm font-medium text-gray-600 mb-2">오늘 로그인</h3>
+                      <div className="text-3xl sm:text-4xl font-bold text-blue-600">{stats.loginStats.todayTotalLogins}</div>
+                      <p className="text-xs text-gray-500 mt-1">성공률: {stats.loginStats.todaySuccessRate}%</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -767,6 +909,8 @@ export function AdminPage() {
               reportsByDate={stats?.reportsByDate}
               riskDistribution={stats?.riskDistribution}
               reportsByCategory={stats?.reportsByCategory}
+              loginsByDate={stats?.loginsByDate}
+              loginsByFailureReason={stats?.loginsByFailureReason}
             />
           </div>
         )}
@@ -778,17 +922,26 @@ export function AdminPage() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  <Input
-                    type="text"
-                    placeholder="URL 또는 이름 검색..."
-                    value={shopFilter.search}
-                    onChange={(e) => setShopFilter({ ...shopFilter, search: e.target.value })}
-                    className="w-full sm:w-64 min-h-[44px] bg-white"
-                  />
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Input
+                      type="text"
+                      placeholder="URL 또는 이름 검색..."
+                      value={shopFilter.search}
+                      onChange={(e) => setShopFilter({ ...shopFilter, search: e.target.value })}
+                      onKeyPress={handleSearchKeyPress}
+                      className="w-full sm:w-64 min-h-[44px] bg-white"
+                    />
+                    <Button
+                      onClick={handleSearch}
+                      className="min-h-[44px] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 touch-manipulation rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                      🔍 검색
+                    </Button>
+                  </div>
                   <select
                     value={shopFilter.riskLevel}
                     onChange={(e) => setShopFilter({ ...shopFilter, riskLevel: e.target.value as any })}
-                    className="min-h-[44px] px-3 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation"
+                    className="min-h-[44px] px-3 pr-10 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%209L1%204h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-3 bg-[length:12px_12px] cursor-pointer"
                   >
                     <option value="all">전체</option>
                     <option value="VERY_HIGH">매우높음</option>
@@ -799,7 +952,7 @@ export function AdminPage() {
                   </select>
                   <Button
                     onClick={handleDeleteUnknownShops}
-                    className="min-h-[44px] w-full sm:w-auto bg-red-600 text-white hover:bg-red-700 touch-manipulation"
+                    className="min-h-[44px] w-full sm:w-auto border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation px-4 py-2 rounded-md text-sm font-medium transition-colors"
                   >
                     알 수 없는 쇼핑몰 삭제
                   </Button>
@@ -820,7 +973,6 @@ export function AdminPage() {
                         <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">ID</th>
                         <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">URL</th>
                         <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">이름</th>
-                        <th className="hidden md:table-cell px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-50">부모 쇼핑몰</th>
                         <th className="hidden lg:table-cell px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-50">등록일</th>
                         <th className="px-3 sm:px-4 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 bg-gray-50">관리</th>
                       </tr>
@@ -866,15 +1018,6 @@ export function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm">
-                        {shop.parent_shop_id ? (
-                          <span className="text-orange-600 font-bold">
-                            → #{shop.parent_shop_id} 에 병합됨
-                          </span>
-                        ) : (
-                          <span className="text-gray-500">-</span>
-                        )}
-                      </td>
                       <td className="hidden lg:table-cell px-4 py-3 text-sm text-gray-900">{new Date(shop.created_at).toLocaleString('ko-KR')}</td>
                       <td className="px-3 sm:px-4 py-3">
                         <div className="flex gap-2 flex-wrap">
@@ -882,7 +1025,7 @@ export function AdminPage() {
                             <>
                               <button 
                                 onClick={() => handleUpdateShopName(shop.id)}
-                                className="h-8 px-3 py-1 bg-green-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-green-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 저장
                               </button>
@@ -891,7 +1034,7 @@ export function AdminPage() {
                                   setEditingShopId(null);
                                   setEditingShopName('');
                                 }}
-                                className="h-8 px-3 py-1 bg-gray-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-gray-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 취소
                               </button>
@@ -908,7 +1051,7 @@ export function AdminPage() {
                               />
                               <button 
                                 onClick={() => handleMergeShops(shop.id)}
-                                className="h-8 px-3 py-1 bg-green-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-green-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 병합
                               </button>
@@ -917,7 +1060,7 @@ export function AdminPage() {
                                   setMergingShopId(null);
                                   setMergeTargetId('');
                                 }}
-                                className="h-8 px-3 py-1 bg-gray-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-gray-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 취소
                               </button>
@@ -929,7 +1072,7 @@ export function AdminPage() {
                                   setEditingShopId(shop.id);
                                   setEditingShopName(shop.name || '');
                                 }}
-                                className="h-8 px-3 py-1 bg-blue-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-blue-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 수정
                               </button>
@@ -938,13 +1081,13 @@ export function AdminPage() {
                                   setMergingShopId(shop.id);
                                   setMergeTargetId('');
                                 }}
-                                className="h-8 px-3 py-1 bg-yellow-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-yellow-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 병합
                               </button>
                               <button 
                                 onClick={() => handleDeleteShop(shop.id, shop.name || shop.url)}
-                                className="h-8 px-3 py-1 bg-red-400 text-white rounded-md text-xs font-medium cursor-pointer transition-colors hover:bg-red-500 touch-manipulation"
+                                className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                               >
                                 삭제
                               </button>
@@ -969,11 +1112,27 @@ export function AdminPage() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Input
+                      type="text"
+                      placeholder="내용, 카테고리, 제보자명 검색..."
+                      value={reportSearchTerm}
+                      onChange={(e) => setReportSearchTerm(e.target.value)}
+                      onKeyPress={handleSearchKeyPress}
+                      className="w-full sm:w-64 min-h-[44px] bg-white"
+                    />
+                    <Button
+                      onClick={handleSearch}
+                      className="min-h-[44px] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 touch-manipulation rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                      🔍 검색
+                    </Button>
+                  </div>
                   <select
                     value={reportFilter}
                     onChange={(e) => setReportFilter(e.target.value as any)}
-                    className="min-h-[44px] w-full sm:w-auto px-3 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation"
+                    className="min-h-[44px] w-full sm:w-auto px-3 pr-10 py-2 rounded-md border border-gray-300 bg-white text-sm touch-manipulation appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%209L1%204h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-3 bg-[length:12px_12px] cursor-pointer"
                   >
                     <option value="all">전체</option>
                     <option value="today">오늘 신고</option>
@@ -1044,13 +1203,14 @@ export function AdminPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedReport(report)}
+                            className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium transition-colors hover:bg-gray-50 touch-manipulation"
                           >
                             상세
                           </Button>
                           <select
                             value={report.status || 'pending'}
                             onChange={(e) => handleUpdateReportStatus(report.id, e.target.value as any)}
-                            className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs"
+                            className="px-2 pr-8 py-1 rounded-md border border-gray-300 bg-white text-xs appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%209L1%204h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-2 bg-[length:12px_12px] cursor-pointer"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <option value="pending">대기중</option>
@@ -1076,62 +1236,116 @@ export function AdminPage() {
             onClick={() => setSelectedReport(null)}
           >
             <Card 
-              className="max-w-3xl w-full max-h-[90vh] overflow-y-auto bg-white"
+              className="max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white shadow-2xl rounded-xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <CardHeader>
+              <CardHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-gray-900">신고 상세 정보</h3>
-                  <Button variant="ghost" onClick={() => setSelectedReport(null)}>✕</Button>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900">신고 상세 정보</h3>
+                      <p className="text-sm text-gray-500 mt-1">신고 ID: #{selectedReport.id}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setSelectedReport(null)}
+                    className="h-10 w-10 rounded-full hover:bg-gray-200"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">신고 ID</label>
-                  <p className="text-gray-900">{selectedReport.id}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">쇼핑몰</label>
-                  <p className="text-gray-900">{selectedReport.shops?.name || selectedReport.shops?.url}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">카테고리</label>
-                  <p className="text-gray-900">
-                    {(() => {
-                      try {
-                        return JSON.parse(selectedReport.categories).join(', ');
-                      } catch {
-                        return selectedReport.categories;
-                      }
-                    })()}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">상세 설명</label>
-                  <p className="text-gray-900 whitespace-pre-wrap bg-gray-100 p-3 rounded-md">{selectedReport.description}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">제보자</label>
-                  <p className="text-gray-900">{selectedReport.reporter_name || '익명'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">제보일</label>
-                  <p className="text-gray-900">{new Date(selectedReport.created_at).toLocaleString('ko-KR')}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">상태</label>
-                  <div className="mt-2">
-                    <select
-                      value={selectedReport.status || 'pending'}
-                      onChange={(e) => handleUpdateReportStatus(selectedReport.id, e.target.value as any)}
-                      className="px-3 py-2 rounded-md border border-gray-300 bg-white"
-                    >
-                      <option value="pending">대기중</option>
-                      <option value="approved">승인</option>
-                      <option value="rejected">거부</option>
-                    </select>
+              <CardContent className="p-6 space-y-6">
+                {/* 기본 정보 그리드 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">쇼핑몰</label>
+                    <p className="text-base font-semibold text-gray-900 break-words">
+                      {selectedReport.shops?.name || selectedReport.shops?.url}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">제보자</label>
+                    <p className="text-base font-semibold text-gray-900">
+                      {selectedReport.reporter_name || <span className="text-gray-500 italic">익명</span>}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">제보일</label>
+                    <p className="text-base font-semibold text-gray-900">
+                      {new Date(selectedReport.created_at).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">상태</label>
+                    <div className="flex items-center gap-3">
+                      <Badge 
+                        className={
+                          selectedReport.status === 'pending' 
+                            ? 'bg-yellow-100 text-yellow-800 border-yellow-300 px-3 py-1' 
+                            : selectedReport.status === 'approved'
+                            ? 'bg-green-100 text-green-800 border-green-300 px-3 py-1'
+                            : 'bg-red-100 text-red-800 border-red-300 px-3 py-1'
+                        }
+                      >
+                        {selectedReport.status === 'pending' ? '⏳ 대기중' : selectedReport.status === 'approved' ? '✅ 승인됨' : '❌ 거부됨'}
+                      </Badge>
+                      <select
+                        value={selectedReport.status || 'pending'}
+                        onChange={(e) => handleUpdateReportStatus(selectedReport.id, e.target.value as any)}
+                        className="px-3 pr-10 py-1.5 rounded-md border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%209L1%204h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-right-3 bg-[length:12px_12px] cursor-pointer"
+                      >
+                        <option value="pending">대기중</option>
+                        <option value="approved">승인</option>
+                        <option value="rejected">거부</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
+
+                {/* 카테고리 */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">카테고리</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      let categories: string[] = [];
+                      try {
+                        categories = JSON.parse(selectedReport.categories);
+                      } catch {
+                        categories = [selectedReport.categories];
+                      }
+                      return categories.map((cat: string, idx: number) => (
+                        <Badge 
+                          key={idx}
+                          className="bg-blue-100 text-blue-800 border-blue-300 px-3 py-1 text-sm font-medium"
+                        >
+                          {cat}
+                        </Badge>
+                      ));
+                    })()}
+                  </div>
+                </div>
+
+                {/* 상세 설명 */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">상세 설명</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">
+                      {selectedReport.description || <span className="text-gray-400 italic">상세 설명이 없습니다.</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 증빙 자료 */}
                 {(() => {
                   let evidenceFiles: string[] = [];
                   if (selectedReport.evidenceFiles) {
@@ -1152,43 +1366,58 @@ export function AdminPage() {
                   
                   return (
                     <div>
-                      <label className="text-sm font-medium text-gray-600">증빙 자료 ({evidenceFiles.length}개)</label>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
+                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 block">
+                        증빙 자료 ({evidenceFiles.length}개)
+                      </label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {evidenceFiles.map((fileUrl: string, index: number) => {
                           const imageUrl = fileUrl.startsWith('http') 
                             ? fileUrl 
                             : `${apiUrl}${fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl}`;
                           
                           return (
-                            <img
-                              key={index}
-                              src={imageUrl}
-                              alt={`증빙 자료 ${index + 1}`}
-                              className="w-full h-auto rounded-md border border-gray-300 cursor-pointer"
-                              onClick={() => setSelectedImage(imageUrl)}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
+                            <div key={index} className="relative group">
+                              <img
+                                src={imageUrl}
+                                alt={`증빙 자료 ${index + 1}`}
+                                className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-400 transition-all hover:shadow-lg"
+                                onClick={() => setSelectedImage(imageUrl)}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-3 py-1 rounded-md text-sm font-medium">
+                                  클릭하여 확대
+                                </div>
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
                     </div>
                   );
                 })()}
-                <div className="flex gap-2 pt-4">
+
+                {/* 액션 버튼 */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <Button
                     onClick={() => {
                       setSelectedReport(null);
                       handleDeleteReport(selectedReport.id);
                     }}
                     variant="destructive"
+                    className="flex-1 md:flex-initial min-h-[44px] px-6 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
                   >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                     삭제
                   </Button>
                   <Button
                     onClick={() => setSelectedReport(null)}
                     variant="outline"
+                    className="flex-1 md:flex-initial min-h-[44px] px-6 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
                   >
                     닫기
                   </Button>
@@ -1204,12 +1433,30 @@ export function AdminPage() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⭐ 평점 관리 ({ratings.length}개)</h2>
-                <Button 
-                  onClick={handleGenerateMockRatings}
-                  className="min-h-[44px] px-4 py-2 bg-green-600 text-white hover:bg-green-700 touch-manipulation text-sm sm:text-base"
-                >
-                  목업 리뷰 생성
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Input
+                      type="text"
+                      placeholder="리뷰 내용, 쇼핑몰명 검색..."
+                      value={ratingSearchTerm}
+                      onChange={(e) => setRatingSearchTerm(e.target.value)}
+                      onKeyPress={handleSearchKeyPress}
+                      className="w-full sm:w-64 min-h-[44px] bg-white"
+                    />
+                    <Button
+                      onClick={handleSearch}
+                      className="min-h-[44px] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 touch-manipulation rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                      🔍 검색
+                    </Button>
+                  </div>
+                  <Button 
+                    onClick={handleGenerateMockRatings}
+                    className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation text-sm font-medium rounded-md transition-colors"
+                  >
+                    목업 리뷰 생성
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1231,7 +1478,7 @@ export function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ratings.map((rating) => (
+                    {(Array.isArray(ratings) ? ratings : []).map((rating) => (
                     <tr key={rating.id} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-900">{rating.id}</td>
                       <td className="px-4 py-3 text-gray-900 max-w-xs truncate">{rating.shops?.name || rating.shops?.url}</td>
@@ -1254,7 +1501,7 @@ export function AdminPage() {
                       <td className="px-4 py-3">
                         <button 
                           onClick={() => handleDeleteRating(rating.id)}
-                          className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
+                          className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                         >
                           삭제
                         </button>
@@ -1273,7 +1520,25 @@ export function AdminPage() {
         {currentTab === 'users' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">👥 사용자 관리 ({users.length}명)</h2>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">👥 사용자 관리 ({users.length}명)</h2>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Input
+                    type="text"
+                    placeholder="사용자명, 이메일, 전화번호 검색..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    onKeyPress={handleSearchKeyPress}
+                    className="w-full sm:w-64 min-h-[44px] bg-white"
+                  />
+                  <Button
+                    onClick={handleSearch}
+                    className="min-h-[44px] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 touch-manipulation rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    🔍 검색
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
             {users.length === 0 ? (
@@ -1288,53 +1553,97 @@ export function AdminPage() {
                       <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">사용자명</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">이메일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">전화번호</th>
+                      <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">전화번호</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">권한</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">가입일</th>
+                      <th className="hidden lg:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">활성도</th>
+                      <th className="hidden lg:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">활동</th>
+                      <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">가입일</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
-                    <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">{user.id}</td>
-                      <td className="px-4 py-3 text-gray-900">{user.username}</td>
-                      <td className="px-4 py-3 text-gray-900">{user.email}</td>
-                      <td className="px-4 py-3 text-gray-900">{user.phone_number}</td>
-                      <td className="px-4 py-3">
-                        <Badge 
-                          className={
-                            user.role === 'admin' 
-                              ? 'bg-blue-100 text-blue-700 border-blue-300' 
-                              : 'bg-gray-100 text-gray-700 border-gray-300'
-                          }
-                        >
-                          {user.role === 'admin' ? '관리자' : '일반 사용자'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">{new Date(user.created_at).toLocaleString('ko-KR')}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          {user.role === 'admin' ? (
-                            <button 
-                              onClick={() => handleUpdateUserRole(user.id, 'user')}
-                              className="min-h-[44px] px-4 py-2 bg-gray-500 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-600 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={user.id === currentUser?.id}
+                    {users.map((user) => {
+                      const activityLevelLabels = {
+                        'VERY_ACTIVE': '매우 활성',
+                        'ACTIVE': '활성',
+                        'MODERATE': '보통',
+                        'LOW': '낮음',
+                        'INACTIVE': '비활성'
+                      };
+                      const activityLevelColors = {
+                        'VERY_ACTIVE': 'bg-green-100 text-green-700 border-green-300',
+                        'ACTIVE': 'bg-blue-100 text-blue-700 border-blue-300',
+                        'MODERATE': 'bg-yellow-100 text-yellow-700 border-yellow-300',
+                        'LOW': 'bg-orange-100 text-orange-700 border-orange-300',
+                        'INACTIVE': 'bg-gray-100 text-gray-700 border-gray-300'
+                      };
+                      
+                      return (
+                        <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
+                          <td className="px-4 py-3 text-gray-900">{user.id}</td>
+                          <td className="px-4 py-3 text-gray-900">{user.username}</td>
+                          <td className="px-4 py-3 text-gray-900">{user.email}</td>
+                          <td className="hidden md:table-cell px-4 py-3 text-gray-900">{user.phone_number}</td>
+                          <td className="px-4 py-3">
+                            <Badge 
+                              className={
+                                user.role === 'admin' 
+                                  ? 'bg-blue-100 text-blue-700 border-blue-300' 
+                                  : 'bg-gray-100 text-gray-700 border-gray-300'
+                              }
                             >
-                              일반 사용자로 변경
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleUpdateUserRole(user.id, 'admin')}
-                              className="min-h-[44px] px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-blue-700 touch-manipulation"
-                            >
-                              관리자로 지정
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                              {user.role === 'admin' ? '관리자' : '일반 사용자'}
+                            </Badge>
+                          </td>
+                          <td className="hidden lg:table-cell px-4 py-3">
+                            {user.activity ? (
+                              <div className="flex flex-col gap-1">
+                                <Badge className={activityLevelColors[user.activity.activityLevel as keyof typeof activityLevelColors] || 'bg-gray-100 text-gray-700'}>
+                                  {activityLevelLabels[user.activity.activityLevel as keyof typeof activityLevelLabels] || user.activity.activityLevel}
+                                </Badge>
+                                <span className="text-xs text-gray-600">{user.activity.activityScore}점</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="hidden lg:table-cell px-4 py-3">
+                            {user.activity ? (
+                              <div className="text-xs text-gray-600 space-y-0.5">
+                                <div>🔐 로그인: {user.activity.loginCount}회</div>
+                                <div>🔍 검색: {user.activity.searchCount}회</div>
+                                <div>📝 신고: {user.activity.reportCount}건</div>
+                                <div>⭐ 평점: {user.activity.ratingCount}건</div>
+                                <div>💬 커뮤니티: {user.activity.postCount + user.activity.commentCount}건</div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="hidden md:table-cell px-4 py-3 text-gray-900">{new Date(user.created_at).toLocaleString('ko-KR')}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              {user.role === 'admin' ? (
+                                <button 
+                                  onClick={() => handleUpdateUserRole(user.id, 'user')}
+                                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={user.id === currentUser?.id}
+                                >
+                                  일반 사용자로 변경
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleUpdateUserRole(user.id, 'admin')}
+                                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
+                                >
+                                  관리자로 지정
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1353,7 +1662,27 @@ export function AdminPage() {
             
             {/* 게시글 관리 */}
             <div className="mb-12">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">📝 게시글 관리 ({communityPosts.length}개)</h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">📝 게시글 관리 ({communityPosts.length}개)</h3>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Input
+                    type="text"
+                    placeholder="제목, 내용 검색..."
+                    value={communityPostSearchTerm}
+                    onChange={(e) => setCommunityPostSearchTerm(e.target.value)}
+                    onKeyPress={handleSearchKeyPress}
+                    className="w-full sm:w-64 min-h-[44px] bg-white"
+                  />
+                  <Button
+                    onClick={() => {
+                      loadCommunityPosts();
+                    }}
+                    className="min-h-[44px] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 touch-manipulation rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    🔍 검색
+                  </Button>
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -1370,7 +1699,7 @@ export function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {communityPosts.map((post) => (
+                    {(Array.isArray(communityPosts) ? communityPosts : []).map((post) => (
                       <tr key={post.id} className="border-b border-gray-200 hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-900">{post.id}</td>
                         <td className="px-4 py-3 text-gray-900 max-w-xs truncate" title={post.title}>
@@ -1391,7 +1720,7 @@ export function AdminPage() {
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityPost(post.id, post.title)}
-                            className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
+                            className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                           >
                             삭제
                           </button>
@@ -1405,7 +1734,27 @@ export function AdminPage() {
 
             {/* 댓글 관리 */}
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">💭 댓글 관리 ({communityComments.length}개)</h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">💭 댓글 관리 ({communityComments.length}개)</h3>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Input
+                    type="text"
+                    placeholder="댓글 내용 검색..."
+                    value={communityCommentSearchTerm}
+                    onChange={(e) => setCommunityCommentSearchTerm(e.target.value)}
+                    onKeyPress={handleSearchKeyPress}
+                    className="w-full sm:w-64 min-h-[44px] bg-white"
+                  />
+                  <Button
+                    onClick={() => {
+                      loadCommunityComments();
+                    }}
+                    className="min-h-[44px] px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 touch-manipulation rounded-md text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    🔍 검색
+                  </Button>
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -1419,7 +1768,7 @@ export function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {communityComments.map((comment) => (
+                    {(Array.isArray(communityComments) ? communityComments : []).map((comment) => (
                       <tr key={comment.id} className="border-b border-gray-200 hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-900">{comment.id}</td>
                         <td className="px-4 py-3 text-gray-900 max-w-md truncate" title={comment.content}>
@@ -1437,7 +1786,7 @@ export function AdminPage() {
                         <td className="px-4 py-3">
                           <button 
                             onClick={() => handleDeleteCommunityComment(comment.id)}
-                            className="min-h-[44px] px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-700 touch-manipulation"
+                            className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
                           >
                             삭제
                           </button>
@@ -1448,6 +1797,109 @@ export function AdminPage() {
                 </table>
               </div>
             </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 보안 모니터링 탭 */}
+        {currentTab === 'security' && (
+          <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🔒 보안 모니터링</h2>
+                {securitySummary && (
+                  <div className="flex gap-3 text-sm">
+                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-md font-medium">
+                      높음: {securitySummary.high}
+                    </span>
+                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-md font-medium">
+                      중간: {securitySummary.medium}
+                    </span>
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md font-medium">
+                      총: {securitySummary.total}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {securityAlerts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">의심스러운 활동이 감지되지 않았습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {securityAlerts.map((alert, index) => {
+                    const severityColors = {
+                      HIGH: 'bg-red-50 border-red-200',
+                      MEDIUM: 'bg-yellow-50 border-yellow-200',
+                      LOW: 'bg-gray-50 border-gray-200'
+                    };
+                    const severityBadgeColors = {
+                      HIGH: 'bg-red-100 text-red-700 border-red-300',
+                      MEDIUM: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+                      LOW: 'bg-gray-100 text-gray-700 border-gray-300'
+                    };
+                    const typeLabels: { [key: string]: string } = {
+                      'MULTIPLE_ACCOUNTS_FROM_SAME_IP': '같은 IP에서 다중 계정 시도',
+                      'RAPID_FAILURES_BY_IP': 'IP 기반 반복 실패',
+                      'RAPID_FAILURES_BY_USER': '사용자 기반 반복 실패',
+                      'SUSPICIOUS_USER_AGENT': '의심스러운 User-Agent',
+                      'BOT_PATTERN_SMS_AND_LOGIN': '봇 패턴 (SMS + 로그인)'
+                    };
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`p-4 rounded-lg border-2 ${severityColors[alert.severity as keyof typeof severityColors] || 'bg-gray-50 border-gray-200'}`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={severityBadgeColors[alert.severity as keyof typeof severityBadgeColors] || 'bg-gray-100 text-gray-700'}>
+                                {alert.severity === 'HIGH' ? '🔴 높음' : alert.severity === 'MEDIUM' ? '🟡 중간' : '⚪ 낮음'}
+                              </Badge>
+                              <span className="text-sm font-medium text-gray-700">
+                                {typeLabels[alert.type] || alert.type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-900 mb-2">{alert.description}</p>
+                            <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                              {alert.ip && (
+                                <span>IP: <span className="font-mono">{alert.ip}</span></span>
+                              )}
+                              {alert.userId && (
+                                <span>사용자 ID: {alert.userId}</span>
+                              )}
+                              {alert.uniqueUserCount && (
+                                <span>다른 계정 수: {alert.uniqueUserCount}개</span>
+                              )}
+                              {alert.failureCount && (
+                                <span>실패 횟수: {alert.failureCount}회</span>
+                              )}
+                              {alert.occurrenceCount && (
+                                <span>발생 횟수: {alert.occurrenceCount}회</span>
+                              )}
+                              {alert.lastAttempt && (
+                                <span>마지막 시도: {new Date(alert.lastAttempt).toLocaleString('ko-KR')}</span>
+                              )}
+                              {alert.lastSeen && (
+                                <span>마지막 발견: {new Date(alert.lastSeen).toLocaleString('ko-KR')}</span>
+                              )}
+                            </div>
+                            {alert.userAgent && (
+                              <div className="mt-2 p-2 bg-white rounded border border-gray-200">
+                                <p className="text-xs text-gray-500 mb-1">User-Agent:</p>
+                                <p className="text-xs font-mono text-gray-700 break-all">{alert.userAgent}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
