@@ -94,6 +94,18 @@ interface UserData {
   phone_number: string;
   role?: 'user' | 'admin';
   created_at: string;
+  activity?: {
+    loginCount: number;
+    lastLogin: string | null;
+    searchCount: number;
+    reportCount: number;
+    ratingCount: number;
+    postCount: number;
+    commentCount: number;
+    activityScore: number;
+    activityLevel: 'INACTIVE' | 'LOW' | 'MODERATE' | 'ACTIVE' | 'VERY_ACTIVE';
+    lastActivity: string | null;
+  };
 }
 
 interface CommunityPost {
