@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import logoMark from '@/ygmk_logo.png';
 
 export function Header() {
-  const {isAuthenticated, logout, user } = useAuth();
+  const {isAuthenticated, logout, user, updateUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdminDropdownOpen, setIsAdminDropdownOpen] = useState(false);
   const adminDropdownRef = useRef<HTMLDivElement>(null);
@@ -18,6 +18,28 @@ export function Header() {
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  // storage 이벤트 감지하여 사용자 정보 업데이트 (다른 탭에서 로그인/로그아웃 시)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser && parsedUser.id) {
+            updateUser(parsedUser);
+          }
+        } catch (error) {
+          console.error('사용자 정보 파싱 실패:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [updateUser]);
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {

@@ -4,7 +4,7 @@ import { User, removeAuthToken, getMe, getAuthToken } from '../utils/api';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (user: User) => void;
+  login: (user: User) => Promise<User | null>;
   logout: () => void;
   updateUser: (userData: User) => void;
   loading: boolean;
@@ -76,12 +76,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loadUser();
   }, []);
 
-  const login = (userData: User) => {
+  const login = async (userData: User): Promise<User | null> => {
+    // 먼저 전달받은 사용자 정보로 즉시 상태 업데이트 (빠른 UI 반응)
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('userId', userData.id.toString());
+    
+    // 토큰이 있으면 서버에서 최신 사용자 정보 가져오기 (role 포함)
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const { user: currentUser } = await getMe();
+        if (currentUser) {
+          setUser(currentUser);
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          localStorage.setItem('userId', currentUser.id.toString());
+          // 즉시 리렌더링 강제
+          window.dispatchEvent(new Event('storage'));
+          return currentUser;
+        }
+      } catch (error) {
+        console.error('최신 사용자 정보 조회 실패:', error);
+        // 에러가 발생해도 전달받은 사용자 정보는 유지
+      }
+    }
+    
     // 즉시 리렌더링 강제
     window.dispatchEvent(new Event('storage'));
+    return userData;
   };
 
   const logout = () => {

@@ -82,11 +82,12 @@ export function LoginPage() {
 
       // AuthContext를 통해 즉시 로그인 상태 업데이트
       if (result.user) {
-        authLogin(result.user);
+        const updatedUser = await authLogin(result.user);
         toast.success('로그인되었습니다!');
         
-        // 관리자는 관리자 페이지로, 일반 사용자는 홈으로
-        if (result.user.role === 'admin') {
+        // 최신 사용자 정보로 role 확인
+        const finalUser = updatedUser || result.user;
+        if (finalUser.role === 'admin') {
           navigate('/admin');
         } else {
           navigate('/');
