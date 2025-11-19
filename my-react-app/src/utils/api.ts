@@ -234,9 +234,8 @@ export async function searchOrCreateShop(url: string): Promise<{ shop: Shop; isN
           shop: {
             id: similarShop.id,
             url: similarShop.url,
-            name: similarShop.name || null,
-            parent_shop_id: null,
-            created_at: null
+            name: similarShop.name || undefined,
+            created_at: new Date().toISOString()
           },
           isNew: false
         };
