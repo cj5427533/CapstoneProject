@@ -148,7 +148,7 @@ export function SearchResultPage() {
   const loadMockShopData = async (shopUrl: string) => {
     // 목업 데이터에서 해당 URL의 쇼핑몰 찾기
     const mockShops = [
-      { url: 'fake-shop-example.com', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 85 },
+      { url: 'secure-verify-fake-shop-example.net', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 85 },
       { url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 90 },
       { url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 95 },
       { url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', riskLevel: 'LOW' as const, riskScore: 15 },

@@ -1,23 +1,38 @@
-# Node.js 18 Alpine 이미지 사용
-FROM node:18-alpine
+# my-react-app/backend/Dockerfile
 
-# 작업 디렉토리 설정
+# 1) Node + Debian 리눅스
+FROM node:22-bullseye
+
+# 2) Python 3.11 설치 (ML용)
+RUN apt-get update && apt-get install -y \
+    python3.11 python3.11-venv python3.11-distutils \
+    build-essential curl && \
+    ln -s /usr/bin/python3.11 /usr/bin/python && \
+    rm -rf /var/lib/apt/lists/*
+
+# 3) 작업 디렉토리
 WORKDIR /app
 
-# package.json과 package-lock.json 복사
+# 4) Node 의존성 설치
 COPY package*.json ./
+RUN npm ci
 
-# 의존성 설치
-RUN npm ci --only=production
-
-# 애플리케이션 코드 복사
+# 5) 전체 백엔드 코드 복사 (ml 폴더 포함)
 COPY . .
 
-# 포트 노출
-EXPOSE 3001
+# 6) Python 패키지 설치 (numpy / sklearn / pandas)
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python && \
+    pip install --no-cache-dir \
+      numpy==1.26.4 \
+      scikit-learn==1.5.2 \
+      pandas
 
-# 환경 변수 설정
+# 7) ML 파이썬 경로 환경변수
+ENV ML_PYTHON_BIN=/usr/bin/python
 ENV NODE_ENV=production
 
-# 애플리케이션 실행
-CMD ["npm", "run", "start:aws"]
+# 8) 백엔드가 사용하는 포트 (server.js에서 사용하는 포트)
+EXPOSE 3000
+
+# 9) 서버 실행
+CMD ["node", "server.js"]

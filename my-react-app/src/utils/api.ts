@@ -670,7 +670,7 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
     
     // 목업 데이터 추가
     const mockDangerousShops: DangerousShop[] = [
-      { id: 1001, url: 'fake-shop-example.com', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
+      { id: 1001, url: 'secure-verify-fake-shop-example.net', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
       { id: 1002, url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', reportCount: 8 },
       { id: 1003, url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', reportCount: 12 }
     ];
@@ -681,7 +681,7 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
     console.error('주의가 필요한 페이지 조회 에러:', error);
     // 에러 시에도 목업 데이터는 반환
     return [
-      { id: 1001, url: 'fake-shop-example.com', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
+      { id: 1001, url: 'secure-verify-fake-shop-example.net', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
       { id: 1002, url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', reportCount: 8 },
       { id: 1003, url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', reportCount: 12 }
     ];

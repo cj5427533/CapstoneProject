@@ -56,7 +56,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 120px;
+  min-width: 180px;
 }
 
 .review-analyze-btn::before {
@@ -154,5 +154,262 @@
 
 .analysis-modal-content {
   animation: modalSlideIn 0.3s ease-out;
+}
+
+/* 로딩 모달 크기 조정 */
+.analysis-modal-overlay:has(.analysis-loading-content) .analysis-modal-content {
+  max-width: 400px;
+  width: auto;
+  margin: auto;
+}
+
+/* 분석 로딩 화면 */
+.analysis-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1.25rem;
+  min-height: auto;
+  text-align: center;
+}
+
+/* 로딩 중 화면 */
+.analysis-loading-progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 1rem;
+  max-width: 100%;
+}
+
+.analysis-loading-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.analysis-loading-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+.analysis-progress-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.analysis-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.analysis-progress-gauge-wrapper {
+  width: 100%;
+  height: 24px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.analysis-progress-gauge-bar {
+  height: 100%;
+  min-width: 2%;
+  background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7) !important;
+  border-radius: 12px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  display: block;
+}
+
+.analysis-progress-gauge-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.analysis-progress-percent {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #10b981;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.analysis-loading-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  margin: 0;
+  line-height: 1.4;
+  margin-top: 0;
+}
+
+/* 분석 완료 화면 */
+.analysis-complete-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  animation: slideDown 0.4s ease-out;
+  padding: 0;
+}
+
+.analysis-complete-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0;
+  animation: scaleIn 0.5s ease-out;
+}
+
+.analysis-complete-icon svg {
+  width: 56px;
+  height: 56px;
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.analysis-complete-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  text-align: center;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.analysis-complete-message {
+  font-size: 0.85rem;
+  color: #64748b;
+  text-align: center;
+  margin: 0;
+  line-height: 1.5;
+  padding: 0;
+}
+
+.analysis-view-results-btn {
+  padding: 0.875rem 2rem;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.analysis-view-results-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.analysis-view-results-btn:hover::before {
+  left: 100%;
+}
+
+.analysis-view-results-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
+  background: linear-gradient(135deg, #1d4ed8, #6d28d9);
+}
+
+.analysis-view-results-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.analysis-view-results-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.analysis-view-results-btn:hover svg {
+  transform: translateX(4px);
 }
 

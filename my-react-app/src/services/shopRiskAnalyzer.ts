@@ -97,7 +97,7 @@ export const SHOP_RISK_CRITERIA = {
     
     // 의심스러운 도메인 패턴
     suspiciousPattern: {
-      patterns: ['secure-', 'login-', 'account-', 'payment-'],
+      patterns: ['secure-', 'login-', 'account-', 'payment-', 'verify-', 'discount-', 'free-'],
       penalty: 70 // 70점 감점
     },
     
@@ -229,9 +229,9 @@ export class ShopRiskAnalyzer {
     const mockDomains = [
       'trusted-mall.co.kr',
       'reliable-store.com',
-      'caution-mall.com',
-      'mixed-reviews.co.kr',
-      'fake-shop-example.com',
+      'secure-account-verify-caution-mall.net',
+      'discount-free-mixed-reviews-shop.co.kr',
+      'secure-verify-fake-shop-example.net',
       'suspicious-store.com',
       'scam-mall.net'
     ];
@@ -264,15 +264,22 @@ export class ShopRiskAnalyzer {
         hasSuspiciousPattern: false,
         businessInfoMissing: 0
       };
-    } else if (domain.includes('caution-mall') || domain.includes('mixed-reviews')) {
-      // 주의 쇼핑몰: 중간 연령, 일부 패턴, 사업자 정보 일부 부족
+    } else if (domain.includes('secure-account-verify-caution-mall') || domain.includes('discount-free-mixed-reviews-shop')) {
+      // 주의 쇼핑몰: 신규 도메인, 의심 패턴, 사업자 정보 부족 (새로운 피쳐값 기준에 맞게 낮은 신뢰도)
       return {
-        domainAge: 60 + Math.abs(hash % 120), // 2-6개월
-        hasSuspiciousPattern: Math.abs(hash % 2) === 0,
-        businessInfoMissing: 1
+        domainAge: 15 + Math.abs(hash % 15), // 15-30일 (신규 도메인)
+        hasSuspiciousPattern: true, // 의심스러운 패턴 (secure-, account-, verify-, discount-, free-)
+        businessInfoMissing: 2 // 사업자 정보 2개 이상 부족
+      };
+    } else if (domain.includes('secure-verify-fake-shop-example') || domain.includes('suspicious-store') || domain.includes('scam-mall')) {
+      // 매우주의한 쇼핑몰: 신규 도메인, 의심 패턴, 사업자 정보 대부분 부족
+      return {
+        domainAge: 5 + Math.abs(hash % 20), // 5-25일 (매우 신규)
+        hasSuspiciousPattern: true, // 의심스러운 패턴 (secure-, verify-, fake-, suspicious-, scam-)
+        businessInfoMissing: 3 // 사업자 정보 3개 이상 부족
       };
     } else {
-      // 매우주의한 쇼핑몰: 신규 도메인, 의심 패턴, 사업자 정보 대부분 부족
+      // 기타 위험한 쇼핑몰
       return {
         domainAge: 5 + Math.abs(hash % 25), // 5-30일
         hasSuspiciousPattern: true,
@@ -570,13 +577,13 @@ export class ShopRiskAnalyzer {
       const domainTrustScore = Math.max(0, 100 - domainAnalysis.score);
       const businessTrustScore = Math.max(0, 100 - businessAnalysis.score);
       
-      // 가중 평균으로 최종 신뢰도 점수 계산 (0/100 극단값 방지 정책 적용)
+      // 가중 평균으로 최종 신뢰도 점수 계산 (0~100 범위로 정규화)
       const rawTrustScore =
         reportTrustScore * weights.reportAnalysis +
         ratingTrustScore * weights.ratingAnalysis +
         domainTrustScore * weights.domainAnalysis +
         businessTrustScore * weights.businessAnalysis;
-      const trustScore = Math.round(Math.min(95, Math.max(5, rawTrustScore)));
+      const trustScore = Math.round(Math.min(100, Math.max(0, rawTrustScore)));
       
       // 리스크 점수는 신뢰도 점수의 역수 (100 - trustScore)
       const riskScore = 100 - trustScore;

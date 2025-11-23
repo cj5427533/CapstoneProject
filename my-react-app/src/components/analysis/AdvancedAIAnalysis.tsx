@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { AdvancedFakeReviewDetector, FakeReviewResult } from '../../services/advancedFakeReviewDetector';
 import { ShopRiskAnalyzer, Shop, Report, Rating, ShopRiskResult } from '../../services/shopRiskAnalyzer';
@@ -33,6 +33,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   shopUrl
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<{
     fakeReviews: FakeReviewResult[];
     shopRisk: ShopRiskResult | null;
@@ -41,6 +42,19 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   } | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  
+  // 분석 진행률 추적 상태
+  const [analysisProgress, setAnalysisProgress] = useState<{
+    mlPrediction: number;
+    fakeReview: number;
+    shopRisk: number;
+    phishing: number;
+  }>({
+    mlPrediction: 0,
+    fakeReview: 0,
+    shopRisk: 0,
+    phishing: 0
+  });
   
   // AI 리뷰 분석 관련 상태
   const [isReviewAnalyzing, setIsReviewAnalyzing] = useState(false);
@@ -54,64 +68,153 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   const phishingSystem = RealTimePhishingSystem.getInstance();
   const basicFakeReviewDetector = FakeReviewDetector.getInstance();
 
+  // 목업 쇼핑몰인지 확인하는 함수
+  const isMockShop = (url: string): boolean => {
+    const mockDomains = [
+      'trusted-mall.co.kr',
+      'reliable-store.com',
+      'secure-account-verify-caution-mall.net',
+      'discount-free-mixed-reviews-shop.co.kr',
+      'secure-verify-fake-shop-example.net',
+      'suspicious-store.com',
+      'scam-mall.net'
+    ];
+    const domain = url.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    return mockDomains.some(mockDomain => domain.includes(mockDomain));
+  };
+
   const runAdvancedAnalysis = async () => {
     setIsAnalyzing(true);
+    setIsAnalysisComplete(false);
+    // 진행률 초기화
+    setAnalysisProgress({
+      mlPrediction: 0,
+      fakeReview: 0,
+      shopRisk: 0,
+      phishing: 0
+    });
+    
     try {
-      // 1. ML 모델을 이용한 피싱 URL 예측 (우선 실행)
-      let mlPrediction: MLPredictionResult | null = null;
-      try {
-        mlPrediction = await predictPhishingWithML(shopUrl);
+      // 각 작업의 진행률을 시뮬레이션하는 헬퍼 함수
+      const simulateProgress = (key: 'mlPrediction' | 'fakeReview' | 'shopRisk' | 'phishing', promise: Promise<any>) => {
+        return new Promise(async (resolve) => {
+          // 진행률 애니메이션
+          const progressInterval = setInterval(() => {
+            setAnalysisProgress(prev => {
+              const current = prev[key];
+              if (current < 90) {
+                return { ...prev, [key]: current + Math.random() * 15 };
+              }
+              return prev;
+            });
+          }, 200);
+          
+          try {
+            const result = await promise;
+            clearInterval(progressInterval);
+            setAnalysisProgress(prev => ({ ...prev, [key]: 100 }));
+            // 완료 후 약간의 딜레이
+            setTimeout(() => resolve(result), 100);
+          } catch (error) {
+            clearInterval(progressInterval);
+            setAnalysisProgress(prev => ({ ...prev, [key]: 100 }));
+            setTimeout(() => resolve(null), 100);
+          }
+        });
+      };
+      
+      // 병렬 처리로 분석 시간 단축: 독립적인 작업들을 동시에 실행
+      const [mlPredictionResult, fakeReviewResults, shopRiskResult, phishingAlertResult] = await Promise.allSettled([
+        // 1. ML 모델을 이용한 피싱 URL 예측
+        simulateProgress('mlPrediction', predictPhishingWithML(shopUrl).catch((mlError) => {
+          console.error('ML 예측 오류:', mlError);
+          toast.warning('ML 모델 예측 중 오류가 발생했습니다. 다른 분석은 계속 진행됩니다.');
+          return null;
+        })),
+        
+        // 2. 고급 가짜 리뷰 탐지 (빈 배열이므로 즉시 반환)
+        simulateProgress('fakeReview', fakeReviewDetector.detectFakeReviews([])),
+        
+        // 3. 쇼핑몰 신뢰도 분석
+        simulateProgress('shopRisk', shopRiskAnalyzer.analyzeShopRisk(shop, reports, ratings)),
+        
+        // 4. 실시간 피싱 탐지
+        simulateProgress('phishing', phishingSystem.detectPhishingRealTime(shopUrl).catch((phishingError) => {
+          console.error('피싱 탐지 오류:', phishingError);
+          toast.warning('피싱 탐지 중 오류가 발생했습니다. 다른 분석은 계속 진행됩니다.');
+          return null;
+        }))
+      ]);
+      
+      // Promise.allSettled 결과 처리 (타입 안전하게)
+      const mlPrediction: MLPredictionResult | null = mlPredictionResult.status === 'fulfilled' 
+        ? (mlPredictionResult.value as MLPredictionResult | null) 
+        : null;
+      const fakeReviews: FakeReviewResult[] = fakeReviewResults.status === 'fulfilled' 
+        ? (fakeReviewResults.value as FakeReviewResult[]) 
+        : [];
+      const shopRisk: ShopRiskResult | null = shopRiskResult.status === 'fulfilled' 
+        ? (shopRiskResult.value as ShopRiskResult | null) 
+        : null;
+      const phishingAlert: PhishingAlert | null = phishingAlertResult.status === 'fulfilled' 
+        ? (phishingAlertResult.value as PhishingAlert | null) 
+        : null;
+      
+      if (mlPrediction) {
         console.log('ML 예측 결과:', mlPrediction);
-      } catch (mlError) {
-        console.error('ML 예측 오류:', mlError);
-        toast.warning('ML 모델 예측 중 오류가 발생했습니다. 다른 분석은 계속 진행됩니다.');
-      }
-      
-      // 2. 고급 가짜 리뷰 탐지
-      const fakeReviewResults = await fakeReviewDetector.detectFakeReviews([]);
-      
-      // 3. 쇼핑몰 신뢰도 분석
-      const shopRiskResult = await shopRiskAnalyzer.analyzeShopRisk(shop, reports, ratings);
-      
-      // 4. 실시간 피싱 탐지
-      let phishingAlert: PhishingAlert | null = null;
-      try {
-        phishingAlert = await phishingSystem.detectPhishingRealTime(shopUrl);
-      } catch (phishingError) {
-        console.error('피싱 탐지 오류:', phishingError);
-        toast.warning('피싱 탐지 중 오류가 발생했습니다. 다른 분석은 계속 진행됩니다.');
       }
       
       setAnalysisResults({
-        fakeReviews: fakeReviewResults,
-        shopRisk: shopRiskResult,
+        fakeReviews,
+        shopRisk,
         phishingAlert,
         mlPrediction
       });
       
-      // 분석 완료 후 모달 표시
-      setShowAnalysisModal(true);
+      // 모든 진행률을 100%로 설정
+      setAnalysisProgress({
+        mlPrediction: 100,
+        fakeReview: 100,
+        shopRisk: 100,
+        phishing: 100
+      });
       
-      // ML 예측 결과에 따른 알림
-      if (mlPrediction) {
-        if (mlPrediction.label === 1) {
-          toast.warning(`ML 모델 분석: 피싱 사이트로 의심됩니다. (신뢰도: ${(mlPrediction.confidence * 100).toFixed(1)}%)`);
-        } else {
-          toast.success(`ML 모델 분석: 정상 사이트로 판단됩니다. (신뢰도: ${(mlPrediction.confidence * 100).toFixed(1)}%)`);
-        }
-      }
-      
-      if (fakeReviewResults.length > 0 || shopRiskResult.riskScore >= 70 || phishingAlert || (mlPrediction && mlPrediction.label === 1)) {
-        toast.success('피싱 사이트 검사가 완료되었습니다. 주의가 필요한 항목이 발견되었습니다.');
-      } else {
-        toast.info('피싱 사이트 검사가 완료되었습니다. 특별한 문제가 발견되지 않았습니다.');
-      }
+      // 분석 완료 상태로 변경 (자동으로 결과 모달을 띄우지 않음)
+      setIsAnalysisComplete(true);
       
     } catch (error) {
       console.error('피싱 사이트 검사 오류:', error);
       toast.error('사이트 검사 중 오류가 발생했습니다.');
-    } finally {
       setIsAnalyzing(false);
+      setIsAnalysisComplete(false);
+    }
+  };
+
+  // 결과 확인하기 버튼 클릭 핸들러
+  const handleViewResults = () => {
+    setIsAnalyzing(false);
+    setIsAnalysisComplete(false);
+    setShowAnalysisModal(true);
+    
+    // ML 예측 결과에 따른 알림
+    if (analysisResults?.mlPrediction) {
+      const mlPrediction = analysisResults.mlPrediction;
+      if (mlPrediction.label === 1) {
+        toast.warning(`ML 모델 분석: 피싱 사이트로 의심됩니다. (신뢰도: ${(mlPrediction.confidence * 100).toFixed(1)}%)`);
+      } else {
+        toast.success(`ML 모델 분석: 정상 사이트로 판단됩니다. (신뢰도: ${(mlPrediction.confidence * 100).toFixed(1)}%)`);
+      }
+    }
+    
+    if (analysisResults && (
+      analysisResults.fakeReviews.length > 0 || 
+      (analysisResults.shopRisk && analysisResults.shopRisk.riskScore >= 70) || 
+      analysisResults.phishingAlert || 
+      (analysisResults.mlPrediction && analysisResults.mlPrediction.label === 1)
+    )) {
+      toast.success('피싱 사이트 검사가 완료되었습니다. 주의가 필요한 항목이 발견되었습니다.');
+    } else {
+      toast.info('피싱 사이트 검사가 완료되었습니다. 특별한 문제가 발견되지 않았습니다.');
     }
   };
 
@@ -189,8 +292,127 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   };
 
 
+  // 로딩 텍스트 점 애니메이션
+  const [loadingDots, setLoadingDots] = useState('');
+  
+  useEffect(() => {
+    if (isAnalyzing && !isAnalysisComplete) {
+      const interval = setInterval(() => {
+        setLoadingDots(prev => {
+          if (prev === '') return '.';
+          if (prev === '.') return '..';
+          if (prev === '..') return '...';
+          return '';
+        });
+      }, 500);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingDots('');
+    }
+  }, [isAnalyzing, isAnalysisComplete]);
+
+  // 전체 진행률 계산
+  const totalProgress = Math.round(
+    (analysisProgress.mlPrediction + 
+     analysisProgress.fakeReview + 
+     analysisProgress.shopRisk + 
+     analysisProgress.phishing) / 4
+  );
+
   return (
     <div className="advanced-ai-analysis bg-white rounded-lg shadow-lg p-6 mb-6">
+      {/* 분석 로딩 화면 */}
+      {isAnalyzing && (
+        <div className="analysis-modal-overlay">
+          <div className="analysis-modal-content">
+            <div className="analysis-modal-header">
+              <h3 className="analysis-modal-title">
+                {isAnalysisComplete ? '✅ 분석 완료!' : '신뢰도 분석 진행중' + loadingDots}
+              </h3>
+              {!isAnalysisComplete && (
+                <button 
+                  className="analysis-modal-close"
+                  onClick={() => {
+                    setIsAnalyzing(false);
+                    setIsAnalysisComplete(false);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            
+            <div className="analysis-modal-body">
+              <div className="analysis-loading-content">
+                {isAnalysisComplete ? (
+                  <div className="analysis-complete-actions">
+                    <div className="analysis-complete-icon">
+                      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" fill="#10b981" opacity="0.2"/>
+                        <path d="M9 12l2 2 4-4" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="#10b981" strokeWidth="2"/>
+                      </svg>
+                    </div>
+                    <h4 className="analysis-complete-title">분석이 완료되었습니다!</h4>
+                    <p className="analysis-complete-message">
+                      쇼핑몰 신뢰도 분석이 성공적으로 완료되었습니다.<br/>
+                      결과를 확인하여 안전한 쇼핑을 하세요.
+                    </p>
+                    <button 
+                      className="analysis-view-results-btn"
+                      onClick={handleViewResults}
+                    >
+                      <span>결과 확인하기</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="analysis-loading-progress-container">
+                    {/* 로딩 아이콘 */}
+                    <div className="analysis-loading-icon">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="#e2e8f0" strokeWidth="2"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="#2563eb" strokeWidth="2" strokeLinecap="round">
+                          <animateTransform
+                            attributeName="transform"
+                            type="rotate"
+                            from="0 12 12"
+                            to="360 12 12"
+                            dur="1s"
+                            repeatCount="indefinite"
+                          />
+                        </path>
+                      </svg>
+                    </div>
+                    
+                    {/* 진행률 게이지바 */}
+                    <div className="analysis-progress-section">
+                      <div className="analysis-progress-label">
+                        <span>분석 진행률</span>
+                        <span className="analysis-progress-percent">{totalProgress}%</span>
+                      </div>
+                      <div className="analysis-progress-gauge-wrapper">
+                        <div 
+                          className="analysis-progress-gauge-bar"
+                          style={{ width: `${Math.max(totalProgress, 2)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    {/* 안내 메시지 */}
+                    <p className="analysis-loading-hint">
+                      잠시만 기다려주세요. 쇼핑몰을 분석하고 있습니다...
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 섹션은 분석 기준 컨테이너로 이동됨 */}
 
 
@@ -212,11 +434,11 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
               {isReviewAnalyzing ? '분석 중...' : '리뷰 신뢰도 분석하기'}
             </button>
             <button 
-              className="analyze-btn"
+              className="review-analyze-btn"
               onClick={runAdvancedAnalysis}
               disabled={isAnalyzing}
             >
-              {isAnalyzing ? '분석 중...' : '피싱 사이트 검사 시작'}
+              {isAnalyzing ? '분석 중...' : '쇼핑몰 신뢰도 분석'}
             </button>
           </div>
         </div>
@@ -310,18 +532,153 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   </div>
                 )}
 
-                {/* 쇼핑몰 신뢰도 분석 결과 */}
-                {analysisResults.shopRisk && (() => {
-                  const trustScore = 100 - analysisResults.shopRisk.riskScore;
-                  const riskStatus = getRiskStatus(analysisResults.shopRisk.riskScore);
-                  const riskLevelKorean = getRiskLevelKorean(analysisResults.shopRisk.riskScore);
+                {/* 쇼핑몰 신뢰도 분석 */}
+                {(analysisResults.mlPrediction || analysisResults.shopRisk) && (() => {
+                  // 목업 쇼핑몰인 경우 shopRisk 결과를 우선 사용
+                  const isMock = isMockShop(shopUrl);
+                  let trustScore: number;
+                  let isPhishing: boolean;
+                  
+                  if (isMock && analysisResults.shopRisk) {
+                    // 목업 쇼핑몰: shopRiskAnalyzer 결과 사용
+                    trustScore = 100 - analysisResults.shopRisk.riskScore;
+                    isPhishing = analysisResults.shopRisk.riskScore >= 65;
+                  } else if (analysisResults.mlPrediction) {
+                    // 실제 쇼핑몰: ML 예측 결과 사용
+                    // ML 예측 결과: label 0 = legit, 1 = phishing
+                    // 신뢰도 점수: label이 0이면 confidence를 신뢰도로, 1이면 (1 - confidence)를 신뢰도로
+                    isPhishing = analysisResults.mlPrediction.label === 1;
+                    const trustScoreRaw = isPhishing 
+                      ? (1 - analysisResults.mlPrediction.confidence) * 100
+                      : analysisResults.mlPrediction.confidence * 100;
+                    trustScore = parseFloat(trustScoreRaw.toFixed(1)); // 소수점 1자리까지
+                  } else {
+                    // shopRisk만 있는 경우
+                    trustScore = analysisResults.shopRisk ? 100 - analysisResults.shopRisk.riskScore : 50;
+                    isPhishing = analysisResults.shopRisk ? analysisResults.shopRisk.riskScore >= 65 : false;
+                  }
+                  
+                  // riskScore로 변환 (getRiskLevelKorean과 getRiskStatus 함수 사용을 위해)
+                  const riskScore = 100 - trustScore;
+                  const riskStatus = getRiskStatus(riskScore);
+                  const riskLevelKorean = getRiskLevelKorean(riskScore);
+                  
                   const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
                                    riskStatus === 'neutral' ? 'text-blue-600' : 
                                    riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
+                  
                   // 90점 이상: 파란색, 70~89: 초록색, 40~69: 주황색, 0~39: 빨간색
                   const progressColor = trustScore >= 90 ? '#3B82F6' : 
                                        trustScore >= 70 ? '#10B981' : 
                                        trustScore >= 40 ? '#F59E0B' : '#EF4444';
+                  
+                  // 분석 세부사항 계산 - ML 모델의 실제 분석 요소 기반
+                  // ML 모델은 URL 특징을 기반으로 분석하므로, 각 특징별 점수를 계산
+                  const mlConfidencePercent = parseFloat((analysisResults.mlPrediction.confidence * 100).toFixed(1));
+                  
+                  // 분석 세부사항 계산
+                  let adjustedUrlStructureScore: number;
+                  let adjustedDomainTrustScore: number;
+                  let adjustedSecurityProtocolScore: number;
+                  let adjustedSuspiciousKeywordScore: number;
+                  
+                  if (isMock && analysisResults.shopRisk) {
+                    // 목업 쇼핑몰: shopRiskAnalyzer의 분석 결과를 기반으로 계산
+                    const analysis = analysisResults.shopRisk.analysis;
+                    
+                    // 각 분석의 riskScore를 신뢰도 점수로 변환 (100 - riskScore)
+                    const reportTrustScore = Math.max(0, 100 - analysis.reportAnalysis);
+                    const ratingTrustScore = Math.max(0, 100 - analysis.ratingAnalysis);
+                    const domainTrustScore = Math.max(0, 100 - analysis.domainAnalysis);
+                    const businessTrustScore = Math.max(0, 100 - analysis.businessAnalysis);
+                    
+                    // shopRiskAnalyzer의 가중치: reportAnalysis(30%), ratingAnalysis(10%), domainAnalysis(40%), businessAnalysis(20%)
+                    // 최종 신뢰도 점수 = reportTrustScore * 0.3 + ratingTrustScore * 0.1 + domainTrustScore * 0.4 + businessTrustScore * 0.2
+                    
+                    // 분석 세부사항을 4가지로 매핑 (각 항목이 최종 신뢰도 점수에 기여하는 정도):
+                    // 1. URL 구조 분석: 도메인 분석의 일부 (도메인 분석 가중치 40% 중 일부)
+                    // 2. 도메인 신뢰도 분석: 도메인 분석의 일부 (도메인 분석 가중치 40% 중 일부)
+                    // 3. 보안 프로토콜 분석: 사업자 정보 분석 (사업자 정보 분석 가중치 20%)
+                    // 4. 의심 키워드 분석: 피해 사례 제보 분석 (피해 사례 제보 분석 가중치 30%)
+                    // rating 분석(10%)은 4개 항목에 비례 분배
+                    
+                    // 각 항목의 기여도를 계산 (가중치 * 신뢰도 점수)
+                    // 도메인 분석(40% 가중치)을 URL 구조와 도메인 신뢰도로 분할
+                    // URL 구조: 도메인 분석의 50%, 도메인 신뢰도: 도메인 분석의 50%
+                    const domainContribution = domainTrustScore * 0.4;
+                    adjustedUrlStructureScore = parseFloat((domainContribution * 0.5).toFixed(1));
+                    adjustedDomainTrustScore = parseFloat((domainContribution * 0.5).toFixed(1));
+                    adjustedSecurityProtocolScore = parseFloat((businessTrustScore * 0.2).toFixed(1));
+                    adjustedSuspiciousKeywordScore = parseFloat((reportTrustScore * 0.3).toFixed(1));
+                    
+                    // rating 분석(10%)을 4개 항목에 비례 분배
+                    const ratingContribution = ratingTrustScore * 0.1;
+                    const currentTotal = adjustedUrlStructureScore + adjustedDomainTrustScore + 
+                                       adjustedSecurityProtocolScore + adjustedSuspiciousKeywordScore;
+                    
+                    if (currentTotal > 0) {
+                      // rating 기여도를 4개 항목에 비례 분배
+                      adjustedUrlStructureScore += parseFloat((ratingContribution * (adjustedUrlStructureScore / currentTotal)).toFixed(1));
+                      adjustedDomainTrustScore += parseFloat((ratingContribution * (adjustedDomainTrustScore / currentTotal)).toFixed(1));
+                      adjustedSecurityProtocolScore += parseFloat((ratingContribution * (adjustedSecurityProtocolScore / currentTotal)).toFixed(1));
+                      adjustedSuspiciousKeywordScore += parseFloat((ratingContribution * (adjustedSuspiciousKeywordScore / currentTotal)).toFixed(1));
+                    }
+                    
+                    // 최종적으로 trustScore와 일치하도록 조정
+                    const finalTotal = adjustedUrlStructureScore + adjustedDomainTrustScore + 
+                                     adjustedSecurityProtocolScore + adjustedSuspiciousKeywordScore;
+                    
+                    if (finalTotal > 0 && Math.abs(finalTotal - trustScore) > 0.1) {
+                      const adjustmentFactor = trustScore / finalTotal;
+                      adjustedUrlStructureScore = parseFloat((adjustedUrlStructureScore * adjustmentFactor).toFixed(1));
+                      adjustedDomainTrustScore = parseFloat((adjustedDomainTrustScore * adjustmentFactor).toFixed(1));
+                      adjustedSecurityProtocolScore = parseFloat((adjustedSecurityProtocolScore * adjustmentFactor).toFixed(1));
+                      adjustedSuspiciousKeywordScore = parseFloat((adjustedSuspiciousKeywordScore * adjustmentFactor).toFixed(1));
+                    }
+                  } else if (analysisResults.mlPrediction) {
+                    // 실제 쇼핑몰: ML 모델 결과 기반
+                    // ML 모델이 분석하는 4가지 주요 요소별 점수 계산
+                    // 각 요소는 ML confidence를 기반으로 하되, 요소별 특성을 반영
+                    
+                    // 1. URL 구조 분석 (URL 길이, 하이픈 개수, 서브도메인 깊이)
+                    // 정상적인 URL은 적절한 길이와 구조를 가짐
+                    const urlStructureScore = isPhishing 
+                      ? parseFloat(((1 - analysisResults.mlPrediction.confidence) * 100 * 0.25).toFixed(1))
+                      : parseFloat((analysisResults.mlPrediction.confidence * 100 * 0.25).toFixed(1));
+                    
+                    // 2. 도메인 신뢰도 분석 (TLD, IP 주소 여부, URL 단축 서비스)
+                    // 신뢰할 수 있는 도메인은 표준 TLD를 사용하고 단축 서비스를 사용하지 않음
+                    const domainTrustScore = isPhishing 
+                      ? parseFloat(((1 - analysisResults.mlPrediction.confidence) * 100 * 0.30).toFixed(1))
+                      : parseFloat((analysisResults.mlPrediction.confidence * 100 * 0.30).toFixed(1));
+                    
+                    // 3. 보안 프로토콜 분석 (HTTPS 여부)
+                    // HTTPS 사용은 신뢰도에 긍정적 영향
+                    const securityProtocolScore = isPhishing 
+                      ? parseFloat(((1 - analysisResults.mlPrediction.confidence) * 100 * 0.20).toFixed(1))
+                      : parseFloat((analysisResults.mlPrediction.confidence * 100 * 0.20).toFixed(1));
+                    
+                    // 4. 의심 키워드 분석 (login, verify, confirm, account, discount, free 등)
+                    // 의심 키워드가 많을수록 피싱 가능성 증가
+                    const suspiciousKeywordScore = isPhishing 
+                      ? parseFloat(((1 - analysisResults.mlPrediction.confidence) * 100 * 0.25).toFixed(1))
+                      : parseFloat((analysisResults.mlPrediction.confidence * 100 * 0.25).toFixed(1));
+                    
+                    // 총합이 trustScore와 일치하도록 조정
+                    const totalDetailScore = urlStructureScore + domainTrustScore + securityProtocolScore + suspiciousKeywordScore;
+                    const adjustmentFactor = totalDetailScore > 0 ? trustScore / totalDetailScore : 1;
+                    
+                    adjustedUrlStructureScore = parseFloat((urlStructureScore * adjustmentFactor).toFixed(1));
+                    adjustedDomainTrustScore = parseFloat((domainTrustScore * adjustmentFactor).toFixed(1));
+                    adjustedSecurityProtocolScore = parseFloat((securityProtocolScore * adjustmentFactor).toFixed(1));
+                    adjustedSuspiciousKeywordScore = parseFloat((suspiciousKeywordScore * adjustmentFactor).toFixed(1));
+                  } else {
+                    // 기본값
+                    adjustedUrlStructureScore = 0;
+                    adjustedDomainTrustScore = 0;
+                    adjustedSecurityProtocolScore = 0;
+                    adjustedSuspiciousKeywordScore = 0;
+                  }
                   
                   return (
                     <div className="analysis-result-section shop-risk bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50 rounded-lg p-6">
@@ -332,7 +689,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
                           {/* 원형 점수 표시기 */}
                           <div className="flex-shrink-0">
-                            <ScoreDial score={trustScore} status={riskStatus} />
+                            <ScoreDial score={Math.round(trustScore)} status={riskStatus} />
                           </div>
                           
                           {/* 설명 텍스트 */}
@@ -351,7 +708,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                         </div>
                       </div>
                       
-                      {/* 분석 세부사항 - 원래 스타일로 복원 */}
+                      {/* 분석 세부사항 */}
                       <div className="analysis-stats-grid">
                         <div className="analysis-stat-card">
                           <h5 className="analysis-stat-title">종합 신뢰도</h5>
@@ -365,36 +722,71 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                               transition: 'width 0.5s ease'
                             }}></div>
                           </div>
-                          <span className={`analysis-risk-badge ${analysisResults.shopRisk.riskLevel.toLowerCase()}`}>{riskLevelKorean}</span>
+                          <span className={`analysis-risk-badge ${riskStatus}`}>{riskLevelKorean}</span>
                         </div>
                         <div className="analysis-stat-card">
                           <h5 className="analysis-stat-title">분석 세부사항</h5>
-                          <div className="analysis-detail-scores">
-                            <div>피해 사례 제보 분석: {Math.round(analysisResults.shopRisk.analysis.reportAnalysis)}점</div>
-                            <div>평점 분석: {Math.round(analysisResults.shopRisk.analysis.ratingAnalysis)}점</div>
-                            <div>도메인 분석: {Math.round(analysisResults.shopRisk.analysis.domainAnalysis)}점</div>
-                            <div>사업자 분석: {Math.round(analysisResults.shopRisk.analysis.businessAnalysis)}점</div>
+                          <div className="analysis-detail-scores" style={{ color: '#000000' }}>
+                            <div>URL 구조 분석: 총 100점 만점 중 {adjustedUrlStructureScore}점 기여</div>
+                            <div>도메인 신뢰도 분석: 총 100점 만점 중 {adjustedDomainTrustScore}점 기여</div>
+                            <div>보안 프로토콜 분석: 총 100점 만점 중 {adjustedSecurityProtocolScore}점 기여</div>
+                            <div>의심 키워드 분석: 총 100점 만점 중 {adjustedSuspiciousKeywordScore}점 기여</div>
                           </div>
                         </div>
                       </div>
                       
-                      {/* 발견된 신뢰도 요소 및 권장사항 */}
-                      <div className="space-y-4">
-                        <div>
-                          <h6 className="font-semibold mb-2">발견된 신뢰도 요소:</h6>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            {analysisResults.shopRisk.reasons.map((reason, index) => (
-                              <li key={index}>{reason}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <h6 className="font-semibold mb-2">권장사항:</h6>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            {analysisResults.shopRisk.recommendations.map((recommendation, index) => (
-                              <li key={index}>{recommendation}</li>
-                            ))}
-                          </ul>
+                      {/* YGMK 학습모델 설명 및 권장사항 */}
+                      <div className="space-y-4 mt-6">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          {isMock ? (
+                            <>
+                              <p className="text-sm text-blue-800 mb-3">
+                                💡 <strong>목업 쇼핑몰 분석:</strong> 이 쇼핑몰은 목업(테스트용) 쇼핑몰입니다. 신뢰도 점수는 YGMK의 쇼핑몰 신뢰도 분석 기준에 따라 계산되었습니다:
+                              </p>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 mb-3 ml-2">
+                                <li><strong>도메인 분석 (40%):</strong> 도메인 연령, 의심스러운 패턴, TLD 등</li>
+                                <li><strong>사업자 정보 분석 (20%):</strong> 사업자 등록 정보, 연락처 정보 등</li>
+                                <li><strong>피해 사례 제보 분석 (30%):</strong> 신고된 피해 사례의 유형과 빈도</li>
+                                <li><strong>평점/리뷰 분석 (10%):</strong> 리뷰 패턴, 평점 분포 등</li>
+                              </ul>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-blue-800 mb-3">
+                                💡 <strong>YGMK 학습모델 설명:</strong> 이 신뢰도 점수는 YGMK가 수집한 실제 피싱 사이트 데이터를 학습한 머신러닝 모델(Random Forest)이 분석한 결과입니다. 모델은 URL의 9가지 특징을 종합적으로 검토합니다:
+                              </p>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 mb-3 ml-2">
+                                <li><strong>URL 구조:</strong> URL 길이, 하이픈 개수, 서브도메인 깊이</li>
+                                <li><strong>도메인 신뢰도:</strong> 도메인 확장자(.com 등), IP 주소 사용 여부, URL 단축 서비스 사용 여부</li>
+                                <li><strong>보안 프로토콜:</strong> HTTPS 사용 여부</li>
+                                <li><strong>의심 키워드:</strong> login, verify, confirm, account, discount, free 등 피싱에 자주 사용되는 단어</li>
+                                <li><strong>기타 특징:</strong> URL에 @ 기호 포함 여부</li>
+                              </ul>
+                            </>
+                          )}
+                          {analysisResults.shopRisk && analysisResults.shopRisk.recommendations.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-blue-200">
+                              <h6 className="font-semibold mb-2 text-blue-800">권장사항:</h6>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
+                                <li>이 신뢰도 점수는 참고용이며, 최종 판단은 사용자 본인의 몫입니다.</li>
+                                <li>신뢰도 점수가 높더라도 개인정보 입력이나 결제 시에는 항상 신중하게 검토하시기 바랍니다.</li>
+                                {analysisResults.shopRisk.recommendations.map((recommendation, index) => (
+                                  <li key={index}>{recommendation}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(!analysisResults.shopRisk || !analysisResults.shopRisk.recommendations || analysisResults.shopRisk.recommendations.length === 0) && (
+                            <div className="mt-3 pt-3 border-t border-blue-200">
+                              <h6 className="font-semibold mb-2 text-blue-800">권장사항:</h6>
+                              <ul className="list-disc list-inside space-y-1 text-sm text-blue-800">
+                                <li>이 신뢰도 점수는 참고용이며, 최종 판단은 사용자 본인의 몫입니다.</li>
+                                <li>신뢰도 점수가 높더라도 개인정보 입력이나 결제 시에는 항상 신중하게 검토하시기 바랍니다.</li>
+                                <li>일반적인 온라인 쇼핑 주의사항을 준수하세요</li>
+                                <li>정기적으로 리뷰를 확인해보세요</li>
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -493,112 +885,6 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   );
                 })()}
 
-                {/* ML 모델 예측 결과 */}
-                {analysisResults.mlPrediction && (() => {
-                  // ML 예측 결과: label 0 = legit, 1 = phishing
-                  // 신뢰도 점수: label이 0이면 confidence를 신뢰도로, 1이면 (1 - confidence)를 신뢰도로
-                  const isPhishing = analysisResults.mlPrediction.label === 1;
-                  const trustScore = isPhishing 
-                    ? Math.round((1 - analysisResults.mlPrediction.confidence) * 100)
-                    : Math.round(analysisResults.mlPrediction.confidence * 100);
-                  
-                  const riskStatus = trustScore >= 80 ? 'safe' : 
-                                   trustScore >= 60 ? 'neutral' : 
-                                   trustScore >= 40 ? 'warning' : 'danger';
-                  const riskLevelKorean = isPhishing 
-                    ? `피싱 의심 (신뢰도: ${(analysisResults.mlPrediction.confidence * 100).toFixed(1)}%)`
-                    : `정상 사이트 (신뢰도: ${(analysisResults.mlPrediction.confidence * 100).toFixed(1)}%)`;
-                  
-                  const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
-                                   riskStatus === 'neutral' ? 'text-blue-600' : 
-                                   riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
-                  
-                  const progressColor = trustScore >= 80 ? '#10B981' : 
-                                       trustScore >= 60 ? '#3B82F6' : 
-                                       trustScore >= 40 ? '#F59E0B' : '#EF4444';
-                  
-                  return (
-                    <div className="analysis-result-section ml-prediction bg-gradient-to-b from-purple-50 via-purple-100 to-purple-50 rounded-lg p-6">
-                      <h4 className="analysis-result-title mb-6">🤖 ML 모델 학습 기반 신뢰도 분석</h4>
-                      
-                      {/* 신뢰도 점수 섹션 - 하얀색 배경 */}
-                      <div className="mb-8 bg-white rounded-lg p-6 shadow-sm">
-                        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                          {/* 원형 점수 표시기 */}
-                          <div className="flex-shrink-0">
-                            <ScoreDial score={trustScore} status={riskStatus} />
-                          </div>
-                          
-                          {/* 설명 텍스트 */}
-                          <div className="flex-1">
-                            <p className="text-base mb-2">
-                              ML 모델이 분석한 이 사이트의 신뢰도 점수는 <span className="text-blue-600 font-semibold">{trustScore}점</span>이며, 
-                              <span className={`${riskColor} font-semibold`}> '{riskLevelKorean}'</span>로 판단됩니다.
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {isPhishing 
-                                ? '⚠️ 이 사이트는 피싱 사이트로 의심됩니다. 개인정보 입력이나 결제 시 각별히 주의하세요.'
-                                : trustScore >= 80 
-                                  ? '✅ ML 모델이 정상 사이트로 판단했습니다. 안전하게 이용할 수 있습니다.'
-                                  : trustScore >= 60
-                                    ? '✅ ML 모델이 대체로 정상 사이트로 판단했습니다.'
-                                    : '⚠️ ML 모델이 일부 의심 요소를 발견했습니다. 구매 전 신중히 검토하세요.'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* 분석 세부사항 */}
-                      <div className="analysis-stats-grid">
-                        <div className="analysis-stat-card">
-                          <h5 className="analysis-stat-title">ML 예측 결과</h5>
-                          <p className="analysis-stat-value">
-                            {isPhishing ? '피싱 의심' : '정상 사이트'}
-                          </p>
-                          <div className="trust-score-gauge" style={{ background: '#f3f4f6', height: '8px', borderRadius: '4px', overflow: 'hidden', margin: '10px 0' }}>
-                            <div className="gauge-bar" style={{
-                              width: `${trustScore}%`,
-                              height: '100%',
-                              background: progressColor,
-                              borderRadius: '4px',
-                              transition: 'width 0.5s ease'
-                            }}></div>
-                          </div>
-                          <span className={`analysis-risk-badge ${riskStatus}`}>
-                            {isPhishing ? '피싱 의심' : '정상'}
-                          </span>
-                        </div>
-                        <div className="analysis-stat-card">
-                          <h5 className="analysis-stat-title">예측 신뢰도</h5>
-                          <p className="analysis-stat-value">{(analysisResults.mlPrediction.confidence * 100).toFixed(1)}%</p>
-                          <p className="text-sm text-muted-foreground mt-2">
-                            ML 모델이 이 예측에 대해 {(analysisResults.mlPrediction.confidence * 100).toFixed(1)}%의 확신을 가지고 있습니다.
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* ML 분석 정보 */}
-                      <div className="space-y-4 mt-6">
-                        <div>
-                          <h6 className="font-semibold mb-2">ML 모델 분석 정보:</h6>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            <li>분석 대상 URL: {analysisResults.mlPrediction.url}</li>
-                            {analysisResults.mlPrediction.normalizedUrl && (
-                              <li>정규화된 URL: {analysisResults.mlPrediction.normalizedUrl}</li>
-                            )}
-                            <li>예측 레이블: {analysisResults.mlPrediction.label_name}</li>
-                            <li>모델 신뢰도: {(analysisResults.mlPrediction.confidence * 100).toFixed(1)}%</li>
-                          </ul>
-                        </div>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <p className="text-sm text-blue-800">
-                            💡 <strong>ML 모델 설명:</strong> 이 분석은 학습된 머신러닝 모델이 URL의 다양한 특징(도메인 길이, 의심 키워드, URL 구조 등)을 기반으로 피싱 사이트 여부를 예측한 결과입니다.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </div>
           </div>

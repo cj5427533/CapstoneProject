@@ -21,25 +21,25 @@ export const mockShops = [
   // 주의 필요한 쇼핑몰 (중간 리스크)
   {
     id: 'warning-shop-1',
-    url: 'caution-mall.com',
+    url: 'secure-account-verify-caution-mall.net',
     name: '주의쇼핑몰',
     type: 'mock' as const,
     riskLevel: 'MEDIUM' as const,
-    riskScore: 55
+    riskScore: 65
   },
   {
     id: 'warning-shop-2',
-    url: 'mixed-reviews.co.kr',
+    url: 'discount-free-mixed-reviews-shop.co.kr',
     name: '혼재리뷰몰',
     type: 'mock' as const,
     riskLevel: 'MEDIUM' as const,
-    riskScore: 60
+    riskScore: 70
   },
   
   // 신뢰도가 낮은 쇼핑몰
   {
     id: 'dangerous-shop-1',
-    url: 'fake-shop-example.com',
+    url: 'secure-verify-fake-shop-example.net',
     name: '가짜 쇼핑몰 예시',
     type: 'mock' as const,
     riskLevel: 'HIGH' as const,
@@ -521,35 +521,47 @@ export const mockRiskAnalysis = {
   
   // 주의 필요한 쇼핑몰 분석 결과
   'warning-shop-1': {
-    riskScore: 55,
+    riskScore: 65,
     riskLevel: 'MEDIUM' as const,
     concerns: [
+      '의심스러운 도메인 패턴 발견 (secure-, account-, verify- 키워드 포함)',
+      '신규 도메인으로 판단됨 (30일 이내)',
+      '비표준 TLD 사용 (.net)',
       '배송 지연과 고객 서비스 문제가 다수 발견됨',
       '일부 의심스러운 리뷰 패턴 존재',
-      '환불 처리 관련 신고가 있음'
+      '환불 처리 관련 신고가 있음',
+      '사업자 정보 부족'
     ],
     recommendations: [
       '구매 전 신중한 검토가 필요합니다',
+      '도메인 이름의 의심스러운 패턴을 확인하세요',
       '고객센터 연락 가능 여부를 확인하세요',
       '신용카드 결제보다는 안전한 결제 수단을 권장합니다',
-      '소액 구매부터 시작해보시기 바랍니다'
+      '소액 구매부터 시작해보시기 바랍니다',
+      '사업자 등록 정보를 확인해보세요'
     ],
     disclaimer: 'AI 분석 결과는 참고용이며, 최종 판단은 사용자에게 있습니다.'
   },
   
   'warning-shop-2': {
-    riskScore: 60,
+    riskScore: 70,
     riskLevel: 'MEDIUM' as const,
     concerns: [
+      '의심스러운 도메인 패턴 발견 (discount-, free- 키워드 포함)',
+      '신규 도메인으로 판단됨 (30일 이내)',
+      '긴 URL과 많은 하이픈 사용',
       '품질 문제와 배송 지연 신고가 있음',
       '일부 과도하게 긍정적인 리뷰 패턴 발견',
-      '가격 대비 품질에 대한 의문 제기'
+      '가격 대비 품질에 대한 의문 제기',
+      '사업자 정보 부족'
     ],
     recommendations: [
       '구매 전 충분한 검토가 필요합니다',
+      '도메인 이름의 의심스러운 패턴을 확인하세요',
       '상품 설명과 실제 상품의 일치 여부를 확인하세요',
       '배송 추적 시스템이 있는지 확인하세요',
-      '소액 구매로 테스트해보시기 바랍니다'
+      '소액 구매로 테스트해보시기 바랍니다',
+      '사업자 등록 정보를 확인해보세요'
     ],
     disclaimer: 'AI 분석 결과는 참고용이며, 최종 판단은 사용자에게 있습니다.'
   },

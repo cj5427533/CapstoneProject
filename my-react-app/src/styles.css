@@ -2997,7 +2997,7 @@ a:hover {
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   font-size: 0.9rem;
-  min-width: 120px;
+  min-width: 180px;
 }
 
 .review-analyze-btn::before {
@@ -3333,9 +3333,23 @@ a:hover {
 }
 
 .analysis-modal-body {
-  padding: 2rem;
+  padding: 1.25rem;
   max-height: calc(90vh - 140px);
   overflow-y: auto;
+}
+
+/* 로딩 모달 body 패딩 축소 */
+.analysis-modal-overlay:has(.analysis-loading-content) .analysis-modal-body {
+  padding: 1rem 1.25rem;
+}
+
+/* 로딩 모달 헤더 패딩 축소 */
+.analysis-modal-overlay:has(.analysis-loading-content) .analysis-modal-header {
+  padding: 1rem 1.25rem;
+}
+
+.analysis-modal-overlay:has(.analysis-loading-content) .analysis-modal-title {
+  font-size: 1.1rem;
 }
 
 .analysis-result-section {
@@ -3351,8 +3365,248 @@ a:hover {
 }
 
 .analysis-result-section.shop-risk {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(198, 215, 243, 0.96) 100%);
-  border-color: #fed7aa;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  padding: 2rem;
+}
+
+/* 신뢰도 분석 상단 섹션 */
+.trust-analysis-top-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .trust-analysis-top-section {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* 종합 신뢰도 메인 카드 */
+.trust-score-main-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.trust-score-main-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trust-score-main-value {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1.5rem;
+  line-height: 1;
+}
+
+.trust-score-gauge-main {
+  width: 100%;
+  background: #f3f4f6;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.gauge-bar-main {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.trust-score-level-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #4b5563;
+  margin-top: 0.5rem;
+}
+
+/* 분석 세부사항 카드 */
+.analysis-details-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.analysis-details-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.analysis-detail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.analysis-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.analysis-detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-item-label {
+  font-size: 0.9375rem;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.detail-item-score {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.analysis-details-note {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: right;
+  margin-top: 0.5rem;
+}
+
+/* 신뢰도 분석 하단 섹션 */
+.trust-analysis-bottom-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* 모델 설명 카드 */
+.model-explanation-card {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.model-explanation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.model-explanation-icon {
+  font-size: 1.25rem;
+}
+
+.model-explanation-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e40af;
+  margin: 0;
+}
+
+.model-explanation-text {
+  font-size: 0.9375rem;
+  color: #1e3a8a;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.model-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.model-features-list li {
+  font-size: 0.9375rem;
+  color: #1e3a8a;
+  line-height: 1.6;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.model-features-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #3b82f6;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.model-features-list li strong {
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* 권장사항 카드 */
+.recommendations-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.recommendations-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.recommendations-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recommendations-list li {
+  font-size: 0.9375rem;
+  color: #4b5563;
+  line-height: 1.6;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.recommendations-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #6b7280;
+  font-weight: bold;
+  font-size: 1.25rem;
 }
 
 .analysis-result-section.phishing {
