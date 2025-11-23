@@ -60,3 +60,23 @@ coverage/
 my-react-app/backend/uploads/*
 !my-react-app/backend/uploads/.gitkeep
 
+# Python virtual environments
+.venv/
+.venv-ml/
+venv/
+env/
+ENV/
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Python ML model files (large binary files)
+*.pkl
+*.h5
+*.joblib
+# 하지만 best_model.pkl은 프로젝트에 필요하므로 예외 처리
+!my-react-app/backend/ml/best_model.pkl
+

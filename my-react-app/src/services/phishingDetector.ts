@@ -453,15 +453,24 @@ export class PhishingDetector {
       // 백엔드 결과를 프론트엔드 형식으로 변환
       const result = data.result;
       
+      // 안전한 속성 접근
+      if (!result || typeof result !== 'object') {
+        throw new Error('예상치 못한 응답 형식');
+      }
+      
+      const phishingScore = typeof result.phishingScore === 'number' 
+        ? result.phishingScore 
+        : 0;
+      
       return {
-        phishingScore: 100 - result.phishingScore, // 백엔드는 낮을수록 매우주의, 프론트는 높을수록 매우주의
-        riskLevel: result.riskLevel,
-        reasons: result.reasons,
-        recommendations: result.recommendations,
+        phishingScore: 100 - phishingScore, // 백엔드는 낮을수록 매우주의, 프론트는 높을수록 매우주의
+        riskLevel: result.riskLevel || 'LOW',
+        reasons: Array.isArray(result.reasons) ? result.reasons : ['분석 결과를 가져올 수 없습니다'],
+        recommendations: Array.isArray(result.recommendations) ? result.recommendations : ['일반적인 온라인 쇼핑 주의사항을 준수하세요'],
         analysis: {
-          domainAnalysis: result.analysis.domainAnalysis.domainAge || 0,
-          contentAnalysis: result.analysis.contentAnalysis.contentLength || 0,
-          technicalAnalysis: result.analysis.technicalAnalysis.sslValid ? 100 : 0
+          domainAnalysis: result.analysis?.domainAnalysis?.domainAge || 0,
+          contentAnalysis: result.analysis?.contentAnalysis?.contentLength || 0,
+          technicalAnalysis: result.analysis?.technicalAnalysis?.sslValid ? 100 : 0
         }
       };
       

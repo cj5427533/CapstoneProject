@@ -1579,6 +1579,51 @@ export const deleteCommunityComment = async (commentId: number, userId: number):
   }
 };
 
+// ==================== ML 예측 API ====================
+
+export interface MLPredictionResult {
+  success: boolean;
+  url: string;
+  normalizedUrl: string;
+  label: number; // 0: legit, 1: phishing
+  confidence: number; // 0-1 사이 값
+  label_name: 'PHISHING' | 'LEGIT';
+  id?: number | null;
+}
+
+/**
+ * ML 모델을 이용한 피싱 URL 예측
+ */
+export async function predictPhishingWithML(url: string): Promise<MLPredictionResult> {
+  try {
+    console.log(`ML 예측 API 호출: ${API_BASE_URL}/ml/predict`);
+    const response = await fetch(`${API_BASE_URL}/ml/predict`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || `ML 예측 실패 (${response.status})`;
+      
+      if (response.status === 404) {
+        throw new Error(`ML 예측 API를 찾을 수 없습니다. 서버가 재시작되었는지 확인하세요. (${errorMessage})`);
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('ML 예측 API 에러:', error);
+    throw error;
+  }
+}
+
 // ==================== 관리자 커뮤니티 API ====================
 
 // 관리자: 모든 게시글 조회 (검색 지원)
