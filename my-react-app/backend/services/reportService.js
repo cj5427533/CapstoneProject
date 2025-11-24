@@ -4,23 +4,24 @@
 const supabase = require('../config/supabase');
 const { normalizeUrl } = require('../utils/url');
 const shopService = require('./shopService');
-const { ensureUserId } = require('../utils/anonymousUser');
 
 /**
  * 신고 생성
  */
-async function createReport(reportData, userId = null) {
+async function createReport(reportData, userId) {
   const { shopUrl, categories, description, reporterName, reporterPhone, evidenceFiles } = reportData;
   
-  const normalizedUrl = normalizeUrl(shopUrl);
+  // userId는 필수
+  if (!userId) {
+    throw new Error('로그인이 필요합니다.');
+  }
   
-  // user_id가 없으면 익명 사용자 ID로 설정 (NOT NULL 제약조건 대응)
-  const finalUserId = await ensureUserId(userId);
+  const normalizedUrl = normalizeUrl(shopUrl);
   
   // 쇼핑몰 생성 또는 조회
   const { shop, error: shopError } = await shopService.createShopIfNotExists(
     normalizedUrl,
-    finalUserId,
+    userId,
     'report',
     null
   );
@@ -58,7 +59,7 @@ async function createReport(reportData, userId = null) {
     .from('shop_reports')
     .insert({
       shop_id: shopId,
-      user_id: finalUserId, // NOT NULL 제약조건 대응
+      user_id: userId,
       categories: JSON.stringify(categories),
       description: description,
       reporter_name: reporterName,

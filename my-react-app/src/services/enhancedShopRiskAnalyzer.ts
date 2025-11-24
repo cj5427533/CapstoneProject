@@ -471,12 +471,18 @@ export class EnhancedShopRiskAnalyzer {
 
   /**
    * 신뢰도 레벨 결정
+   * trustScore 기준: 90~100(매우안전/파랑), 70~89(안전/초록), 40~69(주의/노랑), 0~39(의심/주황)
+   * score는 riskScore이므로:
+   * - score <= 10 → LOW (매우안전/파랑)
+   * - score 11~30 → MEDIUM (안전/초록)
+   * - score 31~60 → HIGH (주의/노랑)
+   * - score >= 61 → CRITICAL (의심/주황)
    */
   private determineRiskLevel(score: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-    if (score >= 80) return 'CRITICAL';
-    if (score >= 60) return 'HIGH';
-    if (score >= 30) return 'MEDIUM';
-    return 'LOW';
+    if (score <= 10) return 'LOW';      // trustScore 90~100: 매우안전(파랑)
+    if (score <= 30) return 'MEDIUM';   // trustScore 70~89: 안전(초록)
+    if (score <= 60) return 'HIGH';     // trustScore 40~69: 주의(노랑)
+    return 'CRITICAL';                   // trustScore 0~39: 의심(주황)
   }
 
   /**

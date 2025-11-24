@@ -4,7 +4,6 @@
 const reportService = require('../services/reportService');
 const { success, error } = require('../utils/response');
 const { sanitizeInput } = require('../utils/validation');
-const { verifyToken } = require('../utils/jwt');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -31,15 +30,13 @@ exports.createReport = async (req, res) => {
       return error(res, '필수 필드가 누락되었습니다.', 400);
     }
 
-    // 현재 로그인한 유저 ID 가져오기
-    let userId = null;
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.id;
-      }
+    // 현재 로그인한 유저 ID 가져오기 (필수)
+    // verifyTokenMiddleware를 통해 req.user에 사용자 정보가 설정됨
+    if (!req.user || !req.user.id) {
+      return error(res, '로그인이 필요합니다.', 401);
     }
+
+    const userId = req.user.id;
 
     const result = await reportService.createReport({
       shopUrl,

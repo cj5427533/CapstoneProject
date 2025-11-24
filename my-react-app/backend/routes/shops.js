@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const shopController = require('../controllers/shopController');
 const ratingController = require('../controllers/ratingController');
+const verifyTokenMiddleware = require('../middleware/verifyToken');
 
 // 쇼핑몰 검색
 router.post('/search', shopController.searchShop);
@@ -17,8 +18,8 @@ router.get('/:shopId/reports', shopController.getShopReports);
 router.get('/:shopId/ratings', shopController.getShopRatings);
 router.get('/:shopId/reviews', shopController.getShopReviews);
 
-// 평점 등록
-router.post('/ratings', ratingController.createRating);
+// 평점 등록 (인증 필요)
+router.post('/ratings', verifyTokenMiddleware, ratingController.createRating);
 
 // 주의가 필요한 쇼핑몰 / 고평점 쇼핑몰
 router.get('/dangerous/list', shopController.getDangerousShops);

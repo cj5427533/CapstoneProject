@@ -450,27 +450,59 @@ export class PhishingDetector {
         throw new Error(data.error || '피싱 탐지 실패');
       }
 
-      // 백엔드 결과를 프론트엔드 형식으로 변환
-      const result = data.result;
+      // 백엔드 응답 형식: { success: true, ml: { label, riskLabel, confidence, trustScore }, reports: {...}, webMeta: {...} }
+      // 또는 { success: true, data: { ... } } 형식
+      const mlData = data.ml || data.data?.ml || data.result?.ml;
       
-      // 안전한 속성 접근
-      if (!result || typeof result !== 'object') {
-        throw new Error('예상치 못한 응답 형식');
+      if (!mlData || typeof mlData !== 'object') {
+        console.error('피싱 탐지 응답 형식 오류:', { data, mlData });
+        throw new Error('예상치 못한 응답 형식: ml 데이터가 없습니다');
       }
       
-      const phishingScore = typeof result.phishingScore === 'number' 
-        ? result.phishingScore 
-        : 0;
+      // 백엔드의 trustScore는 0~100 (높을수록 안전)
+      // 프론트엔드의 phishingScore는 0~100 (높을수록 위험)
+      const trustScore = typeof mlData.trustScore === 'number' ? mlData.trustScore : 0;
+      const phishingScore = 100 - trustScore; // 신뢰도 점수를 위험도 점수로 변환
+      
+      // riskLevel 결정 (phishingScore 기준)
+      let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
+      if (phishingScore <= 10) riskLevel = 'LOW';      // trustScore 90~100: 매우안전
+      else if (phishingScore <= 30) riskLevel = 'MEDIUM';   // trustScore 70~89: 안전
+      else if (phishingScore <= 60) riskLevel = 'HIGH';     // trustScore 40~69: 주의
+      else riskLevel = 'CRITICAL';                           // trustScore 0~39: 의심
+      
+      // reasons와 recommendations 생성
+      const reasons: string[] = [];
+      const recommendations: string[] = [];
+      
+      if (mlData.riskLabel === 'PHISHING') {
+        reasons.push('ML 모델이 피싱 사이트로 판단했습니다');
+        recommendations.push('이 사이트는 피싱 사이트일 가능성이 높습니다. 접속을 중단하세요');
+      } else {
+        reasons.push('ML 모델이 정상 사이트로 판단했습니다');
+        recommendations.push('일반적인 온라인 쇼핑 주의사항을 준수하세요');
+      }
+      
+      // webMeta 정보가 있으면 추가
+      const webMeta = data.webMeta || data.data?.webMeta || data.result?.webMeta;
+      if (webMeta) {
+        if (!webMeta.sslValid) {
+          reasons.push('SSL 인증서가 유효하지 않습니다');
+        }
+        if (webMeta.domainAge && webMeta.domainAge < 30) {
+          reasons.push(`도메인이 최근에 생성되었습니다 (${webMeta.domainAge}일)`);
+        }
+      }
       
       return {
-        phishingScore: 100 - phishingScore, // 백엔드는 낮을수록 매우주의, 프론트는 높을수록 매우주의
-        riskLevel: result.riskLevel || 'LOW',
-        reasons: Array.isArray(result.reasons) ? result.reasons : ['분석 결과를 가져올 수 없습니다'],
-        recommendations: Array.isArray(result.recommendations) ? result.recommendations : ['일반적인 온라인 쇼핑 주의사항을 준수하세요'],
+        phishingScore,
+        riskLevel,
+        reasons,
+        recommendations,
         analysis: {
-          domainAnalysis: result.analysis?.domainAnalysis?.domainAge || 0,
-          contentAnalysis: result.analysis?.contentAnalysis?.contentLength || 0,
-          technicalAnalysis: result.analysis?.technicalAnalysis?.sslValid ? 100 : 0
+          domainAnalysis: webMeta?.domainAge || 0,
+          contentAnalysis: 0,
+          technicalAnalysis: webMeta?.sslValid ? 100 : 0
         }
       };
       
@@ -492,11 +524,17 @@ export class PhishingDetector {
 
   /**
    * 신뢰도 레벨 결정
+   * phishingScore는 위험도 점수 (높을수록 위험)
+   * trustScore = 100 - phishingScore 기준: 90~100(매우안전/파랑), 70~89(안전/초록), 40~69(주의/노랑), 0~39(의심/주황)
+   * - phishingScore <= 10 → LOW (매우안전/파랑)
+   * - phishingScore 11~30 → MEDIUM (안전/초록)
+   * - phishingScore 31~60 → HIGH (주의/노랑)
+   * - phishingScore >= 61 → CRITICAL (의심/주황)
    */
   private _getRiskLevel(phishingScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-    if (phishingScore >= 90) return 'CRITICAL';
-    if (phishingScore >= 70) return 'HIGH';
-    if (phishingScore >= 50) return 'MEDIUM';
-    return 'LOW';
+    if (phishingScore <= 10) return 'LOW';      // trustScore 90~100: 매우안전(파랑)
+    if (phishingScore <= 30) return 'MEDIUM';   // trustScore 70~89: 안전(초록)
+    if (phishingScore <= 60) return 'HIGH';     // trustScore 40~69: 주의(노랑)
+    return 'CRITICAL';                           // trustScore 0~39: 의심(주황)
   }
 }

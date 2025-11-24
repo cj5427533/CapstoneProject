@@ -885,13 +885,13 @@ exports.getStats = async (req, res) => {
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count);
 
-    // 신뢰도 분포 (신뢰도 점수 기준으로 5개 레벨 계산)
+    // 신뢰도 분포 (신뢰도 점수 기준으로 4개 레벨 계산)
     // 신뢰도 점수 기준:
-    // - VERY_HIGH: 90점 이상 → "신뢰도 매우 높음" (파란색)
-    // - HIGH: 70~89점 → "신뢰도 높음" (초록색)
-    // - MEDIUM: 40~69점 → "주의 필요" (주황색)
-    // - LOW: 20~39점 → "신뢰도 낮음" (빨간색)
-    // - VERY_LOW: 0~19점 → "신뢰도 매우 낮음" (빨간색)
+    // - VERY_HIGH: 90~100점 → "매우안전" (파란색)
+    // - HIGH: 70~89점 → "안전" (초록색)
+    // - MEDIUM: 40~69점 → "주의" (노란색)
+    // - LOW: 0~39점 → "의심" (주황색)
+    // - VERY_LOW: 0~39점 → "의심" (주황색) - LOW와 동일
     
     // AI 분석 캐시에서 신뢰도 점수 조회 시도
     const { data: aiAnalysisData, error: aiAnalysisError } = await supabase
@@ -944,11 +944,11 @@ exports.getStats = async (req, res) => {
     }
 
     const trustDistribution = {
-      VERY_HIGH: 0,  // 90점 이상
-      HIGH: 0,       // 70~89점
-      MEDIUM: 0,     // 40~69점
-      LOW: 0,        // 20~39점
-      VERY_LOW: 0    // 0~19점
+      VERY_HIGH: 0,  // 90~100점: 매우안전(파랑)
+      HIGH: 0,       // 70~89점: 안전(초록)
+      MEDIUM: 0,     // 40~69점: 주의(노랑)
+      LOW: 0,        // 0~39점: 의심(주황)
+      VERY_LOW: 0    // 0~39점: 의심(주황) - LOW와 동일
     };
 
     // 모든 쇼핑몰 조회
@@ -977,17 +977,16 @@ exports.getStats = async (req, res) => {
         }
       }
 
-      // 신뢰도 점수 기준으로 5개 레벨로 분류
+      // 신뢰도 점수 기준으로 4개 레벨로 분류
       if (trustScore >= 90) {
-        trustDistribution.VERY_HIGH++;
+        trustDistribution.VERY_HIGH++;  // 매우안전(파랑)
       } else if (trustScore >= 70) {
-        trustDistribution.HIGH++;
+        trustDistribution.HIGH++;       // 안전(초록)
       } else if (trustScore >= 40) {
-        trustDistribution.MEDIUM++;
-      } else if (trustScore >= 20) {
-        trustDistribution.LOW++;
+        trustDistribution.MEDIUM++;     // 주의(노랑)
       } else {
-        trustDistribution.VERY_LOW++;
+        trustDistribution.LOW++;        // 의심(주황) - 0~39점
+        trustDistribution.VERY_LOW++;   // 의심(주황) - LOW와 동일
       }
     });
 
@@ -1562,27 +1561,27 @@ exports.getTrustDistribution = async (req, res) => {
     const distribution = [
       {
         grade: 'VERY_HIGH',
-        label: '신뢰도 매우 높음',
+        label: '매우안전',
         count: gradeCounts['VERY_HIGH']
       },
       {
         grade: 'HIGH',
-        label: '신뢰도 높음',
+        label: '안전',
         count: gradeCounts['HIGH']
       },
       {
         grade: 'CAUTION',
-        label: '주의 필요',
+        label: '주의',
         count: gradeCounts['CAUTION']
       },
       {
         grade: 'LOW',
-        label: '신뢰도 낮음',
+        label: '의심',
         count: gradeCounts['LOW']
       },
       {
         grade: 'VERY_LOW',
-        label: '신뢰도 매우 낮음',
+        label: '의심',
         count: gradeCounts['VERY_LOW']
       }
     ];

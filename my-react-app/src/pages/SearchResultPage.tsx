@@ -282,6 +282,18 @@ export function SearchResultPage() {
     navigate(`/report?url=${encodeURIComponent(url)}`);
   };
 
+  const handleToggleReviewForm = () => {
+    // 로그인 체크
+    if (!isAuthenticated) {
+      if (confirm('리뷰를 작성하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?')) {
+        navigate('/login');
+      }
+      return;
+    }
+    
+    setShowReviewForm(!showReviewForm);
+  };
+
   const handleNewSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newSearchUrl.trim()) {
@@ -580,7 +592,7 @@ export function SearchResultPage() {
             {isAuthenticated && (
               <button 
                 className="write-review-button"
-                onClick={() => setShowReviewForm(!showReviewForm)}
+                onClick={handleToggleReviewForm}
               >
                 {showReviewForm ? '리뷰 작성 취소' : '리뷰 작성하기'}
               </button>

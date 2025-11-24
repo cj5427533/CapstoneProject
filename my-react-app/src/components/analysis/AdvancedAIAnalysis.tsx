@@ -266,29 +266,28 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
 
   const getRiskLevelText = (level: string) => {
     switch (level) {
-      case 'LOW': return '신뢰도 매우 높음';
-      case 'MEDIUM': return '신뢰도 높음';
-      case 'HIGH': return '신뢰도 보통';
-      case 'CRITICAL': return '신뢰도 낮음';
+      case 'LOW': return '매우안전';
+      case 'MEDIUM': return '안전';
+      case 'HIGH': return '주의';
+      case 'CRITICAL': return '의심';
       default: return '알 수 없음';
     }
   };
 
   const getRiskStatus = (riskScore: number): "safe" | "neutral" | "warning" | "danger" => {
     const trustScore = 100 - riskScore;
-    if (trustScore >= 90) return 'neutral'; // 90점 이상: 파란색 (neutral을 파란색으로 사용)
-    if (trustScore >= 70) return 'safe'; // 70~89: 초록색
-    if (trustScore >= 40) return 'warning'; // 40~69: 주황색
-    return 'danger'; // 0~39: 빨간색
+    if (trustScore >= 90) return 'neutral'; // 90~100: 매우안전(파랑)
+    if (trustScore >= 70) return 'safe';    // 70~89: 안전(초록)
+    if (trustScore >= 40) return 'warning'; // 40~69: 주의(노랑)
+    return 'danger';                        // 0~39: 의심(주황)
   };
 
   const getRiskLevelKorean = (riskScore: number): string => {
     const trustScore = 100 - riskScore;
-    if (trustScore >= 80) return '신뢰도 매우 높음';
-    if (trustScore >= 60) return '신뢰도 높음';
-    if (trustScore >= 40) return '주의 필요';
-    if (trustScore >= 20) return '신뢰도 낮음';
-    return '신뢰도 매우 낮음';
+    if (trustScore >= 90) return '매우안전';
+    if (trustScore >= 70) return '안전';
+    if (trustScore >= 40) return '주의';
+    return '의심';
   };
 
 
@@ -551,7 +550,8 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     const trustScoreRaw = isPhishing 
                       ? (1 - analysisResults.mlPrediction.confidence) * 100
                       : analysisResults.mlPrediction.confidence * 100;
-                    trustScore = parseFloat(trustScoreRaw.toFixed(1)); // 소수점 1자리까지
+                    // 소수점 첫째 자리까지 표시하되, 100점은 정확히 100.0 이상일 때만 부여
+                    trustScore = trustScoreRaw >= 100.0 ? 100 : Math.max(0, Math.min(99.9, Math.floor(trustScoreRaw * 10) / 10));
                   } else {
                     // shopRisk만 있는 경우
                     trustScore = analysisResults.shopRisk ? 100 - analysisResults.shopRisk.riskScore : 50;
@@ -565,12 +565,12 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   
                   const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
                                    riskStatus === 'neutral' ? 'text-blue-600' : 
-                                   riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
+                                   riskStatus === 'warning' ? 'text-yellow-600' : 'text-orange-600';
                   
-                  // 90점 이상: 파란색, 70~89: 초록색, 40~69: 주황색, 0~39: 빨간색
+                  // 90~100: 파란색(매우안전), 70~89: 초록색(안전), 40~69: 노란색(주의), 0~39: 주황색(의심)
                   const progressColor = trustScore >= 90 ? '#3B82F6' : 
                                        trustScore >= 70 ? '#10B981' : 
-                                       trustScore >= 40 ? '#F59E0B' : '#EF4444';
+                                       trustScore >= 40 ? '#F59E0B' : '#F97316';
                   
                   // 분석 세부사항 계산 - ML 모델의 실제 분석 요소 기반
                   // ML 모델은 URL 특징을 기반으로 분석하므로, 각 특징별 점수를 계산
@@ -689,19 +689,19 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
                           {/* 원형 점수 표시기 */}
                           <div className="flex-shrink-0">
-                            <ScoreDial score={Math.round(trustScore)} status={riskStatus} />
+                            <ScoreDial score={trustScore} status={riskStatus} />
                           </div>
                           
                           {/* 설명 텍스트 */}
                           <div className="flex-1">
                             <p className="text-base mb-2">
-                              현재 이 쇼핑몰의 신뢰도 점수는 <span className="text-blue-600 font-semibold">{trustScore}점</span>이며, 
+                              현재 이 쇼핑몰의 신뢰도 점수는 <span className="text-blue-600 font-semibold">{trustScore.toFixed(1)}점</span>이며, 
                               <span className={`${riskColor} font-semibold`}> '{riskLevelKorean}'</span> 단계입니다.
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {trustScore >= 80 ? '안전하게 이용할 수 있는 쇼핑몰입니다.' :
-                               trustScore >= 60 ? '대체로 신뢰할 수 있는 쇼핑몰입니다.' :
-                               trustScore >= 40 ? '일부 주의가 필요할 수 있습니다. 구매 전 신중히 검토하세요.' :
+                              {trustScore >= 90 ? '매우 안전하게 이용할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 70 ? '안전하게 이용할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 40 ? '주의가 필요합니다. 구매 전 신중히 검토하세요.' :
                                '주의가 필요합니다. 구매 전 반드시 신중히 검토하세요.'}
                             </p>
                           </div>
@@ -801,11 +801,11 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   const riskLevelKorean = getRiskLevelKorean(analysisResults.phishingAlert.phishingScore);
                   const riskColor = riskStatus === 'safe' ? 'text-green-600' : 
                                    riskStatus === 'neutral' ? 'text-blue-600' : 
-                                   riskStatus === 'warning' ? 'text-orange-600' : 'text-red-600';
-                  // 90점 이상: 파란색, 70~89: 초록색, 40~69: 주황색, 0~39: 빨간색
+                                   riskStatus === 'warning' ? 'text-yellow-600' : 'text-orange-600';
+                  // 90~100: 파란색(매우안전), 70~89: 초록색(안전), 40~69: 노란색(주의), 0~39: 주황색(의심)
                   const progressColor = trustScore >= 90 ? '#3B82F6' : 
                                        trustScore >= 70 ? '#10B981' : 
-                                       trustScore >= 40 ? '#F59E0B' : '#EF4444';
+                                       trustScore >= 40 ? '#F59E0B' : '#F97316';
                   
                   return (
                     <div className="analysis-result-section phishing bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50 rounded-lg p-6">
@@ -826,9 +826,9 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                               <span className={`${riskColor} font-semibold`}> '{riskLevelKorean}'</span> 단계입니다.
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {trustScore >= 80 ? '안전하게 이용할 수 있는 쇼핑몰입니다.' :
-                               trustScore >= 60 ? '대체로 신뢰할 수 있는 쇼핑몰입니다.' :
-                               trustScore >= 40 ? '일부 주의가 필요할 수 있습니다. 구매 전 신중히 검토하세요.' :
+                              {trustScore >= 90 ? '매우 안전하게 이용할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 70 ? '안전하게 이용할 수 있는 쇼핑몰입니다.' :
+                               trustScore >= 40 ? '주의가 필요합니다. 구매 전 신중히 검토하세요.' :
                                '주의가 필요합니다. 구매 전 반드시 신중히 검토하세요.'}
                             </p>
                           </div>

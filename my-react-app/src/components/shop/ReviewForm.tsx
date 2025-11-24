@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { createRating } from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ReviewFormProps {
   shopId: number;
@@ -9,12 +11,20 @@ interface ReviewFormProps {
 }
 
 export function ReviewForm({ shopId, shopUrl, onReviewSubmitted }: ReviewFormProps) {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isAuthenticated) {
+      toast.error('리뷰를 작성하려면 로그인이 필요합니다.');
+      navigate('/login');
+      return;
+    }
     
     if (rating === 0) {
       toast.error('평점을 선택해주세요.');

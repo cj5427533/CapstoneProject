@@ -5,9 +5,7 @@ const supabase = require('../config/supabase');
 const shopService = require('../services/shopService');
 const { success, error } = require('../utils/response');
 const { sanitizeInput } = require('../utils/validation');
-const { verifyToken } = require('../utils/jwt');
 const { normalizeUrl } = require('../utils/url');
-const { ensureUserId } = require('../utils/anonymousUser');
 
 /**
  * 평점 등록
@@ -22,26 +20,21 @@ exports.createRating = async (req, res) => {
       return error(res, '올바른 평점을 입력해주세요.', 400);
     }
 
-    // 로그인한 사용자 정보 가져오기 (선택적)
-    let userId = null;
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.id;
-        console.log('로그인한 사용자 ID:', userId);
-      }
+    // 로그인한 사용자 정보 가져오기 (필수)
+    // verifyTokenMiddleware를 통해 req.user에 사용자 정보가 설정됨
+    if (!req.user || !req.user.id) {
+      return error(res, '로그인이 필요합니다.', 401);
     }
 
-    // user_id가 없으면 익명 사용자 ID로 설정 (NOT NULL 제약조건 대응)
-    const finalUserId = await ensureUserId(userId);
+    const userId = req.user.id;
+    console.log('로그인한 사용자 ID:', userId);
 
     const normalizedUrl = normalizeUrl(shopUrl);
     
     // 쇼핑몰 생성 또는 조회
     const { shop, error: shopError } = await shopService.createShopIfNotExists(
       normalizedUrl,
-      finalUserId,
+      userId,
       'rating',
       null
     );
@@ -61,7 +54,7 @@ exports.createRating = async (req, res) => {
     // comment가 있으면 포함하여 저장
     const ratingData = { 
       shop_id: shopId,
-      user_id: finalUserId, // NOT NULL 제약조건 대응
+      user_id: userId,
       rating: rating 
     };
     

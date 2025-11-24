@@ -7,7 +7,9 @@ export type ScoreDialProps = {
 };
 
 export function ScoreDial({ score, status }: ScoreDialProps) {
-  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  // 소수점 첫째 자리까지 표시하되, 100점은 정확히 100.0 이상일 때만 부여
+  // 99.5 이상이어도 100점이 되지 않도록 Math.floor 사용
+  const clamped = score >= 100.0 ? 100 : Math.max(0, Math.min(99.9, Math.floor(score * 10) / 10));
   const [display, setDisplay] = React.useState(0);
 
   React.useEffect(() => {
@@ -20,7 +22,7 @@ export function ScoreDial({ score, status }: ScoreDialProps) {
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      const val = Math.round(startVal + (endVal - startVal) * eased);
+      const val = Math.round((startVal + (endVal - startVal) * eased) * 10) / 10; // 소수점 첫째 자리까지
       setDisplay(val);
       if (t < 1) raf = requestAnimationFrame(tick);
     };
@@ -91,7 +93,7 @@ export function ScoreDial({ score, status }: ScoreDialProps) {
         />
       </svg>
       <div className="absolute text-center">
-        <div className="text-3xl font-bold md:text-4xl">{display}</div>
+        <div className="text-3xl font-bold md:text-4xl">{display.toFixed(1)}</div>
         <div className="text-xs text-muted-foreground">/ 100</div>
       </div>
     </div>

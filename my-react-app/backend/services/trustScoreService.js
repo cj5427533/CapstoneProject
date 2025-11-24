@@ -12,13 +12,13 @@ const supabase = require('../config/supabase');
  * 신뢰도 등급 계산
  * @param {number} finalTrust - 최종 신뢰도 점수 (0~100)
  * @returns {TrustGrade}
+ * 기준: 90~100(매우안전/파랑), 70~89(안전/초록), 40~69(주의/노랑), 0~39(의심/주황)
  */
 function calculateTrustGrade(finalTrust) {
-  if (finalTrust >= 90) return 'VERY_HIGH';
-  if (finalTrust >= 75) return 'HIGH';
-  if (finalTrust >= 60) return 'CAUTION';
-  if (finalTrust >= 40) return 'LOW';
-  return 'VERY_LOW';
+  if (finalTrust >= 90) return 'VERY_HIGH';  // 매우안전(파랑)
+  if (finalTrust >= 70) return 'HIGH';       // 안전(초록)
+  if (finalTrust >= 40) return 'CAUTION';    // 주의(노랑)
+  return 'LOW';                               // 의심(주황) - 0~39
 }
 
 /**
@@ -54,11 +54,11 @@ function calculateFinalTrustScore(params) {
  */
 function getTrustGradeLabel(grade) {
   const labels = {
-    'VERY_HIGH': '신뢰도 매우 높음',
-    'HIGH': '신뢰도 높음',
-    'CAUTION': '주의 필요',
-    'LOW': '신뢰도 낮음',
-    'VERY_LOW': '신뢰도 매우 낮음'
+    'VERY_HIGH': '매우안전',
+    'HIGH': '안전',
+    'CAUTION': '주의',
+    'LOW': '의심',
+    'VERY_LOW': '의심'
   };
   return labels[grade] || '알 수 없음';
 }

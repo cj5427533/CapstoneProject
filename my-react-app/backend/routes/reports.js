@@ -7,6 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const reportController = require('../controllers/reportController');
+const verifyTokenMiddleware = require('../middleware/verifyToken');
 
 // 업로드 디렉토리 생성
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -38,8 +39,8 @@ const upload = multer({
   }
 });
 
-// 신고 생성 (파일 업로드 포함)
-router.post('/', upload.array('evidenceFiles', 10), reportController.createReport);
+// 신고 생성 (파일 업로드 포함, 인증 필요)
+router.post('/', verifyTokenMiddleware, upload.array('evidenceFiles', 10), reportController.createReport);
 
 // 사용자별 신고 조회
 router.get('/user/:reporterName', reportController.getUserReports);

@@ -583,10 +583,14 @@ export class ShopRiskAnalyzer {
         ratingTrustScore * weights.ratingAnalysis +
         domainTrustScore * weights.domainAnalysis +
         businessTrustScore * weights.businessAnalysis;
-      const trustScore = Math.round(Math.min(100, Math.max(0, rawTrustScore)));
+      // 소수점 첫째 자리까지 표시하고, 100점은 정확히 100.0 이상일 때만 부여
+      // 99.5 이상이어도 100점이 되지 않도록 Math.floor 사용
+      const trustScore = Math.min(99.9, Math.max(0, Math.floor(rawTrustScore * 10) / 10));
+      // 정확히 100.0 이상일 때만 100점 부여
+      const finalTrustScore = rawTrustScore >= 100.0 ? 100 : trustScore;
       
       // 리스크 점수는 신뢰도 점수의 역수 (100 - trustScore)
-      const riskScore = 100 - trustScore;
+      const riskScore = 100 - finalTrustScore;
       
       // 6. 신뢰도 레벨 결정
       const riskLevel = this.getRiskLevel(riskScore);
@@ -636,11 +640,17 @@ export class ShopRiskAnalyzer {
 
   /**
    * 신뢰도 레벨 결정
+   * trustScore 기준: 90~100(매우안전/파랑), 70~89(안전/초록), 40~69(주의/노랑), 0~39(의심/주황)
+   * riskScore = 100 - trustScore이므로:
+   * - riskScore <= 10 → LOW (매우안전/파랑)
+   * - riskScore 11~30 → MEDIUM (안전/초록)
+   * - riskScore 31~60 → HIGH (주의/노랑)
+   * - riskScore >= 61 → CRITICAL (의심/주황)
    */
   private getRiskLevel(riskScore: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-    if (riskScore >= 85) return 'CRITICAL';
-    if (riskScore >= 65) return 'HIGH';
-    if (riskScore >= 45) return 'MEDIUM';
-    return 'LOW';
+    if (riskScore <= 10) return 'LOW';      // trustScore 90~100: 매우안전(파랑)
+    if (riskScore <= 30) return 'MEDIUM';   // trustScore 70~89: 안전(초록)
+    if (riskScore <= 60) return 'HIGH';     // trustScore 40~69: 주의(노랑)
+    return 'CRITICAL';                       // trustScore 0~39: 의심(주황)
   }
 }
