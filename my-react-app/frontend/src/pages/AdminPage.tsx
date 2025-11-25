@@ -167,6 +167,7 @@ export function AdminPage() {
   const [ratingSearchTerm, setRatingSearchTerm] = useState<string>('');
   const [communityPostSearchTerm, setCommunityPostSearchTerm] = useState<string>('');
   const [communityCommentSearchTerm, setCommunityCommentSearchTerm] = useState<string>('');
+  const [shopPagination, setShopPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
   // 관리자 인증 체크 (role 기반)
   useEffect(() => {
@@ -203,16 +204,23 @@ export function AdminPage() {
   };
 
   // 쇼핑몰 데이터 로드 (Full-Text Search 지원)
-  const loadShops = async () => {
+  const loadShops = async (page: number = shopPagination.page) => {
     try {
       const shopsData = await getAdminShops({
         search: shopFilter.search || undefined,
-        page: 1,
-        limit: 100
+        page: page,
+        limit: 10
       });
       console.log('쇼핑몰 데이터:', shopsData);
       // API가 { shops: [...], pagination: {...} } 형태로 반환
-      setShops(Array.isArray(shopsData) ? shopsData : (shopsData.shops || []));
+      if (Array.isArray(shopsData)) {
+        setShops(shopsData);
+      } else {
+        setShops(shopsData.shops || []);
+        if (shopsData.pagination) {
+          setShopPagination(shopsData.pagination);
+        }
+      }
     } catch (error) {
       console.error('쇼핑몰 조회 실패:', error);
       setShops([]);
@@ -372,7 +380,10 @@ export function AdminPage() {
     if (currentUser?.role !== 'admin') return;
     
     const loadTabData = async () => {
-      if (currentTab === 'shops') await loadShops();
+      if (currentTab === 'shops') {
+        setShopPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
+        await loadShops(1);
+      }
       else if (currentTab === 'reports') await loadReports();
       else if (currentTab === 'ratings') await loadRatings();
       else if (currentTab === 'users') await loadUsers();
@@ -637,7 +648,8 @@ export function AdminPage() {
   // 검색 실행 함수 (검색 버튼 클릭 시)
   const handleSearch = () => {
     if (currentTab === 'shops') {
-      loadShops();
+      setShopPagination({ ...shopPagination, page: 1 });
+      loadShops(1);
     } else if (currentTab === 'reports') {
       loadReports();
     } else if (currentTab === 'users') {
@@ -980,7 +992,7 @@ export function AdminPage() {
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🏪 쇼핑몰 관리 ({shops.length}개)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🏪 쇼핑몰 관리 ({shopPagination.total}개)</h2>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <div className="flex gap-2 w-full sm:w-auto">
                     <Input
@@ -1160,6 +1172,67 @@ export function AdminPage() {
                   </tbody>
                 </table>
                 </div>
+              </div>
+            )}
+            
+            {/* 페이지네이션 */}
+            {shopPagination.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <Button
+                  onClick={() => {
+                    const newPage = shopPagination.page - 1;
+                    if (newPage >= 1) {
+                      loadShops(newPage);
+                    }
+                  }}
+                  disabled={shopPagination.page === 1}
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </Button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, shopPagination.totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (shopPagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (shopPagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (shopPagination.page >= shopPagination.totalPages - 2) {
+                      pageNum = shopPagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = shopPagination.page - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        onClick={() => loadShops(pageNum)}
+                        className={`min-h-[44px] px-4 py-2 border rounded-md text-sm font-medium transition-colors touch-manipulation ${
+                          shopPagination.page === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  onClick={() => {
+                    const newPage = shopPagination.page + 1;
+                    if (newPage <= shopPagination.totalPages) {
+                      loadShops(newPage);
+                    }
+                  }}
+                  disabled={shopPagination.page === shopPagination.totalPages}
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </Button>
+                <span className="text-sm text-gray-600 ml-2">
+                  {shopPagination.page} / {shopPagination.totalPages} 페이지
+                </span>
               </div>
             )}
             </CardContent>

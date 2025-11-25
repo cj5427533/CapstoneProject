@@ -447,21 +447,21 @@ CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 CREATE INDEX IF NOT EXISTS idx_shops_url ON shops(url);
 CREATE INDEX IF NOT EXISTS idx_shops_parent_shop_id ON shops(parent_shop_id);
 CREATE INDEX IF NOT EXISTS idx_shops_created_at ON shops(created_at);
-CREATE INDEX IF NOT EXISTS idx_shops_search_count ON shops(search_count);
+-- 제거: idx_shops_search_count - 사용 빈도 낮음 (정렬용이지만 자주 사용되지 않음)
 
 -- 신고 테이블 인덱스
 CREATE INDEX IF NOT EXISTS idx_reports_shop_id ON reports(shop_id);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
-CREATE INDEX IF NOT EXISTS idx_reports_evidence_type ON reports(evidence_type);
-CREATE INDEX IF NOT EXISTS idx_reports_report_type ON reports(report_type);
-CREATE INDEX IF NOT EXISTS idx_reports_verification_score ON reports(verification_score);
+-- 제거: idx_reports_evidence_type - 카디널리티 낮음 (enum 타입)
+-- 제거: idx_reports_report_type - 카디널리티 낮음 (enum 타입)
+-- 제거: idx_reports_verification_score - 사용 빈도 낮음 (필요시 복합 인덱스로 대체 가능)
 
 -- 평점 테이블 인덱스
 CREATE INDEX IF NOT EXISTS idx_ratings_shop_id ON ratings(shop_id);
 CREATE INDEX IF NOT EXISTS idx_ratings_user_id ON ratings(user_id);
 CREATE INDEX IF NOT EXISTS idx_ratings_created_at ON ratings(created_at);
-CREATE INDEX IF NOT EXISTS idx_ratings_rating ON ratings(rating);
+-- 제거: idx_ratings_rating - 카디널리티 낮음 (1-5 정수만, 필요시 복합 인덱스 (shop_id, rating) 고려)
 
 -- SMS 테이블 인덱스
 CREATE INDEX IF NOT EXISTS idx_sms_verifications_phone ON sms_verifications(phone_number);
@@ -478,7 +478,7 @@ CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_rese
 CREATE INDEX IF NOT EXISTS idx_user_login_logs_user_id ON user_login_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_login_logs_created_at ON user_login_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_user_login_logs_ip_address ON user_login_logs(ip_address);
-CREATE INDEX IF NOT EXISTS idx_user_login_logs_login_success ON user_login_logs(login_success);
+-- 제거: idx_user_login_logs_login_success - 카디널리티 매우 낮음 (boolean 값)
 
 -- 커뮤니티 테이블 인덱스
 CREATE INDEX IF NOT EXISTS idx_community_posts_user_id ON community_posts(user_id);
@@ -491,12 +491,12 @@ CREATE INDEX IF NOT EXISTS idx_community_post_likes_user_id ON community_post_li
 -- AI 분석 테이블 인덱스
 CREATE INDEX IF NOT EXISTS idx_ai_analysis_cache_shop_id ON ai_analysis_cache(shop_id);
 CREATE INDEX IF NOT EXISTS idx_ai_analysis_cache_expires_at ON ai_analysis_cache(expires_at);
-CREATE INDEX IF NOT EXISTS idx_ai_analysis_cache_type ON ai_analysis_cache(analysis_type);
+-- 제거: idx_ai_analysis_cache_type - 사용 빈도 낮음 (필요시 복합 인덱스 (shop_id, analysis_type) 고려)
 CREATE INDEX IF NOT EXISTS idx_web_analysis_shop_id ON web_analysis(shop_id);
-CREATE INDEX IF NOT EXISTS idx_web_analysis_analysis_date ON web_analysis(analysis_date);
+-- 제거: idx_web_analysis_analysis_date - 사용 빈도 낮음 (필요시 복합 인덱스 (shop_id, analysis_date) 고려)
 CREATE INDEX IF NOT EXISTS idx_business_registrations_shop_id ON business_registrations(shop_id);
 CREATE INDEX IF NOT EXISTS idx_business_registrations_business_number ON business_registrations(business_number);
-CREATE INDEX IF NOT EXISTS idx_business_registrations_business_status ON business_registrations(business_status);
+-- 제거: idx_business_registrations_business_status - 카디널리티 낮음 (4개 값만)
 CREATE INDEX IF NOT EXISTS idx_uploaded_files_report_id ON uploaded_files(report_id);
 
 -- ============================================================================

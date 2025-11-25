@@ -2,13 +2,19 @@
 %% "여기몰까" 데이터베이스 ERD (Mermaid 형식)
 %% ============================================================================
 %% 실제 데이터베이스 스키마에 맞춘 최신 ERD
+%% 기준: complete-schema.sql (2024)
+%% 최종 업데이트: 2025년 1월
 %% 
 %% 적용된 마이그레이션:
 %% - add_evidence_files: reports.evidence_files 컬럼 추가
-%% - add_shop_tracking_and_search_logs: shops 추적 컬럼 및 shop_search_logs 테이블 추가
 %% - add_user_login_logs: user_login_logs 테이블 추가 및 users.last_login_at 컬럼 추가
-%% - add_security_and_activity_tables: security_alerts, ip_blacklist, user_activity_summary 테이블 추가
 %% - add_sms_table_relationships: sms_verifications와 sms_request_tracking 테이블 관계 설정
+%% - 인덱스 최적화: 불필요한 인덱스 8개 제거 (카디널리티 낮은 인덱스, 사용 빈도 낮은 인덱스)
+%% 
+%% 참고: 
+%% - shop_search_logs는 코드에서 사용 중이나 스키마 파일에는 없음 (별도 관리)
+%% - shop_trust_scores, ml_prediction_results, sms_request_logs는 코드에서 사용 중
+%% - reports 테이블에 status 컬럼 추가 (pending|approved|rejected) - 마이그레이션 필요
 %% ============================================================================
 
 erDiagram
@@ -27,62 +33,21 @@ erDiagram
     
     password_reset_tokens {
         bigint id PK
-        bigint user_id FK "NOT NULL"
+        bigint user_id FK "NOT NULL, ON DELETE CASCADE"
         string token "unique, NOT NULL"
         timestamp expires_at "NOT NULL"
-        bool used
+        bool used "default: FALSE"
         timestamp created_at
     }
     
     user_login_logs {
         bigint id PK
-        bigint user_id FK "NOT NULL"
+        bigint user_id FK "NOT NULL, ON DELETE CASCADE"
         string ip_address
-        string user_agent
-        bool login_success
+        text user_agent
+        bool login_success "default: TRUE"
         string failure_reason "INVALID_PASSWORD, USER_NOT_FOUND, ACCOUNT_DELETED 등"
         timestamp created_at
-    }
-    
-    security_alerts {
-        bigint id PK
-        string alert_type "NOT NULL"
-        string severity "NOT NULL, HIGH, MEDIUM, LOW"
-        string ip_address
-        bigint user_id
-        string description "NOT NULL"
-        jsonb details
-        string status "default: PENDING"
-        bigint reviewed_by FK "ON DELETE SET NULL"
-        timestamp reviewed_at
-        timestamp resolved_at
-        timestamp created_at
-    }
-    
-    ip_blacklist {
-        bigint id PK
-        string ip_address "unique, NOT NULL"
-        bigint blocked_by FK "ON DELETE SET NULL"
-        string block_reason
-        string block_type "default: MANUAL, MANUAL|AUTO"
-        timestamp expires_at
-        timestamp created_at
-    }
-    
-    user_activity_summary {
-        bigint id PK
-        bigint user_id FK "unique, NOT NULL"
-        int login_count "default: 0"
-        timestamp last_login
-        int search_count_30d "default: 0"
-        int report_count "default: 0"
-        int rating_count "default: 0"
-        int post_count "default: 0"
-        int comment_count "default: 0"
-        int activity_score "default: 0, 0-100"
-        string activity_level "default: INACTIVE"
-        timestamp last_activity
-        timestamp calculated_at
     }
     
     %% ========= Shops & Reports/Ratings =========
@@ -91,10 +56,8 @@ erDiagram
         bigint id PK
         string url "unique, NOT NULL, 정규화된 URL"
         string name
-        bigint parent_shop_id FK "자기 참조: 부모 쇼핑몰"
-        int search_count
-        bigint created_by_user_id FK "ON DELETE SET NULL"
-        string created_via "report, rating, admin, search 등"
+        bigint parent_shop_id FK "자기 참조: 부모 쇼핑몰, CHECK: parent_shop_id != id"
+        int search_count "default: 0"
         timestamp created_at
         timestamp updated_at
     }
@@ -102,48 +65,49 @@ erDiagram
     shop_search_logs {
         bigint id PK
         string normalized_url "NOT NULL"
-        string raw_url
-        bigint user_id FK "ON DELETE SET NULL"
+        text raw_url
+        bigint user_id FK "ON DELETE SET NULL, 선택적"
         string ip_address
-        string user_agent
+        text user_agent
         timestamp created_at "NOT NULL"
     }
     
     reports {
         bigint id PK
-        bigint shop_id FK "NOT NULL"
+        bigint shop_id FK "NOT NULL, ON DELETE CASCADE"
         bigint user_id FK "ON DELETE SET NULL, 선택적"
         string reporter_name
         string reporter_phone
-        string categories "NOT NULL"
-        string description "NOT NULL"
+        text categories "NOT NULL"
+        text description "NOT NULL"
         string evidence_type "default: NONE"
-        string evidence_files "JSON 배열 형식"
-        bool evidence_verified
-        int verification_score
+        text evidence_files "JSON 배열 형식"
+        bool evidence_verified "default: FALSE"
+        int verification_score "default: 0"
         string report_type "default: GENERAL_REVIEW"
+        string status "default: pending, pending|approved|rejected"
         timestamp created_at
         timestamp updated_at
     }
     
     ratings {
         bigint id PK
-        bigint shop_id FK "NOT NULL"
+        bigint shop_id FK "NOT NULL, ON DELETE CASCADE"
         bigint user_id FK "ON DELETE SET NULL, 선택적"
         int rating "NOT NULL, CHECK: rating >= 1 AND rating <= 5"
-        string comment
+        text comment
         timestamp created_at
     }
     
     uploaded_files {
         bigint id PK
-        bigint report_id FK "NOT NULL"
+        bigint report_id FK "NOT NULL, ON DELETE CASCADE"
         string file_name "NOT NULL"
         string file_path "NOT NULL"
         bigint file_size "NOT NULL"
         string file_type "NOT NULL"
         timestamp upload_date
-        string verification_status "PENDING, VERIFIED, REJECTED"
+        string verification_status "default: PENDING, PENDING|VERIFIED|REJECTED"
     }
     
     %% ========= SMS =========
@@ -152,21 +116,30 @@ erDiagram
         bigint id PK
         string phone_number "NOT NULL"
         string verification_code "NOT NULL"
-        bool is_verified
+        bool is_verified "default: FALSE"
         timestamp expires_at
-        bigint user_id FK "ON DELETE SET NULL"
-        bigint sms_request_tracking_id FK "ON DELETE SET NULL"
+        bigint user_id FK "ON DELETE SET NULL, 선택적"
+        bigint sms_request_tracking_id FK "ON DELETE SET NULL, 선택적"
         timestamp created_at
     }
     
     sms_request_tracking {
         bigint id PK
         string phone_number "NOT NULL"
-        string ip_address "INET 타입"
-        int sent_count
+        inet ip_address "INET 타입"
+        int sent_count "default: 1"
         timestamp last_sent_at
-        bigint user_id FK "ON DELETE SET NULL"
+        bigint user_id FK "ON DELETE SET NULL, 선택적"
         timestamp created_at
+        timestamp updated_at
+    }
+    
+    sms_request_logs {
+        bigint id PK
+        string phone_number "NOT NULL"
+        inet ip_address
+        int sent_count "default: 1"
+        timestamp last_sent_at
         timestamp updated_at
     }
     
@@ -174,37 +147,63 @@ erDiagram
     
     community_posts {
         bigint id PK
-        bigint user_id FK "NOT NULL"
-        string title "NOT NULL"
-        string content "NOT NULL"
-        int views
-        int likes
+        bigint user_id FK "NOT NULL, ON DELETE CASCADE"
+        string title "NOT NULL, VARCHAR(100)"
+        text content "NOT NULL"
+        int views "default: 0"
+        int likes "default: 0"
         timestamp created_at
         timestamp updated_at
     }
     
     community_comments {
         bigint id PK
-        bigint post_id FK "NOT NULL"
-        bigint user_id FK "NOT NULL"
-        string content "NOT NULL"
+        bigint post_id FK "NOT NULL, ON DELETE CASCADE"
+        bigint user_id FK "NOT NULL, ON DELETE CASCADE"
+        string content "NOT NULL, VARCHAR(500)"
         timestamp created_at
     }
     
     community_post_likes {
         bigint id PK
-        bigint post_id FK "NOT NULL, UNIQUE(post_id, user_id)"
-        bigint user_id FK "NOT NULL, UNIQUE(post_id, user_id)"
+        bigint post_id FK "NOT NULL, ON DELETE CASCADE, UNIQUE(post_id, user_id)"
+        bigint user_id FK "NOT NULL, ON DELETE CASCADE, UNIQUE(post_id, user_id)"
         timestamp created_at
     }
     
     %% ========= Analysis & Biz Reg =========
     
+    shop_trust_scores {
+        bigint id PK
+        bigint shop_id FK "unique, NOT NULL, ON DELETE CASCADE"
+        decimal tech_risk "0~1"
+        decimal review_risk "0~1"
+        int report_penalty "0~15"
+        int final_trust "0~100"
+        string trust_grade "VERY_HIGH|HIGH|CAUTION|LOW|VERY_LOW"
+        string model_version
+        timestamp analyzed_at
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    ml_prediction_results {
+        bigint id PK
+        string url "NOT NULL"
+        string normalized_url "NOT NULL"
+        int label "0: SAFE, 1: PHISHING"
+        decimal confidence "0~1"
+        string requested_by
+        string source "API|BATCH 등"
+        timestamp created_at
+    }
+    %% 참고: ml_prediction_results는 shops와 직접 FK 관계 없음 (URL 기반)
+    
     ai_analysis_cache {
         bigint id PK
-        bigint shop_id FK "NOT NULL"
-        string analysis_type "NOT NULL, RISK_ANALYSIS, BUSINESS_ANALYSIS, WEB_ANALYSIS 등"
-        string analysis_result "NOT NULL, JSON 형태"
+        bigint shop_id FK "NOT NULL, ON DELETE CASCADE"
+        string analysis_type "NOT NULL, RISK_ANALYSIS|BUSINESS_ANALYSIS|WEB_ANALYSIS 등"
+        text analysis_result "NOT NULL, JSON 형태"
         timestamp analysis_date
         timestamp expires_at "NOT NULL"
         timestamp created_at
@@ -212,31 +211,31 @@ erDiagram
     
     web_analysis {
         bigint id PK
-        bigint shop_id FK "NOT NULL"
-        string suspicious_keywords "JSON 형태"
-        string price_analysis "JSON 형태"
-        string technical_analysis "JSON 형태"
-        string domain_analysis "JSON 형태"
+        bigint shop_id FK "NOT NULL, ON DELETE CASCADE"
+        text suspicious_keywords "JSON 형태"
+        text price_analysis "JSON 형태"
+        text technical_analysis "JSON 형태"
+        text domain_analysis "JSON 형태"
         timestamp analysis_date
-        string analysis_source "AUTO, MANUAL"
-        int confidence_score "0-100"
+        string analysis_source "default: AUTO, AUTO|MANUAL"
+        int confidence_score "default: 0, 0-100"
         timestamp created_at
     }
     
     business_registrations {
         bigint id PK
-        bigint shop_id FK "NOT NULL"
+        bigint shop_id FK "NOT NULL, ON DELETE CASCADE"
         string business_number
         date registration_date
-        string business_status "ACTIVE, SUSPENDED, CLOSED, UNKNOWN"
+        string business_status "default: UNKNOWN, ACTIVE|SUSPENDED|CLOSED|UNKNOWN"
         string business_type
         bigint capital_amount
         string representative_name
-        string business_address
+        text business_address
         string phone_number
         string email
         timestamp last_verified
-        string verification_source "API, MANUAL, CRAWLING"
+        string verification_source "default: MANUAL, API|MANUAL|CRAWLING"
         timestamp created_at
         timestamp updated_at
     }
@@ -246,13 +245,9 @@ erDiagram
     %% Users & Auth
     users ||--o{ password_reset_tokens : "has"
     users ||--o{ user_login_logs : "has"
-    users ||--o{ security_alerts : "reviewed_by"
-    users ||--o{ ip_blacklist : "blocked_by"
-    users ||--|| user_activity_summary : "has"
     
     %% Shops & Reports/Ratings
     shops ||--o{ shops : "parent_shop"
-    users }o--o{ shops : "created_by"
     shops ||--o{ shop_search_logs : "searched"
     users }o--o{ shop_search_logs : "searches"
     shops ||--o{ reports : "has"
@@ -274,6 +269,8 @@ erDiagram
     users ||--o{ community_post_likes : "likes"
     
     %% Analysis & Biz Reg
+    shops ||--|| shop_trust_scores : "has"
     shops ||--o{ ai_analysis_cache : "has"
     shops ||--o{ web_analysis : "has"
     shops ||--o{ business_registrations : "has"
+    %% 참고: ml_prediction_results는 shops와 직접 FK 관계 없음 (URL 기반 매칭)

@@ -25,22 +25,27 @@ export function AdminDashboardCharts({
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0">
             <div className="space-y-2 sm:space-y-3">
-              {reportsByDate.map((item, index) => (
-                <div key={index} className="flex items-center justify-between gap-2 sm:gap-3">
-                  <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.date}</span>
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{
-                          width: `${Math.min((item.count / Math.max(...reportsByDate.map(d => d.count))) * 100, 100)}%`
-                        }}
-                      />
+              {(() => {
+                // 최대값 계산 (0으로 나누는 문제 방지)
+                const maxCount = Math.max(...reportsByDate.map(d => d.count), 1);
+                return reportsByDate.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between gap-2 sm:gap-3">
+                    <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.date}</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{
+                            width: maxCount > 0 ? `${Math.min((item.count / maxCount) * 100, 100)}%` : '0%',
+                            minWidth: item.count > 0 ? '2px' : '0px'
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 w-6 sm:w-8 text-right flex-shrink-0">{item.count}</span>
                     </div>
-                    <span className="text-xs sm:text-sm font-medium text-gray-900 w-6 sm:w-8 text-right flex-shrink-0">{item.count}</span>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -56,13 +61,12 @@ export function AdminDashboardCharts({
             <div className="space-y-3 sm:space-y-4">
               {riskDistribution
                 .sort((a, b) => {
-                  // 레벨 순서: VERY_HIGH → HIGH → MEDIUM → LOW → VERY_LOW
+                  // 레벨 순서: VERY_HIGH → HIGH → MEDIUM → LOW (4개)
                   const order: { [key: string]: number } = {
                     VERY_HIGH: 0,
                     HIGH: 1,
                     MEDIUM: 2,
-                    LOW: 3,
-                    VERY_LOW: 4
+                    LOW: 3
                   };
                   return (order[a.level] ?? 99) - (order[b.level] ?? 99);
                 })
@@ -76,15 +80,13 @@ export function AdminDashboardCharts({
                   VERY_HIGH: '#3B82F6',  // 파란색 - 매우안전
                   HIGH: '#10B981',       // 초록색 - 안전
                   MEDIUM: '#F59E0B',     // 노란색 - 주의
-                  LOW: '#F97316',        // 주황색 - 의심
-                  VERY_LOW: '#F97316'    // 주황색 - 의심
+                  LOW: '#F97316'         // 주황색 - 의심
                 };
                 const levelLabels: { [key: string]: string } = {
                   VERY_HIGH: '매우안전',
                   HIGH: '안전',
                   MEDIUM: '주의',
-                  LOW: '의심',
-                  VERY_LOW: '의심'
+                  LOW: '의심'
                 };
                 const total = riskDistribution.reduce((sum, r) => sum + r.count, 0);
                 const percentage = total > 0 ? (item.count / total) * 100 : 0;

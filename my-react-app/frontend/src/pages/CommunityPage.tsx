@@ -344,10 +344,6 @@ export function CommunityPage() {
                         <span className="comments">💬 {post.comments_count}</span>
                       </div>
                     </div>
-                    <div className="post-item-content">
-                      {post.content.substring(0, 100)}
-                      {post.content.length > 100 && '...'}
-                    </div>
                     <div className="post-item-footer">
                       <span className="author">{post.author}</span>
                       <span className="date">{formatDate(post.created_at)}</span>
@@ -429,49 +425,45 @@ export function CommunityPage() {
 
         .post-item {
           background: white;
-          padding: 25px;
-          border-radius: 12px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          padding: 15px 20px;
+          border-radius: 8px;
+          box-shadow: 0 1px 5px rgba(0,0,0,0.1);
           cursor: pointer;
           transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .post-item:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.15);
         }
 
         .post-item-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 15px;
+          margin-bottom: 10px;
         }
 
         .post-item-header h3 {
-          font-size: 1.3rem;
+          font-size: 1.1rem;
           color: #2c3e50;
           margin: 0;
+          font-weight: 600;
         }
 
         .post-stats {
           display: flex;
-          gap: 15px;
-          font-size: 0.9rem;
+          gap: 12px;
+          font-size: 0.85rem;
           color: #7f8c8d;
-        }
-
-        .post-item-content {
-          color: #555;
-          line-height: 1.6;
-          margin-bottom: 15px;
         }
 
         .post-item-footer {
           display: flex;
           justify-content: space-between;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           color: #7f8c8d;
+          margin-top: 8px;
         }
 
         .post-detail {

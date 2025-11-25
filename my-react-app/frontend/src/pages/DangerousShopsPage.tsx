@@ -11,6 +11,7 @@ interface Shop {
   averageRating: number;
   ratingCount: number;
   created_at: string;
+  grade?: 'critical' | 'high' | 'medium' | null;
 }
 
 export function DangerousShopsPage() {
@@ -39,10 +40,28 @@ export function DangerousShopsPage() {
         const shops = data.shops || data.data?.shops || data.data || [];
         console.log('추출된 shops:', shops);
         
-        // 피해 사례 제보 건수가 0인 쇼핑몰들을 제외
-        const filteredShops = Array.isArray(shops) ? shops.filter((shop: Shop) => shop.reportCount > 0) : [];
-        console.log('필터링된 shops:', filteredShops);
-        setShops(filteredShops);
+        // 등급이 있는 쇼핑몰만 필터링 (피싱 의심, 주의, 약간 주의만)
+        const filteredShops = Array.isArray(shops) 
+          ? shops.filter((shop: Shop) => {
+              const grade = getShopGrade(shop);
+              return grade === 'critical' || grade === 'high' || grade === 'medium';
+            })
+          : [];
+        
+        // 등급별로 정렬 (피싱 의심 > 주의 > 약간 주의), 같은 등급 내에서는 신고 수 많은 순
+        const gradeOrder = { 'critical': 3, 'high': 2, 'medium': 1 };
+        const sortedShops = filteredShops.sort((a, b) => {
+          const gradeA = getShopGrade(a);
+          const gradeB = getShopGrade(b);
+          const gradeDiff = (gradeOrder[gradeB] || 0) - (gradeOrder[gradeA] || 0);
+          if (gradeDiff !== 0) {
+            return gradeDiff;
+          }
+          return b.reportCount - a.reportCount;
+        });
+        
+        console.log('필터링 및 정렬된 shops:', sortedShops);
+        setShops(sortedShops);
       } else {
         toast.error('주의가 필요한 쇼핑몰 목록을 불러오는데 실패했습니다.');
       }
@@ -58,10 +77,37 @@ export function DangerousShopsPage() {
     navigate(`/search?url=${encodeURIComponent(shopUrl)}`);
   };
 
-  const getRiskLevel = (reportCount: number) => {
-    if (reportCount >= 20) return { level: '매우 주의가 필요한', color: 'text-red-600 bg-red-100', icon: '🚨' };
-    if (reportCount >= 10) return { level: '주의가 필요한', color: 'text-orange-600 bg-orange-100', icon: '⚠️' };
-    if (reportCount >= 5) return { level: '주의', color: 'text-yellow-600 bg-yellow-100', icon: '⚠️' };
+  // 등급 분류 기준 (백엔드에서 grade가 있으면 사용, 없으면 계산)
+  const getShopGrade = (shop: Shop): 'critical' | 'high' | 'medium' | 'none' => {
+    // 백엔드에서 grade가 있으면 사용
+    if (shop.grade) {
+      return shop.grade;
+    }
+    
+    // 백엔드에서 grade가 없으면 프론트엔드에서 계산
+    const reportCount = shop.reportCount;
+    const averageRating = shop.averageRating || 0;
+    
+    // 피싱 의심: 신고 10개 이상 AND 평점 2.0 이하, 또는 신고 15개 이상
+    if ((reportCount >= 10 && averageRating <= 2.0) || reportCount >= 15) {
+      return 'critical';
+    }
+    // 주의: 신고 5개 이상 AND 평점 3.0 이하, 또는 신고 10개 이상
+    if ((reportCount >= 5 && averageRating <= 3.0) || reportCount >= 10) {
+      return 'high';
+    }
+    // 약간 주의: 신고 3개 이상 AND 평점 3.5 이하, 또는 신고 5개 이상
+    if ((reportCount >= 3 && averageRating <= 3.5) || reportCount >= 5) {
+      return 'medium';
+    }
+    return 'none';
+  };
+
+  const getRiskLevel = (shop: Shop) => {
+    const grade = getShopGrade(shop);
+    if (grade === 'critical') return { level: '피싱 의심', color: 'text-red-600 bg-red-100', icon: '🚨' };
+    if (grade === 'high') return { level: '주의', color: 'text-orange-600 bg-orange-100', icon: '⚠️' };
+    if (grade === 'medium') return { level: '약간 주의', color: 'text-yellow-600 bg-yellow-100', icon: '⚠️' };
     return { level: '일반', color: 'text-gray-600 bg-gray-100', icon: 'ℹ️' };
   };
 
@@ -93,32 +139,52 @@ export function DangerousShopsPage() {
 
         {/* 통계 카드 */}
         <div className="stats-grid">
-        <div className="stat-card">
-            <div className="stat-value text-red-600">
-            {shops.filter(shop => shop.reportCount >= 20).length}
+        <div className="stat-card stat-card-critical">
+            <div className="stat-header">
+              <div className="stat-value text-red-600">
+                {shops.filter(shop => getShopGrade(shop) === 'critical').length}
+              </div>
+              <div className="stat-label">피싱 의심</div>
             </div>
-            <div className="stat-label">매우 주의가 필요한</div>
+            <div className="stat-criteria">
+              <div className="criteria-item">• 신고 10개 이상 + 평점 2.0 이하</div>
+              <div className="criteria-item">• 또는 신고 15개 이상</div>
+            </div>
         </div>
 
-        <div className="stat-card">
-            <div className="stat-value text-orange-600">
-            {shops.filter(shop => shop.reportCount >= 10 && shop.reportCount < 20).length}
+        <div className="stat-card stat-card-high">
+            <div className="stat-header">
+              <div className="stat-value text-orange-600">
+                {shops.filter(shop => getShopGrade(shop) === 'high').length}
+              </div>
+              <div className="stat-label">주의</div>
             </div>
-            <div className="stat-label">주의가 필요한</div>
+            <div className="stat-criteria">
+              <div className="criteria-item">• 신고 5개 이상 + 평점 3.0 이하</div>
+              <div className="criteria-item">• 또는 신고 10개 이상</div>
+            </div>
         </div>
 
-        <div className="stat-card">
-            <div className="stat-value text-yellow-600">
-            {shops.filter(shop => shop.reportCount >= 5 && shop.reportCount < 10).length}
+        <div className="stat-card stat-card-medium">
+            <div className="stat-header">
+              <div className="stat-value text-yellow-600">
+                {shops.filter(shop => getShopGrade(shop) === 'medium').length}
+              </div>
+              <div className="stat-label">약간 주의</div>
             </div>
-            <div className="stat-label">주의</div>
+            <div className="stat-criteria">
+              <div className="criteria-item">• 신고 3개 이상 + 평점 3.5 이하</div>
+              <div className="criteria-item">• 또는 신고 5개 이상</div>
+            </div>
         </div>
 
-        <div className="stat-card">
-            <div className="stat-value text-gray-600">
-            {shops.length}
+        <div className="stat-card stat-card-total">
+            <div className="stat-header">
+              <div className="stat-value text-gray-600">
+                {shops.length}
+              </div>
+              <div className="stat-label">총 피해 사례 제보된 쇼핑몰</div>
             </div>
-            <div className="stat-label">총 피해 사례 제보된 쇼핑몰</div>
         </div>
         </div>
 
@@ -127,7 +193,7 @@ export function DangerousShopsPage() {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-6 py-4 bg-red-50 border-b border-red-200">
             <h2 className="text-xl font-semibold text-red-800 flex items-center">
-              피해 사례 제보 많은 순서대로 정렬
+              위험도 순서대로 정렬 (피싱 의심 &gt; 주의 &gt; 약간 주의)
             </h2>
           </div>
           
@@ -140,7 +206,7 @@ export function DangerousShopsPage() {
           ) : (
             <div className="shop-grid p-6">
               {shops.map((shop, index) => {
-                const riskInfo = getRiskLevel(shop.reportCount);
+                const riskInfo = getRiskLevel(shop);
                 return (
                   <div 
                     key={shop.id} 
@@ -168,9 +234,9 @@ export function DangerousShopsPage() {
                       
                       <div className="mb-4">
                         <span className={`risk-indicator ${
-                          shop.reportCount >= 20 ? 'risk-critical' :
-                          shop.reportCount >= 10 ? 'risk-high' :
-                          shop.reportCount >= 5 ? 'risk-medium' : 'risk-low'
+                          getShopGrade(shop) === 'critical' ? 'risk-critical' :
+                          getShopGrade(shop) === 'high' ? 'risk-high' :
+                          getShopGrade(shop) === 'medium' ? 'risk-medium' : 'risk-low'
                         }`}>
                           {riskInfo.icon} {riskInfo.level}
                         </span>

@@ -602,24 +602,182 @@ a:hover {
   padding: 0 2rem;
 }
 
-.about-hero {
-  text-align: center;
+/* 팀 소개 섹션 */
+.team-section {
   margin-bottom: 4rem;
+  padding: 2rem 0;
 }
 
-.about-title {
-  font-size: 3rem;
+.team-section-title {
+  font-size: 2.5rem;
   font-weight: bold;
   color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+/* 팀장 카드 */
+.team-leader-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.team-leader-image-wrapper {
+  flex-shrink: 0;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: #f3f4f6;
+}
+
+.team-leader-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  background-color: #f3f4f6;
+}
+
+.team-leader-info {
+  flex: 1;
+}
+
+.team-leader-name {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.team-leader-role {
+  font-size: 1.125rem;
+  color: var(--primary-color);
+  font-weight: 600;
   margin-bottom: 1rem;
 }
 
-.about-subtitle {
-  font-size: 1.25rem;
+.team-leader-description {
+  font-size: 1rem;
   color: var(--text-secondary);
-  max-width: 600px;
-  margin: 0 auto;
   line-height: 1.6;
+}
+
+/* 팀원 그리드 */
+.team-members-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.team-member-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.team-member-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.team-member-image-wrapper {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 1rem;
+  border: 3px solid var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f3f4f6;
+}
+
+.team-member-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  background-color: #f3f4f6;
+}
+
+.team-member-name {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.team-member-role {
+  font-size: 0.875rem;
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.team-member-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.about-hero {
+  text-align: center;
+  margin-bottom: 5rem;
+  padding: 3rem 0;
+}
+
+.about-hero-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.about-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+}
+
+.about-subtitle {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  max-width: 800px;
+  margin: 0 auto 1.5rem;
+  line-height: 1.8;
+  font-weight: 600;
+}
+
+.highlight-text {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.about-description {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.8;
 }
 
 .nav-button {
@@ -780,80 +938,162 @@ a:hover {
 
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
-  margin-top: 4rem;
+  margin: 4rem 0;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .feature-card {
   background: var(--card-background);
-  padding: 2rem;
-  border-radius: 0.75rem;
-  box-shadow: var(--shadow);
-  text-align: center;
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  text-align: left;
+  transition: transform 0.3s, box-shadow 0.3s;
+  border: 1px solid #e5e7eb;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color), #3b82f6);
+  transform: scaleX(0);
+  transition: transform 0.3s;
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+.feature-card:hover::before {
+  transform: scaleX(1);
+}
+
+.feature-card-primary {
+  border-left: 4px solid var(--primary-color);
+}
+
+.feature-card-secondary {
+  border-left: 4px solid #8b5cf6;
+}
+
+.feature-card-accent {
+  border-left: 4px solid #10b981;
+}
+
+.feature-card-success {
+  border-left: 4px solid #f59e0b;
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+  display: block;
 }
 
 .feature-card h3 {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   margin-bottom: 1rem;
   color: var(--text-primary);
+  font-weight: 700;
 }
 
 .feature-card p {
   color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 1rem;
 }
 
 /* How it works section */
 .how-it-works {
-  margin-top: 4rem;
+  margin-top: 5rem;
   text-align: center;
+  padding: 3rem 0;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%);
+  border-radius: 24px;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1200px;
 }
 
-.how-it-works h2 {
-  font-size: 2rem;
-  margin-bottom: 3rem;
+.how-it-works-title {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
   color: var(--text-primary);
+  font-weight: 800;
+}
+
+.how-it-works-subtitle {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin-bottom: 3rem;
 }
 
 .steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem;
+  margin-top: 3rem;
+  padding: 0 2rem;
 }
 
 .step {
   background: var(--card-background);
-  padding: 2rem;
-  border-radius: 0.75rem;
-  box-shadow: var(--shadow);
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   text-align: center;
   position: relative;
+  transition: transform 0.3s, box-shadow 0.3s;
+  border: 2px solid transparent;
+}
+
+.step:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  border-color: var(--primary-color);
 }
 
 .step-number {
-  width: 3rem;
-  height: 3rem;
-  background: var(--primary-color);
+  width: 4rem;
+  height: 4rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: bold;
-  margin: 0 auto 1rem;
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.step-content {
+  text-align: center;
 }
 
 .step h3 {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   margin-bottom: 1rem;
   color: var(--text-primary);
+  font-weight: 700;
 }
 
 .step p {
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
+  font-size: 1rem;
 }
 
 /* Auth Pages */
@@ -1918,11 +2158,76 @@ a:hover {
   }
   
   .about-title {
-    font-size: 2rem;
+    font-size: 2.5rem;
   }
   
   .about-subtitle {
+    font-size: 1.25rem;
+  }
+
+  .about-description {
     font-size: 1rem;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-card {
+    padding: 2rem;
+  }
+
+  .feature-icon {
+    font-size: 2.5rem;
+  }
+
+  .how-it-works-title {
+    font-size: 2rem;
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+    padding: 0 1rem;
+  }
+
+  /* 팀 소개 섹션 모바일 스타일 */
+  .team-section-title {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .team-leader-card {
+    flex-direction: column;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .team-leader-image-wrapper {
+    width: 150px;
+    height: 150px;
+    margin-bottom: 1rem;
+  }
+
+  .team-leader-name {
+    font-size: 1.5rem;
+  }
+
+  .team-leader-role {
+    font-size: 1rem;
+  }
+
+  .team-leader-description {
+    font-size: 0.875rem;
+  }
+
+  .team-members-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .team-member-image-wrapper {
+    width: 120px;
+    height: 120px;
   }
   
   .hero-title {
@@ -3978,48 +4283,88 @@ a:hover {
 .stat-card {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
   flex: 1;
-  min-height: 60px;
-  aspect-ratio: 3;
+  min-height: 120px;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card-critical {
+  border-left: 4px solid #ef4444;
+}
+
+.stat-card-high {
+  border-left: 4px solid #f97316;
+}
+
+.stat-card-medium {
+  border-left: 4px solid #eab308;
+}
+
+.stat-card-total {
+  border-left: 4px solid #6b7280;
+}
+
+.stat-card-excellent {
+  border-left: 4px solid #10b981;
+}
+
+.stat-card-good {
+  border-left: 4px solid #3b82f6;
+}
+
+.stat-card-satisfactory {
+  border-left: 4px solid #eab308;
+}
+
+.stat-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .stat-value {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: var(--primary-color);
   margin: 0;
   line-height: 1;
 }
 
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b);
-  border-radius: 20px 20px 0 0;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+.stat-label {
+  font-size: 1rem;
+  color: #374151;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.2;
 }
 
+.stat-criteria {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  text-align: left;
+}
 
-.stat-label {
-  font-size: 0.875rem;
+.criteria-item {
+  font-size: 0.8125rem;
   color: #6b7280;
-  font-weight: 500;
-  margin: 0;
-  line-height: 1;
+  line-height: 1.4;
 }
 
 /* 호버 효과 제거됨 */
@@ -4436,6 +4781,28 @@ a:hover {
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
+  .stat-card {
+    padding: 1rem;
+    min-height: 100px;
+  }
+  
+  .stat-value {
+    font-size: 2rem;
+  }
+  
+  .stat-label {
+    font-size: 0.9375rem;
+  }
+  
+  .stat-criteria {
+    padding-top: 0.5rem;
+    gap: 0.25rem;
+  }
+  
+  .criteria-item {
+    font-size: 0.75rem;
+  }
+  
   .shop-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -4578,22 +4945,25 @@ a:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   justify-content: center;
+  padding: 0 1rem;
 }
 
 .tab-button {
-  padding: 0.75rem 1.5rem;
-  border: 2px solid #e5e7eb;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
   background: white;
   color: #374151;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-weight: 500;
+  font-size: 0.875rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
+  white-space: nowrap;
 }
 
 .tab-button:hover {
@@ -4610,9 +4980,14 @@ a:hover {
 
 .tab-button .count {
   background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tab-button.active .count {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .reports-list {

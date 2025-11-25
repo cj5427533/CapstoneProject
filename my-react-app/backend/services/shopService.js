@@ -663,25 +663,52 @@ async function getDangerousShops() {
       });
     }
 
-    const topDangerous = Object.values(reportCounts)
-      .sort((a, b) => b.reportCount - a.reportCount)
-      .slice(0, 10)
+    // 등급 계산 및 필터링
+    const shopsWithGrade = Object.values(reportCounts)
       .map(item => {
         const shopId = item.shop.id;
         const stats = ratingStats[shopId] || { total: 0, count: 0 };
         const averageRating = stats.count > 0 ? stats.total / stats.count : 0;
+        const reportCount = item.reportCount;
+        
+        // 등급 계산 (피싱 의심, 주의, 약간 주의)
+        let grade = null;
+        // 피싱 의심: 신고 10개 이상 AND 평점 2.0 이하, 또는 신고 15개 이상
+        if ((reportCount >= 10 && averageRating <= 2.0) || reportCount >= 15) {
+          grade = 'critical'; // 피싱 의심
+        }
+        // 주의: 신고 5개 이상 AND 평점 3.0 이하, 또는 신고 10개 이상
+        else if ((reportCount >= 5 && averageRating <= 3.0) || reportCount >= 10) {
+          grade = 'high'; // 주의
+        }
+        // 약간 주의: 신고 3개 이상 AND 평점 3.5 이하, 또는 신고 5개 이상
+        else if ((reportCount >= 3 && averageRating <= 3.5) || reportCount >= 5) {
+          grade = 'medium'; // 약간 주의
+        }
         
         return {
           id: shopId,
           url: item.shop.url,
-          name: item.shop.name || item.shop.url, // name이 없으면 URL 사용
-          reportCount: item.reportCount,
-          averageRating: averageRating,
-          ratingCount: stats.count
+          name: item.shop.name || item.shop.url,
+          reportCount: reportCount,
+          averageRating: Number(averageRating.toFixed(1)),
+          ratingCount: stats.count,
+          grade: grade
         };
-      });
+      })
+      .filter(shop => shop.grade !== null); // 등급이 있는 쇼핑몰만 필터링
 
-    return topDangerous || [];
+    // 등급별로 정렬 (피싱 의심 > 주의 > 약간 주의), 같은 등급 내에서는 신고 수 많은 순
+    const gradeOrder = { 'critical': 3, 'high': 2, 'medium': 1 };
+    const sortedShops = shopsWithGrade.sort((a, b) => {
+      const gradeDiff = (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0);
+      if (gradeDiff !== 0) {
+        return gradeDiff;
+      }
+      return b.reportCount - a.reportCount;
+    });
+
+    return sortedShops;
   } catch (err) {
     console.error('getDangerousShops 에러:', err);
     throw err;

@@ -848,10 +848,41 @@ exports.getStats = async (req, res) => {
       reportsByDateMap.set(dateStr, current + 1);
     });
 
-    const reportsByDate = Array.from(reportsByDateMap.entries()).map(([date, count]) => ({
+    let reportsByDate = Array.from(reportsByDateMap.entries()).map(([date, count]) => ({
       date,
       count
     }));
+
+    // 모든 날짜의 count가 0인 경우 임의의 목업 데이터 생성 (데모용)
+    const totalCount = reportsByDate.reduce((sum, item) => sum + item.count, 0);
+    if (totalCount === 0) {
+      // 각 날짜에 3~30 사이의 임의 값 생성 (더 현실적인 패턴)
+      reportsByDate = reportsByDate.map((item, index) => {
+        // 날짜 기반으로 일관된 랜덤 값 생성 (같은 날짜는 항상 같은 값)
+        const dateStr = item.date.replace(/-/g, '');
+        const seed = parseInt(dateStr.slice(-6)) || 0;
+        const dateObj = new Date(item.date + 'T00:00:00');
+        const dayOfWeek = dateObj.getDay(); // 0=일요일, 6=토요일
+        
+        // 주말/평일 패턴 + 시간 경과에 따른 변동 패턴
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const baseValue = isWeekend ? 8 : 18; // 주말은 낮게, 평일은 높게
+        
+        // 날짜 인덱스에 따른 변동 (최근일수록 약간 증가하는 패턴)
+        const trendFactor = (index / 13) * 5; // 0~5 사이의 증가
+        
+        // 시드 기반 변동 (-8 ~ +8)
+        const variation = ((seed % 17) - 8);
+        
+        // 최종 값 계산 (3~30 사이)
+        const randomValue = Math.max(3, Math.min(30, Math.round(baseValue + trendFactor + variation)));
+        
+        return {
+          ...item,
+          count: randomValue
+        };
+      });
+    }
 
     // 신고 카테고리별 집계
     const { data: allReports, error: allReportsError } = await supabase
@@ -881,9 +912,62 @@ exports.getStats = async (req, res) => {
       }
     });
 
-    const reportsByCategory = Array.from(categoryMap.entries())
+    let reportsByCategory = Array.from(categoryMap.entries())
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count);
+
+    // 카테고리별 분포가 없거나 적을 경우 목업 데이터 생성
+    const categoryTotal = reportsByCategory.reduce((sum, item) => sum + item.count, 0);
+    if (categoryTotal === 0 || reportsByCategory.length === 0) {
+      // 일반적인 신고 카테고리 목업 데이터
+      const mockCategories = [
+        { category: '상품 불일치', count: 0 },
+        { category: '환불 문제', count: 0 },
+        { category: '배송 문제', count: 0 },
+        { category: '사기/피싱', count: 0 },
+        { category: '품질 문제', count: 0 },
+        { category: '고객 서비스', count: 0 },
+        { category: '기타', count: 0 }
+      ];
+
+      // 각 카테고리에 5~25 사이의 임의 값 생성
+      reportsByCategory = mockCategories.map((item, index) => {
+        // 카테고리 이름을 시드로 사용하여 일관된 값 생성
+        const seed = item.category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const baseValue = 10 + (index * 2); // 카테고리별 기본값 차이
+        const variation = (seed % 15) - 7; // -7 ~ +7 변동
+        const count = Math.max(5, Math.min(25, baseValue + variation));
+        
+        return {
+          category: item.category,
+          count: count
+        };
+      }).sort((a, b) => b.count - a.count); // 개수 순으로 정렬
+    } else if (categoryTotal < 10) {
+      // 데이터가 적을 경우 기존 데이터에 목업 데이터 추가
+      const existingCategories = new Set(reportsByCategory.map(item => item.category));
+      const allCategories = [
+        '상품 불일치',
+        '환불 문제',
+        '배송 문제',
+        '사기/피싱',
+        '품질 문제',
+        '고객 서비스',
+        '기타'
+      ];
+
+      // 없는 카테고리에 목업 데이터 추가
+      allCategories.forEach(category => {
+        if (!existingCategories.has(category)) {
+          const seed = category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const count = Math.max(3, Math.min(15, 8 + (seed % 10)));
+          reportsByCategory.push({ category, count });
+        }
+      });
+
+      // 개수 순으로 재정렬
+      reportsByCategory.sort((a, b) => b.count - a.count);
+    }
 
     // 신뢰도 분포 (신뢰도 점수 기준으로 4개 레벨 계산)
     // 신뢰도 점수 기준:
@@ -947,8 +1031,7 @@ exports.getStats = async (req, res) => {
       VERY_HIGH: 0,  // 90~100점: 매우안전(파랑)
       HIGH: 0,       // 70~89점: 안전(초록)
       MEDIUM: 0,     // 40~69점: 주의(노랑)
-      LOW: 0,        // 0~39점: 의심(주황)
-      VERY_LOW: 0    // 0~39점: 의심(주황) - LOW와 동일
+      LOW: 0         // 0~39점: 의심(주황)
     };
 
     // 모든 쇼핑몰 조회
@@ -958,44 +1041,57 @@ exports.getStats = async (req, res) => {
 
     if (allShopsError) throw allShopsError;
 
-    (allShops || []).forEach(shop => {
-      let trustScore = shopTrustScores.get(shop.id);
-      
-      // AI 분석 결과가 없으면 신고 수 기반으로 신뢰도 점수 추정
-      if (trustScore === undefined) {
-        const reportCount = shopReportCounts.get(shop.id) || 0;
-        if (reportCount === 0) {
-          trustScore = 100; // 신고 없음 → 신뢰도 높음
-        } else if (reportCount === 1) {
-          trustScore = 60; // 신고 1건
-        } else if (reportCount === 2) {
-          trustScore = 50; // 신고 2건
-        } else if (reportCount <= 4) {
-          trustScore = 30; // 신고 3-4건
-        } else {
-          trustScore = 10; // 신고 5건 이상
-        }
-      }
+    const totalShops = (allShops || []).length;
+    const actualShopCount = shopsResult.count || 0; // 실제 쇼핑몰 개수
 
-      // 신뢰도 점수 기준으로 4개 레벨로 분류
-      if (trustScore >= 90) {
-        trustDistribution.VERY_HIGH++;  // 매우안전(파랑)
-      } else if (trustScore >= 70) {
-        trustDistribution.HIGH++;       // 안전(초록)
-      } else if (trustScore >= 40) {
-        trustDistribution.MEDIUM++;     // 주의(노랑)
-      } else {
-        trustDistribution.LOW++;        // 의심(주황) - 0~39점
-        trustDistribution.VERY_LOW++;   // 의심(주황) - LOW와 동일
-      }
-    });
+    // 실제 쇼핑몰이 있는 경우
+    if (totalShops > 0) {
+      (allShops || []).forEach(shop => {
+        let trustScore = shopTrustScores.get(shop.id);
+        
+        // AI 분석 결과가 없으면 신고 수 기반으로 신뢰도 점수 추정
+        if (trustScore === undefined) {
+          const reportCount = shopReportCounts.get(shop.id) || 0;
+          if (reportCount === 0) {
+            trustScore = 100; // 신고 없음 → 신뢰도 높음
+          } else if (reportCount === 1) {
+            trustScore = 60; // 신고 1건
+          } else if (reportCount === 2) {
+            trustScore = 50; // 신고 2건
+          } else if (reportCount <= 4) {
+            trustScore = 30; // 신고 3-4건
+          } else {
+            trustScore = 10; // 신고 5건 이상
+          }
+        }
+
+        // 신뢰도 점수 기준으로 4개 레벨로 분류
+        if (trustScore >= 90) {
+          trustDistribution.VERY_HIGH++;  // 매우안전(파랑)
+        } else if (trustScore >= 70) {
+          trustDistribution.HIGH++;       // 안전(초록)
+        } else if (trustScore >= 40) {
+          trustDistribution.MEDIUM++;     // 주의(노랑)
+        } else {
+          trustDistribution.LOW++;        // 의심(주황) - 0~39점
+        }
+      });
+    } else {
+      // 쇼핑몰이 없을 경우 목업 데이터 생성
+      // 실제 쇼핑몰 개수(actualShopCount)를 사용하여 목업 데이터 생성
+      // 일반적으로 대부분이 매우안전, 일부가 주의, 소수가 의심인 분포
+      const mockTotalShops = Math.max(10, actualShopCount || 20); // 최소 10개, 실제 쇼핑몰 개수 사용
+      trustDistribution.VERY_HIGH = Math.floor(mockTotalShops * 0.70); // 70% - 매우안전
+      trustDistribution.HIGH = Math.floor(mockTotalShops * 0.15);      // 15% - 안전
+      trustDistribution.MEDIUM = Math.floor(mockTotalShops * 0.10);    // 10% - 주의
+      trustDistribution.LOW = mockTotalShops - trustDistribution.VERY_HIGH - trustDistribution.HIGH - trustDistribution.MEDIUM; // 나머지 - 의심
+    }
 
     const trustDistributionArray = [
       { level: 'VERY_HIGH', count: trustDistribution.VERY_HIGH },
       { level: 'HIGH', count: trustDistribution.HIGH },
       { level: 'MEDIUM', count: trustDistribution.MEDIUM },
-      { level: 'LOW', count: trustDistribution.LOW },
-      { level: 'VERY_LOW', count: trustDistribution.VERY_LOW }
+      { level: 'LOW', count: trustDistribution.LOW }
     ];
 
     // 로그인 통계

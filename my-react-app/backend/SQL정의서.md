@@ -466,21 +466,21 @@
 - `idx_shops_url` (url)
 - `idx_shops_parent_shop_id` (parent_shop_id)
 - `idx_shops_created_at` (created_at)
-- `idx_shops_search_count` (search_count)
+- ~~`idx_shops_search_count`~~ 제거됨 (사용 빈도 낮음)
 
 ### 신고 테이블 인덱스
 - `idx_reports_shop_id` (shop_id)
 - `idx_reports_user_id` (user_id)
 - `idx_reports_created_at` (created_at)
-- `idx_reports_evidence_type` (evidence_type)
-- `idx_reports_report_type` (report_type)
-- `idx_reports_verification_score` (verification_score)
+- ~~`idx_reports_evidence_type`~~ 제거됨 (카디널리티 낮음)
+- ~~`idx_reports_report_type`~~ 제거됨 (카디널리티 낮음)
+- ~~`idx_reports_verification_score`~~ 제거됨 (사용 빈도 낮음)
 
 ### 평점 테이블 인덱스
 - `idx_ratings_shop_id` (shop_id)
 - `idx_ratings_user_id` (user_id)
 - `idx_ratings_created_at` (created_at)
-- `idx_ratings_rating` (rating)
+- ~~`idx_ratings_rating`~~ 제거됨 (카디널리티 낮음)
 
 ### SMS 테이블 인덱스
 - `idx_sms_verifications_phone` (phone_number)
@@ -504,15 +504,15 @@
 ### AI 분석 테이블 인덱스
 - `idx_ai_analysis_cache_shop_id` (shop_id)
 - `idx_ai_analysis_cache_expires_at` (expires_at)
-- `idx_ai_analysis_cache_type` (analysis_type)
+- ~~`idx_ai_analysis_cache_type`~~ 제거됨 (사용 빈도 낮음)
 - `idx_web_analysis_shop_id` (shop_id)
-- `idx_web_analysis_analysis_date` (analysis_date)
+- ~~`idx_web_analysis_analysis_date`~~ 제거됨 (사용 빈도 낮음)
 - `idx_business_registrations_shop_id` (shop_id)
 - `idx_business_registrations_business_number` (business_number)
-- `idx_business_registrations_business_status` (business_status)
+- ~~`idx_business_registrations_business_status`~~ 제거됨 (카디널리티 낮음)
 - `idx_uploaded_files_report_id` (report_id)
 
-**총 42개 인덱스**
+**총 34개 인덱스** (기존 42개에서 8개 제거)
 
 ---
 

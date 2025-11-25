@@ -159,16 +159,45 @@ exports.getDangerousShopsDetailed = async (req, res) => {
           ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratingCount 
           : 0;
 
+        const reportCountValue = reportCount || 0;
+        
+        // 등급 계산 (피싱 의심, 주의, 약간 주의)
+        let grade = null;
+        // 피싱 의심: 신고 10개 이상 AND 평점 2.0 이하, 또는 신고 15개 이상
+        if ((reportCountValue >= 10 && averageRating <= 2.0) || reportCountValue >= 15) {
+          grade = 'critical'; // 피싱 의심
+        }
+        // 주의: 신고 5개 이상 AND 평점 3.0 이하, 또는 신고 10개 이상
+        else if ((reportCountValue >= 5 && averageRating <= 3.0) || reportCountValue >= 10) {
+          grade = 'high'; // 주의
+        }
+        // 약간 주의: 신고 3개 이상 AND 평점 3.5 이하, 또는 신고 5개 이상
+        else if ((reportCountValue >= 3 && averageRating <= 3.5) || reportCountValue >= 5) {
+          grade = 'medium'; // 약간 주의
+        }
+
         return {
           ...shop,
-          reportCount: reportCount || 0,
-          averageRating,
-          ratingCount
+          reportCount: reportCountValue,
+          averageRating: Number(averageRating.toFixed(1)),
+          ratingCount,
+          grade
         };
       })
     );
 
-    const sortedShops = shopsWithStats.sort((a, b) => b.reportCount - a.reportCount);
+    // 등급이 있는 쇼핑몰만 필터링
+    const shopsWithGrade = shopsWithStats.filter(shop => shop.grade !== null);
+
+    // 등급별로 정렬 (피싱 의심 > 주의 > 약간 주의), 같은 등급 내에서는 신고 수 많은 순
+    const gradeOrder = { 'critical': 3, 'high': 2, 'medium': 1 };
+    const sortedShops = shopsWithGrade.sort((a, b) => {
+      const gradeDiff = (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0);
+      if (gradeDiff !== 0) {
+        return gradeDiff;
+      }
+      return b.reportCount - a.reportCount;
+    });
 
     return success(res, { shops: sortedShops });
   } catch (err) {
@@ -221,16 +250,40 @@ exports.getRecommendedShopsDetailed = async (req, res) => {
           ? shopRatings.reduce((sum, r) => sum + r.rating, 0) / ratingCount 
           : 0;
 
+        // 등급 계산 (매우 우수, 우수, 양호)
+        let grade = null;
+        if (averageRating >= 4.5 && ratingCount >= 10) {
+          grade = 'excellent'; // 매우 우수
+        } else if (averageRating >= 4.0 && ratingCount >= 5) {
+          grade = 'good'; // 우수
+        } else if (averageRating >= 3.5 && ratingCount >= 3) {
+          grade = 'satisfactory'; // 양호
+        }
+
         return {
           ...shop,
           reportCount: reportCount || 0,
-          averageRating,
-          ratingCount
+          averageRating: Number(averageRating.toFixed(1)),
+          ratingCount,
+          grade
         };
       })
     );
 
-    const sortedShops = shopsWithStats.sort((a, b) => b.averageRating - a.averageRating);
+    // 등급이 있는 쇼핑몰만 필터링
+    const shopsWithGrade = shopsWithStats.filter(shop => shop.grade !== null);
+
+    // 등급별로 정렬 (매우 우수 > 우수 > 양호), 같은 등급 내에서는 평점 높은 순
+    const gradeOrder = { 'excellent': 3, 'good': 2, 'satisfactory': 1 };
+    const sortedShops = shopsWithGrade.sort((a, b) => {
+      // 등급 순서 비교
+      const gradeDiff = (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0);
+      if (gradeDiff !== 0) {
+        return gradeDiff;
+      }
+      // 같은 등급이면 평점 높은 순
+      return b.averageRating - a.averageRating;
+    });
 
     return success(res, { shops: sortedShops });
   } catch (err) {

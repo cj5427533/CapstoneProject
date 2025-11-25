@@ -25,7 +25,7 @@ const parseCategories = (rawCategories: string): string[] => {
 
 const getReportSeverity = (reportCategories: string[]) => {
   if (reportCategories.includes('사기/피싱')) {
-    return { label: '긴급 주의', indicatorClass: 'risk-critical', rankClass: 'report-critical', icon: '🚨' };
+    return { label: '사기/피싱', indicatorClass: 'risk-critical', rankClass: 'report-critical', icon: '🚨' };
   }
   if (reportCategories.includes('환불 문제') || reportCategories.includes('고객 서비스')) {
     return { label: '주의 필요', indicatorClass: 'risk-high', rankClass: 'report-high', icon: '⚠️' };
@@ -162,7 +162,7 @@ export function ReportsListPage() {
           </div>
           <div className="stat-card">
             <div className="stat-value text-red-600">{reportStats.critical}</div>
-            <div className="stat-label">긴급 주의 사례</div>
+            <div className="stat-label">사기/피싱 사례</div>
           </div>
           <div className="stat-card">
             <div className="stat-value text-blue-600">{reportStats.uniqueShops}</div>
@@ -221,7 +221,7 @@ export function ReportsListPage() {
 
                       <div className="report-details-meta">
                         <span>{formatDate(report.created_at)}</span>
-                        <span>{report.reporter_name ? `제보자 ${report.reporter_name}` : '익명 제보'}</span>
+                        <span>{report.reporter_name ? report.reporter_name : '익명 제보'}</span>
                       </div>
 
                       <div className="report-tags">
@@ -241,9 +241,11 @@ export function ReportsListPage() {
                         </div>
                         <div className="stat-item">
                           <div className="stat-value text-slate-600">
-                            {report.shops?.url ? '등록된 쇼핑몰' : '직접 입력'}
+                            {report.averageRating != null && report.averageRating > 0 
+                              ? `${report.averageRating.toFixed(1)}점` 
+                              : '평점 없음'}
                           </div>
-                          <div className="stat-label">쇼핑몰 정보</div>
+                          <div className="stat-label">쇼핑몰 별점</div>
                         </div>
                       </div>
 

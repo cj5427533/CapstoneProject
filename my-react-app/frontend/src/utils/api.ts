@@ -98,6 +98,9 @@ export interface Report {
   reporter_name?: string;
   created_at: string;
   shop_url?: string;
+  evidence_files?: string | null;
+  averageRating?: number;
+  ratingCount?: number;
   shops?: {
     id: number;
     url: string;

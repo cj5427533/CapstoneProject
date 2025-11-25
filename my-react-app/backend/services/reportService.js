@@ -205,7 +205,36 @@ async function getAllReports() {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data ?? [];
+  
+  // 각 신고에 대해 쇼핑몰의 평균 별점 추가
+  const reportsWithRatings = await Promise.all(
+    (data || []).map(async (report) => {
+      const shopId = report.shop_id;
+      
+      // 쇼핑몰의 평점 조회
+      const { data: ratings, error: ratingError } = await supabase
+        .from('shop_ratings')
+        .select('rating')
+        .eq('shop_id', shopId);
+      
+      let averageRating = 0;
+      let ratingCount = 0;
+      
+      if (!ratingError && ratings && ratings.length > 0) {
+        ratingCount = ratings.length;
+        const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
+        averageRating = totalRating / ratingCount;
+      }
+      
+      return {
+        ...report,
+        averageRating: Number(averageRating.toFixed(1)),
+        ratingCount
+      };
+    })
+  );
+  
+  return reportsWithRatings;
 }
 
 module.exports = {
