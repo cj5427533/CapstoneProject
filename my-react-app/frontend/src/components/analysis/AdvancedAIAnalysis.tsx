@@ -572,10 +572,6 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                                        trustScore >= 70 ? '#10B981' : 
                                        trustScore >= 40 ? '#F59E0B' : '#F97316';
                   
-                  // 분석 세부사항 계산 - ML 모델의 실제 분석 요소 기반
-                  // ML 모델은 URL 특징을 기반으로 분석하므로, 각 특징별 점수를 계산
-                  const mlConfidencePercent = parseFloat((analysisResults.mlPrediction.confidence * 100).toFixed(1));
-                  
                   // 분석 세부사항 계산
                   let adjustedUrlStructureScore: number;
                   let adjustedDomainTrustScore: number;

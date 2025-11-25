@@ -49,7 +49,7 @@ export function DangerousShopsPage() {
           : [];
         
         // 등급별로 정렬 (피싱 의심 > 주의 > 약간 주의), 같은 등급 내에서는 신고 수 많은 순
-        const gradeOrder = { 'critical': 3, 'high': 2, 'medium': 1 };
+        const gradeOrder: { [key: string]: number } = { 'critical': 3, 'high': 2, 'medium': 1, 'none': 0 };
         const sortedShops = filteredShops.sort((a, b) => {
           const gradeA = getShopGrade(a);
           const gradeB = getShopGrade(b);

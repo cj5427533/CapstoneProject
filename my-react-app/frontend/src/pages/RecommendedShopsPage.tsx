@@ -64,7 +64,7 @@ export function RecommendedShopsPage() {
           : [];
         
         // 등급별로 정렬 (매우 우수 > 우수 > 양호), 같은 등급 내에서는 평점 높은 순
-        const gradeOrder = { 'excellent': 3, 'good': 2, 'satisfactory': 1 };
+        const gradeOrder: { [key: string]: number } = { 'excellent': 3, 'good': 2, 'satisfactory': 1, 'none': 0 };
         const sortedShops = filteredShops.sort((a, b) => {
           const gradeA = getShopGrade(a);
           const gradeB = getShopGrade(b);
