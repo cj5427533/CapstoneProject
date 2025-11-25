@@ -619,7 +619,8 @@ async function getDangerousShops() {
   try {
     const { data: shopReports, error } = await supabase
       .from('shop_reports')
-      .select(`shop_id, shops!inner (id, url, name)`);
+      .select(`shop_id, shops!inner (id, url, name)`)
+      .eq('status', 'approved'); // 승인된 신고만 조회
 
     if (error) {
       console.error('getDangerousShops DB 에러:', error);
@@ -698,14 +699,16 @@ async function getDangerousShops() {
       })
       .filter(shop => shop.grade !== null); // 등급이 있는 쇼핑몰만 필터링
 
-    // 등급별로 정렬 (피싱 의심 > 주의 > 약간 주의), 같은 등급 내에서는 신고 수 많은 순
-    const gradeOrder = { 'critical': 3, 'high': 2, 'medium': 1 };
+    // 신고 수 기준으로 정렬 (많은 순서대로)
+    // 메인페이지에서 신고 수 기준으로 순위를 표시하기 위해 신고 수 우선 정렬
     const sortedShops = shopsWithGrade.sort((a, b) => {
-      const gradeDiff = (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0);
-      if (gradeDiff !== 0) {
-        return gradeDiff;
+      // 먼저 신고 수 많은 순으로 정렬
+      if (b.reportCount !== a.reportCount) {
+        return b.reportCount - a.reportCount;
       }
-      return b.reportCount - a.reportCount;
+      // 신고 수가 같으면 등급 우선 (critical > high > medium)
+      const gradeOrder = { 'critical': 3, 'high': 2, 'medium': 1 };
+      return (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0);
     });
 
     return sortedShops;

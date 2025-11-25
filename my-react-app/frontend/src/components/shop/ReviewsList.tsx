@@ -41,13 +41,12 @@ export function ReviewsList({ shopId, onReviewAdded, refreshKey }: ReviewsListPr
       const reviewData = await getShopReviews(shopId);
       console.log('받은 리뷰 데이터:', reviewData, '개수:', reviewData.length);
       
-      // ReviewItem을 Review 형식으로 변환
+      // ReviewItem을 Review 형식으로 변환 (comment가 없는 리뷰도 포함)
       const formattedReviews: Review[] = reviewData
-        .filter(review => review.comment && review.comment.trim() !== '') // comment가 있는 리뷰만 표시
         .map(review => ({
           id: review.id,
           rating: review.rating,
-          review_text: review.comment || '',
+          review_text: review.comment || '', // comment가 없으면 빈 문자열
           created_at: review.created_at,
           user_id: review.user_id || 0,
           username: review.username
@@ -173,14 +172,16 @@ export function ReviewsList({ shopId, onReviewAdded, refreshKey }: ReviewsListPr
                   </div>
                 </div>
                 
-                <div className="review-content">
-                  <p style={{
-                    color: review.review_text.includes('[테스트 데이터]') ? '#ff9800' : 'inherit',
-                    fontWeight: review.review_text.includes('[테스트 데이터]') ? 'bold' : 'normal'
-                  }}>
-                    {review.review_text}
-                  </p>
-                </div>
+                {review.review_text && review.review_text.trim() !== '' && (
+                  <div className="review-content">
+                    <p style={{
+                      color: review.review_text.includes('[테스트 데이터]') ? '#ff9800' : 'inherit',
+                      fontWeight: review.review_text.includes('[테스트 데이터]') ? 'bold' : 'normal'
+                    }}>
+                      {review.review_text}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

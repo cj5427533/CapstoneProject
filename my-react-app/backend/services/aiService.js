@@ -575,7 +575,35 @@ async function getShopReviewsForAnalysis(shopId) {
   try {
     console.log(`[리뷰 신뢰도 분석] shopId=${shopId}에 대한 리뷰 데이터 조회 시작`);
 
-    // 1. shop_ratings에서 comment가 있는 리뷰 조회
+    // shopId에 해당하는 쇼핑몰과 그 자식 쇼핑몰들의 ID를 모두 찾기
+    const { data: shopData, error: shopDataError } = await supabase
+      .from('shops')
+      .select('id, parent_shop_id')
+      .or(`id.eq.${shopId},parent_shop_id.eq.${shopId}`);
+    
+    let targetShopIds = [shopId];
+    if (!shopDataError && shopData && shopData.length > 0) {
+      // 현재 쇼핑몰 정보 찾기
+      const currentShop = shopData.find(s => s.id === shopId);
+      if (currentShop) {
+        // 부모 쇼핑몰 ID도 포함
+        if (currentShop.parent_shop_id) {
+          targetShopIds.push(currentShop.parent_shop_id);
+        }
+      }
+      // 자식 쇼핑몰 ID들도 포함
+      const childShopIds = shopData
+        .filter(s => s.parent_shop_id === shopId)
+        .map(s => s.id);
+      targetShopIds = [...targetShopIds, ...childShopIds];
+      targetShopIds = [...new Set(targetShopIds)]; // 중복 제거
+    }
+    
+    console.log(`[리뷰 신뢰도 분석] 조회할 shop_id 목록: ${targetShopIds.join(', ')}`);
+
+    // 1. shop_ratings에서 comment가 있는 리뷰 조회 (목업 리뷰 포함)
+    // comment가 있는 리뷰만 조회하되, 목업 리뷰도 포함
+    // parent_shop_id를 고려하여 관련된 모든 쇼핑몰의 리뷰 조회
     const { data: ratings, error: ratingsError } = await supabase
       .from('shop_ratings')
       .select(`
@@ -586,7 +614,7 @@ async function getShopReviewsForAnalysis(shopId) {
         user_id,
         users:user_id(username)
       `)
-      .eq('shop_id', shopId)
+      .in('shop_id', targetShopIds)
       .not('comment', 'is', null)
       .neq('comment', '')
       .order('created_at', { ascending: false });
@@ -594,9 +622,10 @@ async function getShopReviewsForAnalysis(shopId) {
     if (ratingsError) {
       console.error(`[리뷰 신뢰도 분석] shop_ratings 조회 오류:`, ratingsError);
     } else {
-      console.log(`[리뷰 신뢰도 분석] shop_ratings 조회 결과: ${ratings?.length || 0}개`);
+      console.log(`[리뷰 신뢰도 분석] shop_ratings 조회 결과: ${ratings?.length || 0}개 (목업 리뷰 포함)`);
       if (ratings && ratings.length > 0) {
         ratings.forEach(rating => {
+          // 목업 리뷰도 포함하여 분석 (comment가 있는 모든 리뷰)
           reviews.push({
             id: `rating_${rating.id}`,
             type: 'rating',
@@ -621,7 +650,7 @@ async function getShopReviewsForAnalysis(shopId) {
         reporter_name,
         users:user_id(username)
       `)
-      .eq('shop_id', shopId)
+      .in('shop_id', targetShopIds)
       .not('description', 'is', null)
       .neq('description', '')
       .order('created_at', { ascending: false });
@@ -656,7 +685,7 @@ async function getShopReviewsForAnalysis(shopId) {
         user_id,
         users:user_id(username)
       `)
-      .eq('shop_id', shopId)
+      .in('shop_id', targetShopIds)
       .not('content', 'is', null)
       .neq('content', '')
       .order('created_at', { ascending: false });

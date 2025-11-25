@@ -133,6 +133,8 @@ export interface DangerousShop {
   url: string;
   name: string;
   reportCount: number;
+  averageRating?: number;
+  ratingCount?: number;
 }
 
 export interface TopRatedShop {
@@ -477,7 +479,19 @@ export async function getShopReviews(shopId: number): Promise<ReviewItem[]> {
     }
 
     const data = await response.json();
-    return data.reviews || [];
+    // 백엔드가 { success: true, data: [...] } 형식으로 반환하는 경우 처리
+    if (data.success && data.data) {
+      return data.data;
+    }
+    // 백엔드가 { reviews: [...] } 형식으로 반환하는 경우 처리
+    if (data.reviews) {
+      return data.reviews;
+    }
+    // 백엔드가 배열을 직접 반환하는 경우 처리
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return [];
   } catch (error) {
     console.error('리뷰 목록 조회 에러:', error);
     return [];
@@ -671,23 +685,12 @@ export async function getDangerousPages(): Promise<DangerousShop[]> {
     const responseData = await response.json();
     const realData = responseData.shops || responseData.data || [];
     
-    // 목업 데이터 추가
-    const mockDangerousShops: DangerousShop[] = [
-      { id: 1001, url: 'secure-verify-fake-shop-example.net', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
-      { id: 1002, url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', reportCount: 8 },
-      { id: 1003, url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', reportCount: 12 }
-    ];
-    
-    // 실제 데이터와 목업 데이터 합치기
-    return [...mockDangerousShops, ...realData];
+    // 실제 데이터만 반환
+    return realData;
   } catch (error) {
     console.error('주의가 필요한 페이지 조회 에러:', error);
-    // 에러 시에도 목업 데이터는 반환
-    return [
-      { id: 1001, url: 'secure-verify-fake-shop-example.net', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', reportCount: 15 },
-      { id: 1002, url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', reportCount: 8 },
-      { id: 1003, url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', reportCount: 12 }
-    ];
+    // 에러 시 빈 배열 반환
+    return [];
   }
 }
 
@@ -704,25 +707,12 @@ export async function getTopRatedPages(): Promise<TopRatedShop[]> {
     const responseData = await response.json();
     const realData = responseData.shops || responseData.data || [];
     
-    // 목업 데이터 추가
-    const mockTopRatedShops: TopRatedShop[] = [
-      { id: 2001, url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', averageRating: 4.8, totalRatings: 25 },
-      { id: 2002, url: 'reliable-store.com', name: '안전한스토어 [목업쇼핑몰]', averageRating: 4.5, totalRatings: 18 },
-      { id: 2003, url: 'caution-mall.com', name: '주의쇼핑몰 [목업쇼핑몰]', averageRating: 3.2, totalRatings: 12 },
-      { id: 2004, url: 'mixed-reviews.co.kr', name: '혼재리뷰몰 [목업쇼핑몰]', averageRating: 3.0, totalRatings: 8 }
-    ];
-    
-    // 실제 데이터와 목업 데이터 합치기
-    return [...mockTopRatedShops, ...realData];
+    // 실제 데이터만 반환
+    return realData;
   } catch (error) {
     console.error('고평점 페이지 조회 에러:', error);
-    // 에러 시에도 목업 데이터는 반환
-    return [
-      { id: 2001, url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', averageRating: 4.8, totalRatings: 25 },
-      { id: 2002, url: 'reliable-store.com', name: '안전한스토어 [목업쇼핑몰]', averageRating: 4.5, totalRatings: 18 },
-      { id: 2003, url: 'caution-mall.com', name: '주의쇼핑몰 [목업쇼핑몰]', averageRating: 3.2, totalRatings: 12 },
-      { id: 2004, url: 'mixed-reviews.co.kr', name: '혼재리뷰몰 [목업쇼핑몰]', averageRating: 3.0, totalRatings: 8 }
-    ];
+    // 에러 시 빈 배열 반환
+    return [];
   }
 }
 
@@ -1675,7 +1665,7 @@ export interface MLPredictionResult {
 /**
  * ML 모델을 이용한 피싱 URL 예측
  */
-export async function predictPhishingWithML(url: string): Promise<MLPredictionResult> {
+export async function predictPhishingWithML(url: string, shopId?: number): Promise<MLPredictionResult> {
   try {
     console.log(`ML 예측 API 호출: ${API_BASE_URL}/ml/predict`);
     const response = await fetch(`${API_BASE_URL}/ml/predict`, {
@@ -1683,7 +1673,7 @@ export async function predictPhishingWithML(url: string): Promise<MLPredictionRe
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, shopId }),
     });
 
     if (!response.ok) {

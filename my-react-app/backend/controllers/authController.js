@@ -270,6 +270,20 @@ exports.resetPassword = async (req, res) => {
  */
 exports.getMe = [verifyTokenMiddleware, async (req, res) => {
   try {
+    // localhost에서 더미 사용자인 경우
+    if (req.user && req.user.id === 1 && req.user.username === 'admin' && !req.user.email) {
+      // 더미 사용자 정보 반환
+      const userData = {
+        id: req.user.id,
+        username: req.user.username,
+        email: 'admin@localhost',
+        phoneNumber: null,
+        role: req.user.role || 'admin',
+        status: 'active'
+      };
+      return success(res, { user: userData });
+    }
+
     // DB에서 최신 사용자 정보 조회 (role 포함)
     const { data: user, error: dbError } = await supabase
       .from('users')
@@ -277,7 +291,14 @@ exports.getMe = [verifyTokenMiddleware, async (req, res) => {
       .eq('id', req.user.id)
       .single();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('사용자 정보 조회 DB 에러:', dbError);
+      // PGRST116은 "no rows returned" 에러
+      if (dbError.code === 'PGRST116') {
+        return error(res, '사용자를 찾을 수 없습니다.', 404);
+      }
+      throw dbError;
+    }
 
     if (!user) {
       return error(res, '사용자를 찾을 수 없습니다.', 404);
@@ -296,7 +317,7 @@ exports.getMe = [verifyTokenMiddleware, async (req, res) => {
     return success(res, { user: userData });
   } catch (err) {
     console.error('사용자 정보 조회 오류:', err);
-    return error(res, '사용자 정보 조회 실패', 500);
+    return error(res, err.message || '사용자 정보 조회 실패', 500);
   }
 }];
 

@@ -211,13 +211,79 @@ async function runPhishingMLPrediction(rawUrl, req) {
 // ---------------------
 app.post("/api/ml/predict", async (req, res) => {
   try {
-    const { url } = req.body || {};
+    const { url, shopId } = req.body || {};
     
     if (!url || typeof url !== "string") {
       return res.status(400).json({ error: "URL이 필요합니다." });
     }
     
     const prediction = await runPhishingMLPrediction(url, req);
+    
+    // shopId가 제공된 경우 trust score 저장
+    if (shopId) {
+      try {
+        console.log(`[ML 예측] shopId 받음: ${shopId}, URL: ${url}`);
+        const trustScoreService = require('./services/trustScoreService');
+        const shopService = require('./services/shopService');
+        
+        // shopId로 shop 정보 조회
+        const { data: shopData, error: shopError } = await supabase
+          .from('shops')
+          .select('id, url, parent_shop_id')
+          .eq('id', parseInt(shopId, 10))
+          .single();
+        
+        if (shopError) {
+          console.error(`[ML 예측] shop 조회 오류:`, shopError);
+        }
+        
+        if (shopData) {
+          const targetShopId = shopData.parent_shop_id || shopData.id;
+          const shopUrl = shopData.url || url;
+          
+          console.log(`[ML 예측] shop 정보: id=${shopData.id}, parent_shop_id=${shopData.parent_shop_id}, targetShopId=${targetShopId}`);
+          
+          // ML 예측 결과를 techRisk로 변환
+          // label 1 (PHISHING)이면 높은 위험도, label 0 (LEGIT)이면 낮은 위험도
+          const techRisk = prediction.label === 1 
+            ? Math.max(0.5, prediction.confidence)  // 피싱이면 confidence가 높을수록 위험도 높음
+            : Math.min(0.3, 1 - prediction.confidence);  // 정상이면 confidence가 높을수록 위험도 낮음
+          
+          // reviewRisk와 reportPenalty 계산
+          const reviewRisk = await trustScoreService.getReviewRiskFromAnalysis(targetShopId);
+          const reportPenalty = await trustScoreService.calculateReportPenalty(targetShopId);
+          
+          // 최종 trust score 계산
+          const { finalTrust, trustGrade } = trustScoreService.calculateFinalTrustScore({
+            techRisk,
+            reviewRisk,
+            reportPenalty
+          });
+          
+          console.log(`[ML 예측] trust score 계산: techRisk=${techRisk}, reviewRisk=${reviewRisk}, reportPenalty=${reportPenalty}, finalTrust=${finalTrust}, trustGrade=${trustGrade}`);
+          
+          // shop_trust_scores 테이블에 저장
+          const savedData = await trustScoreService.upsertTrustScore(targetShopId, {
+            techRisk,
+            reviewRisk,
+            reportPenalty,
+            finalTrust,
+            trustGrade,
+            modelVersion: 'v1.0'
+          });
+          
+          console.log(`[ML 예측] trust score 저장 완료: shopId=${targetShopId}, finalTrust=${finalTrust}, trustGrade=${trustGrade}`, savedData);
+        } else {
+          console.warn(`[ML 예측] shop 데이터를 찾을 수 없음: shopId=${shopId}`);
+        }
+      } catch (trustScoreError) {
+        console.error('[ML 예측] trust score 저장 오류:', trustScoreError);
+        console.error('[ML 예측] trust score 저장 오류 스택:', trustScoreError.stack);
+        // trust score 저장 실패해도 예측 결과는 반환
+      }
+    } else {
+      console.log(`[ML 예측] shopId가 제공되지 않음, trust score 저장 건너뜀`);
+    }
     
     return res.json({
       success: true,

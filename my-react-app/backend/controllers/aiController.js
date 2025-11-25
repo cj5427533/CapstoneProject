@@ -446,6 +446,55 @@ exports.analyzeReviewTrust = async (req, res) => {
     // 결과를 캐시에 저장 (10분)
     await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, finalResult, 10);
 
+    // trust score를 shop_trust_scores 테이블에 저장
+    if (analysisResult.overallTrustScore !== null && analysisResult.overallTrustScore !== undefined) {
+      try {
+        const trustScoreService = require('../services/trustScoreService');
+        
+        // overallTrustScore (0~1, 1에 가까울수록 신뢰도 높음)를 reviewRisk (0~1, 1에 가까울수록 위험도 높음)로 변환
+        const reviewRisk = 1 - analysisResult.overallTrustScore;
+        
+        // shopUrl이 없으면 shop 테이블에서 조회
+        let actualShopUrl = shopUrl;
+        if (!actualShopUrl) {
+          const { data: shopData } = await supabase
+            .from('shops')
+            .select('url')
+            .eq('id', targetShopId)
+            .single();
+          if (shopData) {
+            actualShopUrl = shopData.url;
+          }
+        }
+        
+        // techRisk와 reportPenalty 계산
+        const techRisk = await trustScoreService.getTechRiskFromMLEngine(actualShopUrl || '');
+        const reportPenalty = await trustScoreService.calculateReportPenalty(targetShopId);
+        
+        // 최종 trust score 계산
+        const { finalTrust, trustGrade } = trustScoreService.calculateFinalTrustScore({
+          techRisk,
+          reviewRisk,
+          reportPenalty
+        });
+        
+        // shop_trust_scores 테이블에 저장
+        await trustScoreService.upsertTrustScore(targetShopId, {
+          techRisk,
+          reviewRisk,
+          reportPenalty,
+          finalTrust,
+          trustGrade,
+          modelVersion: 'v1.0'
+        });
+        
+        console.log(`[리뷰 신뢰도 분석] trust score 저장 완료: shopId=${targetShopId}, finalTrust=${finalTrust}, trustGrade=${trustGrade}`);
+      } catch (trustScoreError) {
+        console.error('[리뷰 신뢰도 분석] trust score 저장 오류:', trustScoreError);
+        // trust score 저장 실패해도 분석 결과는 반환
+      }
+    }
+
     return success(res, finalResult);
 
   } catch (err) {

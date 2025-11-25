@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   getCommunityPosts,
@@ -16,7 +16,9 @@ import {
 export function CommunityPage() {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [comments, setComments] = useState<CommunityComment[]>([]);
   const [newPostTitle, setNewPostTitle] = useState('');
@@ -24,10 +26,16 @@ export function CommunityPage() {
   const [newComment, setNewComment] = useState('');
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [searchKeyword, setSearchKeyword] = useState('');
 
   useEffect(() => {
     loadPosts();
-  }, []);
+    // URL 파라미터에서 검색어 가져오기
+    const searchParam = searchParams.get('search');
+    if (searchParam) {
+      setSearchKeyword(searchParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedPost) {
@@ -47,6 +55,19 @@ export function CommunityPage() {
       setLoading(false);
     }
   };
+
+  // 검색어로 게시물 필터링
+  useEffect(() => {
+    if (searchKeyword.trim()) {
+      const filtered = posts.filter(post => 
+        post.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        post.content.toLowerCase().includes(searchKeyword.toLowerCase())
+      );
+      setFilteredPosts(filtered);
+    } else {
+      setFilteredPosts(posts);
+    }
+  }, [searchKeyword, posts]);
 
   const loadComments = async (postId: number) => {
     try {
@@ -321,16 +342,34 @@ export function CommunityPage() {
             </div>
           ) : (
             // 게시글 목록
-            <div className="posts-list">
-              {loading ? (
+            <>
+              {/* 검색 결과 표시 */}
+              {searchKeyword && (
+                <div className="search-results-header" style={{ marginBottom: '20px', padding: '15px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+                  <p style={{ margin: 0, color: '#0369a1', fontWeight: '500' }}>
+                    "{searchKeyword}" 검색 결과: {filteredPosts.length}개의 게시물
+                  </p>
+                </div>
+              )}
+              <div className="posts-list">
+                {loading ? (
                 <div className="loading">게시글을 불러오는 중...</div>
-              ) : posts.length === 0 ? (
+              ) : filteredPosts.length === 0 ? (
                 <div className="no-posts">
-                  <p>아직 작성된 게시글이 없습니다.</p>
-                  <p>첫 번째 글을 작성해보세요!</p>
+                  {searchKeyword ? (
+                    <>
+                      <p>"{searchKeyword}"에 대한 검색 결과가 없습니다.</p>
+                      <p>다른 키워드로 검색해보세요.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>아직 작성된 게시글이 없습니다.</p>
+                      <p>첫 번째 글을 작성해보세요!</p>
+                    </>
+                  )}
                 </div>
               ) : (
-                posts.map(post => (
+                filteredPosts.map(post => (
                   <div 
                     key={post.id} 
                     className="post-item"
@@ -351,7 +390,8 @@ export function CommunityPage() {
                   </div>
                 ))
               )}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>

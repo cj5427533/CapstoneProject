@@ -67,6 +67,27 @@ export function SearchResultPage() {
     ]);
   };
 
+  // trustScore를 다시 불러오는 함수
+  const refreshTrustScore = async () => {
+    if (shop && shop.id > 0) {
+      try {
+        // parent_shop_id가 있으면 부모 ID 사용, 없으면 shop.id 사용
+        const targetShopId = shop.parent_shop_id || shop.id;
+        console.log(`[trustScore 새로고침] shop.id=${shop.id}, parent_shop_id=${shop.parent_shop_id}, targetShopId=${targetShopId}`);
+        
+        // 백엔드에서 저장하는 데 시간이 걸릴 수 있으므로 약간의 지연 후 조회
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        const trustData = await withTimeout(getTrustScore(targetShopId), 10000).catch(() => null);
+        console.log(`[trustScore 새로고침] 조회 결과:`, trustData);
+        setTrustScore(trustData);
+      } catch (error) {
+        console.error('신뢰도 점수 새로고침 에러:', error);
+      }
+    } else {
+      console.warn('[trustScore 새로고침] shop이 없거나 shop.id가 유효하지 않음:', shop);
+    }
+  };
+
   const loadShopData = async (shopUrl: string, isMock: boolean = false) => {
     try {
       setLoading(true);
@@ -166,16 +187,9 @@ export function SearchResultPage() {
   };
 
   const loadMockShopData = async (shopUrl: string) => {
-    // 목업 데이터에서 해당 URL의 쇼핑몰 찾기
-    const mockShops = [
-      { url: 'secure-verify-fake-shop-example.net', name: '가짜 쇼핑몰 예시 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 85 },
-      { url: 'suspicious-store.com', name: '의심스러운 스토어 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 90 },
-      { url: 'scam-mall.net', name: '사기쇼핑몰 [목업쇼핑몰]', riskLevel: 'HIGH' as const, riskScore: 95 },
-      { url: 'trusted-mall.co.kr', name: '신뢰쇼핑몰 [목업쇼핑몰]', riskLevel: 'LOW' as const, riskScore: 15 },
-      { url: 'reliable-store.com', name: '안전한스토어 [목업쇼핑몰]', riskLevel: 'LOW' as const, riskScore: 20 },
-      { url: 'caution-mall.com', name: '주의쇼핑몰 [목업쇼핑몰]', riskLevel: 'MEDIUM' as const, riskScore: 55 },
-      { url: 'mixed-reviews.co.kr', name: '혼재리뷰몰 [목업쇼핑몰]', riskLevel: 'MEDIUM' as const, riskScore: 60 }
-    ];
+    // 목업 데이터 제거됨 - 더 이상 목업 쇼핑몰을 지원하지 않음
+    // 실제 데이터베이스에서만 데이터를 가져옴
+    const mockShops: Array<{ url: string; name: string; riskLevel: 'HIGH' | 'MEDIUM' | 'LOW'; riskScore: number }> = [];
 
     const mockShop = mockShops.find(s => s.url === shopUrl);
     
@@ -348,30 +362,63 @@ export function SearchResultPage() {
           </div>
         </div>
         
-        {/* 검색창 영역 */}
+        {/* 커뮤니티 게시물 검색 영역 */}
         <div className="new-search-section">
-          <h3>쇼핑몰 검색하기</h3>
-          <form onSubmit={handleNewSearch} className="search-form">
+          <h3>커뮤니티 게시물 검색</h3>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (shop?.name) {
+              // 쇼핑몰 이름을 키워드로 커뮤니티 페이지로 이동
+              navigate(`/community?search=${encodeURIComponent(shop.name)}`);
+            }
+          }} className="search-form">
             <div className="search-input-container">
               <input
                 type="text"
-                value={newSearchUrl}
-                onChange={(e) => setNewSearchUrl(e.target.value)}
-                placeholder="검색할 쇼핑몰 URL을 입력하세요"
+                value={shop?.name || ''}
+                readOnly
+                placeholder="쇼핑몰 이름"
                 className="search-input"
+                style={{ cursor: 'pointer' }}
               />
               <button type="submit" className="search-button">
-                검색
+                커뮤니티에서 검색
               </button>
             </div>
+            <p className="text-sm text-gray-600 mt-2" style={{ color: '#64748b' }}>
+              "{shop?.name || '이 쇼핑몰'}" 관련 커뮤니티 게시물을 검색합니다
+            </p>
           </form>
         </div>
       </div>
     );
   }
 
+  // 파비콘 URL 가져오기 함수
+  const getFaviconUrl = (shopName: string | null | undefined, shopUrl: string): string => {
+    // 특정 쇼핑몰에 대한 커스텀 파비콘
+    const customFavicons: { [key: string]: string } = {
+      '우아한': 'https://api.dicebear.com/7.x/shapes/svg?seed=wooahwan&backgroundColor=b6e3f4',
+      '매우 의심가는 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=very-suspicious&backgroundColor=ff6b6b',
+      '의심가는 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=suspicious&backgroundColor=ffd5dc',
+      '아리까리한 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=confusing&backgroundColor=ffeaa7'
+    };
+
+    if (shopName && customFavicons[shopName]) {
+      return customFavicons[shopName];
+    }
+
+    // 기본 파비콘 (Google 파비콘 서비스 사용)
+    try {
+      const domain = new URL(shopUrl.startsWith('http') ? shopUrl : `https://${shopUrl}`).hostname;
+      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+    } catch {
+      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(shopUrl)}&sz=64`;
+    }
+  };
+
   const domain = (() => { try { return new URL(url).hostname; } catch { return url; } })();
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+  const faviconUrl = getFaviconUrl(shop?.name, url);
 
   return (
     <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
@@ -405,7 +452,6 @@ export function SearchResultPage() {
             <div className="px-4 py-4 text-base leading-relaxed">
               <div className="flex items-center justify-between text-base font-medium" style={{ color: '#1e293b' }}>
                 <span>쇼핑몰 기본 정보</span>
-                <span className="text-sm" style={{ color: '#64748b' }}>Globe</span>
               </div>
               <div className="mt-3 grid gap-2">
                 <div style={{ color: '#64748b' }}>검색한 쇼핑몰</div>
@@ -417,27 +463,35 @@ export function SearchResultPage() {
                   </div>
                 )}
               </div>
-              <div className="mt-4">
-                <form onSubmit={handleNewSearch} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={newSearchUrl}
-                    onChange={(e) => setNewSearchUrl(e.target.value)}
-                    placeholder="검색할 쇼핑몰 URL을 입력하세요"
-                    className="flex-1 rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    style={{ background: '#ffffff', color: '#1e293b', borderColor: '#e2e8f0' }}
-                  />
-                  <button 
-                    type="submit" 
-                    className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm shadow-sm"
-                    style={{ background: '#2563eb', color: '#ffffff', borderColor: '#2563eb' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1d4ed8'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#2563eb'}
-                  >
-                    검색
-                  </button>
-                </form>
-              </div>
+              {shop && shop.name && (
+                <div className="mt-4">
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    navigate(`/community?search=${encodeURIComponent(shop.name!)}`);
+                  }} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      type="text"
+                      value={shop.name}
+                      readOnly
+                      placeholder="쇼핑몰 이름"
+                      className="flex-1 rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      style={{ background: '#f8fafc', color: '#1e293b', borderColor: '#e2e8f0', cursor: 'pointer' }}
+                    />
+                    <button 
+                      type="submit" 
+                      className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm shadow-sm"
+                      style={{ background: '#2563eb', color: '#ffffff', borderColor: '#2563eb' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1d4ed8'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#2563eb'}
+                    >
+                      커뮤니티에서 검색
+                    </button>
+                  </form>
+                  <p className="text-xs mt-2" style={{ color: '#64748b' }}>
+                    "{shop.name}" 관련 커뮤니티 게시물을 검색합니다
+                  </p>
+                </div>
+              )}
             </div>
             <div className="px-4 py-4 text-base leading-relaxed">
               <div className="flex items-center justify-between text-sm font-medium" style={{ color: '#1e293b' }}>
@@ -498,29 +552,38 @@ export function SearchResultPage() {
                 <span style={{ color: '#64748b' }}>BarChart</span>
               </div>
               {trustScore && trustScore.final_trust !== undefined && trustScore.final_trust !== null ? (
-                <div className="mt-3">
-                  <p className="text-base font-semibold" style={{ color: '#1e293b' }}>
-                    {Number(trustScore.final_trust).toFixed(1)}점
-                  </p>
-                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5" style={{ background: '#e5e7eb' }}>
-                    <div 
-                      className="h-2.5 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${Math.min(100, Math.max(0, Number(trustScore.final_trust)))}%`,
-                        background: Number(trustScore.final_trust) >= 90 ? '#3B82F6' : 
-                                   Number(trustScore.final_trust) >= 70 ? '#10B981' : 
-                                   Number(trustScore.final_trust) >= 40 ? '#F59E0B' : '#F97316'
-                      }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs" style={{ color: '#64748b' }}>
-                    {Number(trustScore.final_trust) >= 90 ? '매우 안전' : 
-                     Number(trustScore.final_trust) >= 70 ? '안전' : 
-                     Number(trustScore.final_trust) >= 40 ? '주의' : '의심'}
-                  </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(() => {
+                    const score = Number(trustScore.final_trust);
+                    const level = score >= 90 ? '매우안전' : 
+                                 score >= 70 ? '안전' : 
+                                 score >= 40 ? '주의' : '의심';
+                    const bgColor = score >= 90 ? '#dbeafe' :  // 파란색 배경
+                                   score >= 70 ? '#dcfce7' :  // 초록색 배경
+                                   score >= 40 ? '#fef3c7' :  // 노란색 배경
+                                   '#fee2e2';                  // 빨간색 배경
+                    const textColor = score >= 90 ? '#1e40af' :  // 파란색 텍스트
+                                     score >= 70 ? '#166534' :  // 초록색 텍스트
+                                     score >= 40 ? '#92400e' :  // 노란색 텍스트
+                                     '#991b1b';                  // 빨간색 텍스트
+                    return (
+                      <>
+                        <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: bgColor, color: textColor }}>
+                          📊 {score.toFixed(1)}점
+                        </span>
+                        <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: bgColor, color: textColor }}>
+                          {level === '매우안전' ? '✅' : level === '안전' ? '✅' : level === '주의' ? '⚠️' : '🚨'} {level}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
-                <p className="mt-3 text-sm" style={{ color: '#64748b' }}>아직 분석 결과가 없습니다.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#f3f4f6', color: '#64748b' }}>
+                    📊 분석 결과 없음
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -644,6 +707,7 @@ export function SearchResultPage() {
             reports={reports}
             ratings={[]} // 실제 리뷰 데이터는 백엔드에서 가져옴
             shopUrl={url}
+            onTrustScoreUpdate={refreshTrustScore}
           />
         </div>
       )}

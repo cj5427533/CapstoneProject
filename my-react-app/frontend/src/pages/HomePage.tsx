@@ -38,6 +38,29 @@ export function HomePage() {
     return shop.id >= 1000; // 목업 쇼핑몰은 1000 이상의 ID를 가짐
   };
 
+  // 파비콘 URL 가져오기 함수
+  const getFaviconUrl = (shop: DangerousShop | TopRatedShop): string => {
+    // 특정 쇼핑몰에 대한 커스텀 파비콘
+    const customFavicons: { [key: string]: string } = {
+      '우아한': 'https://api.dicebear.com/7.x/shapes/svg?seed=wooahwan&backgroundColor=b6e3f4',
+      '매우 의심가는 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=very-suspicious&backgroundColor=ff6b6b',
+      '의심가는 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=suspicious&backgroundColor=ffd5dc',
+      '아리까리한 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=confusing&backgroundColor=ffeaa7'
+    };
+
+    if (shop.name && customFavicons[shop.name]) {
+      return customFavicons[shop.name];
+    }
+
+    // 기본 파비콘 (Google 파비콘 서비스 사용)
+    try {
+      const domain = new URL(shop.url.startsWith('http') ? shop.url : `https://${shop.url}`).hostname;
+      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+    } catch {
+      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(shop.url)}&sz=64`;
+    }
+  };
+
   // 디바운싱된 미리보기 검색 함수를 useRef로 관리
   const debouncedPreviewSearchRef = useRef<((searchUrl: string) => void) | null>(null);
 
@@ -343,31 +366,51 @@ export function HomePage() {
                   {dangerousPages.length === 0 ? (
                     <p className="text-sm text-gray-500 text-center py-8">아직 데이터가 없습니다.</p>
                   ) : (
-                    dangerousPages.slice(0, 5).map((shop, index) => (
-                      <div 
-                        key={shop.id} 
-                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer min-h-[44px] touch-manipulation"
-                        onClick={() => {
-                          if (isMockShop(shop)) {
-                            navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
-                          } else {
-                            navigate(`/search?url=${encodeURIComponent(shop.url)}`);
-                          }
-                        }}
-                      >
-                        <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded-full text-xs font-bold">
-                          #{index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm md:text-base font-medium text-gray-900 truncate" title={shop.name || shop.url}>
-                            {shop.name || shop.url}
-                          </p>
-                          <p className="text-xs md:text-sm text-gray-600 mt-1">
-                            {shop.reportCount}건 피해 사례 제보
-                          </p>
+                    dangerousPages.slice(0, 5).map((shop, index) => {
+                      const faviconUrl = getFaviconUrl(shop);
+                      return (
+                        <div 
+                          key={shop.id} 
+                          className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer min-h-[44px] touch-manipulation"
+                          onClick={() => {
+                            if (isMockShop(shop)) {
+                              navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
+                            } else {
+                              navigate(`/search?url=${encodeURIComponent(shop.url)}`);
+                            }
+                          }}
+                        >
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            <span className="w-8 h-8 flex items-center justify-center bg-red-100 text-red-700 rounded-full text-xs font-bold">
+                              #{index + 1}
+                            </span>
+                            <img 
+                              src={faviconUrl}
+                              alt={`${shop.name || shop.url} 파비콘`}
+                              className="w-6 h-6 rounded object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm md:text-base font-medium text-gray-900 truncate" title={shop.name || shop.url}>
+                              {shop.name || shop.url}
+                            </p>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs md:text-sm font-medium text-yellow-600">
+                                {shop.averageRating !== undefined && shop.averageRating > 0 
+                                  ? `${shop.averageRating.toFixed(1)}⭐` 
+                                  : '평점 없음'}
+                              </span>
+                              <span className="text-xs md:text-sm text-gray-600">
+                                {shop.reportCount}건 피해 사례 제보
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -384,36 +427,49 @@ export function HomePage() {
                   {topRatedPages.length === 0 ? (
                     <p className="text-sm text-gray-500 text-center py-8">아직 데이터가 없습니다.</p>
                   ) : (
-                    topRatedPages.slice(0, 5).map((shop, index) => (
-                      <div 
-                        key={shop.id} 
-                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer min-h-[44px] touch-manipulation"
-                        onClick={() => {
-                          if (isMockShop(shop)) {
-                            navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
-                          } else {
-                            navigate(`/search?url=${encodeURIComponent(shop.url)}`);
-                          }
-                        }}
-                      >
-                        <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                          #{index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm md:text-base font-medium text-gray-900 truncate" title={shop.name || shop.url}>
-                            {shop.name || shop.url}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs md:text-sm font-medium text-yellow-600">
-                              {shop.averageRating.toFixed(1)}⭐
+                    topRatedPages.slice(0, 5).map((shop, index) => {
+                      const faviconUrl = getFaviconUrl(shop);
+                      return (
+                        <div 
+                          key={shop.id} 
+                          className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer min-h-[44px] touch-manipulation"
+                          onClick={() => {
+                            if (isMockShop(shop)) {
+                              navigate(`/search?url=${encodeURIComponent(shop.url)}&mock=true`);
+                            } else {
+                              navigate(`/search?url=${encodeURIComponent(shop.url)}`);
+                            }
+                          }}
+                        >
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            <span className="w-8 h-8 flex items-center justify-center bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                              #{index + 1}
                             </span>
-                            <span className="text-xs md:text-sm text-gray-600">
-                              ({shop.totalRatings}명)
-                            </span>
+                            <img 
+                              src={faviconUrl}
+                              alt={`${shop.name || shop.url} 파비콘`}
+                              className="w-6 h-6 rounded object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm md:text-base font-medium text-gray-900 truncate" title={shop.name || shop.url}>
+                              {shop.name || shop.url}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs md:text-sm font-medium text-yellow-600">
+                                {shop.averageRating.toFixed(1)}⭐
+                              </span>
+                              <span className="text-xs md:text-sm text-gray-600">
+                                ({shop.totalRatings}명)
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
