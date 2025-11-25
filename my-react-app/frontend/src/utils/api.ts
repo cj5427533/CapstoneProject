@@ -143,6 +143,7 @@ export interface TopRatedShop {
   name: string;
   averageRating: number;
   totalRatings: number;
+  reportCount: number;
 }
 
 export interface User {
@@ -1057,7 +1058,7 @@ export async function getBusinessRegistration(shopId: number): Promise<any | nul
 }
 
 // 신뢰도 점수 조회
-export async function getTrustScore(shopId: number): Promise<{ final_trust: number; trust_grade: string } | null> {
+export async function getTrustScore(shopId: number): Promise<{ final_trust: number; trust_grade: string; analyzed_at?: string } | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/shops/${shopId}/trust-score`, {
       method: 'GET',
@@ -1066,16 +1067,23 @@ export async function getTrustScore(shopId: number): Promise<{ final_trust: numb
       }
     });
 
-    const data = await response.json();
+    const result = await response.json();
     
     if (!response.ok) {
-      if (response.status === 404 || data === null) {
+      if (response.status === 404 || result === null) {
         return null; // 데이터가 없으면 null 반환
       }
-      throw new Error(data.message || '신뢰도 점수 조회에 실패했습니다.');
+      throw new Error(result.message || '신뢰도 점수 조회에 실패했습니다.');
     }
     
-    return data || null;
+    // 백엔드 응답 구조: { success: true, message: "Success", data: ... }
+    // data가 null이거나 undefined면 null 반환
+    if (result && result.data !== undefined) {
+      return result.data; // data 필드에서 실제 데이터 추출
+    }
+    
+    // data 필드가 없으면 result 자체가 데이터일 수 있음
+    return result || null;
   } catch (error) {
     console.error('신뢰도 점수 조회 에러:', error);
     return null; // 에러 시 null 반환
@@ -1187,17 +1195,55 @@ export async function getAdminRatings(options?: { search?: string; page?: number
     });
     const data = await response.json();
     
+    console.log('getAdminRatings 원본 응답:', data);
+    
     if (!response.ok) {
       throw new Error(data.message || data.error || '평점 조회에 실패했습니다.');
     }
     
-    // 백엔드가 { ratings: [...], pagination: {...} } 형태로 반환
+    // 백엔드가 { success: true, ratings: [...], pagination: {...} } 형태로 반환
+    // 또는 { success: true, data: { ratings: [...], pagination: {...} } } 형태일 수도 있음
+    const ratings = data.ratings || (data.data && data.data.ratings) || data.data || [];
+    const pagination = data.pagination || (data.data && data.data.pagination) || { page: 1, limit: 50, total: 0, totalPages: 0 };
+    
+    console.log('파싱된 ratings:', Array.isArray(ratings) ? ratings.length : 'not array', ratings);
+    console.log('파싱된 pagination:', pagination);
+    
     return {
-      ratings: data.ratings || data.data || [],
-      pagination: data.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+      ratings: Array.isArray(ratings) ? ratings : [],
+      pagination: pagination
     };
   } catch (error) {
     console.error('평점 조회 에러:', error);
+    throw error;
+  }
+}
+
+// 주의가 필요한 Top 5 쇼핑몰의 리뷰 조회
+export async function getAdminDangerousShopsRatings(options?: { page?: number; limit?: number }) {
+  try {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const url = `${API_BASE_URL}/admin/ratings/dangerous-shops${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || data.error || '주의가 필요한 쇼핑몰 리뷰 조회에 실패했습니다.');
+    }
+    
+    // 백엔드가 { ratings: [...], pagination: {...}, shops: [...] } 형태로 반환
+    return {
+      ratings: data.ratings || data.data?.ratings || [],
+      pagination: data.pagination || data.data?.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 },
+      shops: data.shops || data.data?.shops || []
+    };
+  } catch (error) {
+    console.error('주의가 필요한 쇼핑몰 리뷰 조회 에러:', error);
     throw error;
   }
 }
@@ -1800,8 +1846,12 @@ export interface ReviewTrustAnalysisResult {
     suggestedAction: string;
   }>;
   stats: {
-    totalReviews: number;
+    totalReviews: number; // 전체 (리뷰 + 신고)
+    totalRatings?: number; // 리뷰만
+    totalReports?: number; // 신고만
     suspiciousCount: number;
+    suspiciousRatingsCount?: number;
+    suspiciousReportsCount?: number;
     normalCount: number;
     suspiciousRatio: number;
   };

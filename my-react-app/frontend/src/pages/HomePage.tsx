@@ -458,12 +458,12 @@ export function HomePage() {
                             <p className="text-sm md:text-base font-medium text-gray-900 truncate" title={shop.name || shop.url}>
                               {shop.name || shop.url}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center justify-between mt-1">
                               <span className="text-xs md:text-sm font-medium text-yellow-600">
                                 {shop.averageRating.toFixed(1)}⭐
                               </span>
                               <span className="text-xs md:text-sm text-gray-600">
-                                ({shop.totalRatings}명)
+                                {shop.reportCount > 0 ? `${shop.reportCount}건 피해 사례 제보` : '피해 사례 제보 없음'}
                               </span>
                             </div>
                           </div>

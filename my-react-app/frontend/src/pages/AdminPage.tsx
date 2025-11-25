@@ -171,6 +171,7 @@ export function AdminPage() {
   const [communityCommentSearchTerm, setCommunityCommentSearchTerm] = useState<string>('');
   const [shopPagination, setShopPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [reportPagination, setReportPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [ratingPagination, setRatingPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [userPagination, setUserPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [selectedUserActivity, setSelectedUserActivity] = useState<UserData | null>(null);
 
@@ -267,26 +268,47 @@ export function AdminPage() {
     }
   };
 
-  // 평점 데이터 로드 (검색 지원)
-  const loadRatings = async () => {
+  // 평점 데이터 로드 (검색 지원, 페이지네이션)
+  const loadRatings = async (page: number = ratingPagination.page) => {
     try {
+      console.log('평점 데이터 로드 시작:', { page, searchTerm: ratingSearchTerm });
+      // 전체 평점 조회 (주의가 필요한 Top 5 쇼핑몰 리뷰가 상단에 정렬됨)
       const ratingsData = await getAdminRatings({
         search: ratingSearchTerm || undefined,
-        page: 1,
-        limit: 100
+        page: page,
+        limit: 10
       });
-      console.log('평점 데이터:', ratingsData);
+      console.log('평점 데이터 응답:', ratingsData);
       // API가 { ratings: [...], pagination: {...} } 형태로 반환
       if (Array.isArray(ratingsData)) {
+        console.log('배열 형태 응답:', ratingsData.length, '개');
         setRatings(ratingsData);
+        setRatingPagination(prev => ({ ...prev, page: 1, limit: 10, total: ratingsData.length, totalPages: Math.ceil(ratingsData.length / 10) }));
       } else if (ratingsData && typeof ratingsData === 'object' && 'ratings' in ratingsData) {
-        setRatings(Array.isArray(ratingsData.ratings) ? ratingsData.ratings : []);
+        const ratingsArray = Array.isArray(ratingsData.ratings) ? ratingsData.ratings : [];
+        console.log('객체 형태 응답:', ratingsArray.length, '개');
+        setRatings(ratingsArray);
+        if (ratingsData.pagination) {
+          setRatingPagination({
+            page: ratingsData.pagination.page || page,
+            limit: ratingsData.pagination.limit || 10,
+            total: ratingsData.pagination.total || 0,
+            totalPages: ratingsData.pagination.totalPages || 0
+          });
+        } else {
+          setRatingPagination(prev => ({ ...prev, page: page, limit: 10, total: ratingsArray.length, totalPages: Math.ceil(ratingsArray.length / 10) }));
+        }
       } else {
+        console.warn('예상치 못한 응답 형태:', ratingsData);
         setRatings([]);
+        setRatingPagination(prev => ({ ...prev, page: 1, total: 0, totalPages: 0 }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('평점 조회 실패:', error);
+      console.error('에러 상세:', error.message, error.stack);
+      toast.error(`평점 조회 실패: ${error.message || '알 수 없는 오류'}`);
       setRatings([]);
+      setRatingPagination(prev => ({ ...prev, page: 1, total: 0, totalPages: 0 }));
     }
   };
 
@@ -708,7 +730,8 @@ export function AdminPage() {
       setUserPagination(prev => ({ ...prev, page: 1 }));
       loadUsers(1);
     } else if (currentTab === 'ratings') {
-      loadRatings();
+      setRatingPagination(prev => ({ ...prev, page: 1 }));
+      loadRatings(1);
     } else if (currentTab === 'community') {
       loadCommunityPosts();
       loadCommunityComments();
@@ -732,6 +755,7 @@ export function AdminPage() {
     return true;
   });
 
+
   // 평점 삭제
   const handleDeleteRating = async (ratingId: number) => {
     if (!confirm('이 평점을 삭제하시겠습니까?')) {
@@ -741,7 +765,7 @@ export function AdminPage() {
     try {
       await deleteRating(ratingId);
       alert('평점이 삭제되었습니다.');
-      loadRatings();
+      loadRatings(ratingPagination.page);
       loadAdminStats();
     } catch (error) {
       alert('평점 삭제에 실패했습니다.');
@@ -755,7 +779,7 @@ export function AdminPage() {
     try {
       const result = await generateMockRatings();
       alert(`목업 리뷰 생성 완료: ${result.created?.length || 0}개 쇼핑몰에 리뷰가 생성되었습니다.`);
-      loadRatings();
+      loadRatings(ratingPagination.page);
       loadAdminStats();
     } catch (error: any) {
       console.error('목업 리뷰 생성 실패:', error);
@@ -1677,7 +1701,9 @@ export function AdminPage() {
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⭐ 평점 관리 ({ratings.length}개)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  ⭐ 평점 관리 ({ratingPagination.total}개)
+                </h2>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <div className="flex gap-2 w-full sm:w-auto">
                     <Input
@@ -1703,6 +1729,9 @@ export function AdminPage() {
                   </Button>
                 </div>
               </div>
+              <div className="mt-3 text-sm text-gray-600">
+                <p>⚠️ 주의가 필요한 Top 5 쇼핑몰 리뷰와 실제 쇼핑몰 리뷰가 상단에 표시됩니다.</p>
+              </div>
             </CardHeader>
             <CardContent>
             {ratings.length === 0 ? (
@@ -1710,52 +1739,119 @@ export function AdminPage() {
                 <p className="text-gray-600">평점 데이터가 없습니다.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">쇼핑몰</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">평점</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">리뷰 내용</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">등록일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(Array.isArray(ratings) ? ratings : []).map((rating) => (
-                    <tr key={rating.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">{rating.id}</td>
-                      <td className="px-4 py-3 text-gray-900 max-w-xs truncate">{rating.shops?.name || rating.shops?.url}</td>
-                      <td className="px-4 py-3 text-gray-900">
-                        <span className="text-yellow-500">
-                          {'⭐'.repeat(rating.rating)}
-                        </span>
-                        {rating.rating}점
-                      </td>
-                      <td className="px-4 py-3 text-gray-900 max-w-md break-words">
-                        {rating.comment ? (
-                          <span className={rating.comment.includes('[테스트 데이터]') ? 'text-orange-600 font-bold' : ''}>
-                            {rating.comment}
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">쇼핑몰</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">평점</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">리뷰 내용</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">등록일</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Array.isArray(ratings) ? ratings : []).map((rating) => (
+                      <tr key={rating.id} className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">{rating.id}</td>
+                        <td className="px-4 py-3 text-gray-900 max-w-xs truncate">{rating.shops?.name || rating.shops?.url}</td>
+                        <td className="px-4 py-3 text-gray-900">
+                          <span className="text-yellow-500">
+                            {'⭐'.repeat(rating.rating)}
                           </span>
-                        ) : (
-                          <span className="text-gray-500 italic">리뷰 없음</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
-                      <td className="px-4 py-3">
-                        <button 
-                          onClick={() => handleDeleteRating(rating.id)}
-                          className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  </tbody>
-                </table>
-              </div>
+                          {rating.rating}점
+                        </td>
+                        <td className="px-4 py-3 text-gray-900 max-w-md break-words">
+                          {rating.comment ? (
+                            <span className={rating.comment.includes('[테스트 데이터]') ? 'text-orange-600 font-bold' : ''}>
+                              {rating.comment}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 italic">리뷰 없음</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900">{new Date(rating.created_at).toLocaleString('ko-KR')}</td>
+                        <td className="px-4 py-3">
+                          <button 
+                            onClick={() => handleDeleteRating(rating.id)}
+                            className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* 페이지네이션 */}
+                {ratingPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                    <div className="text-sm text-gray-600">
+                      총 {ratingPagination.total}개 중 {((ratingPagination.page - 1) * ratingPagination.limit) + 1}-
+                      {Math.min(ratingPagination.page * ratingPagination.limit, ratingPagination.total)}개 표시
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          if (ratingPagination.page > 1) {
+                            setRatingPagination(prev => ({ ...prev, page: prev.page - 1 }));
+                            loadRatings(ratingPagination.page - 1);
+                          }
+                        }}
+                        disabled={ratingPagination.page === 1}
+                        className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium transition-colors"
+                      >
+                        이전
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, ratingPagination.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (ratingPagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (ratingPagination.page <= 3) {
+                            pageNum = i + 1;
+                          } else if (ratingPagination.page >= ratingPagination.totalPages - 2) {
+                            pageNum = ratingPagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = ratingPagination.page - 2 + i;
+                          }
+                          return (
+                            <Button
+                              key={pageNum}
+                              onClick={() => {
+                                setRatingPagination(prev => ({ ...prev, page: pageNum }));
+                                loadRatings(pageNum);
+                              }}
+                              className={`min-h-[44px] px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                ratingPagination.page === pageNum
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                  : 'border border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        onClick={() => {
+                          if (ratingPagination.page < ratingPagination.totalPages) {
+                            setRatingPagination(prev => ({ ...prev, page: prev.page + 1 }));
+                            loadRatings(ratingPagination.page + 1);
+                          }
+                        }}
+                        disabled={ratingPagination.page >= ratingPagination.totalPages}
+                        className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium transition-colors"
+                      >
+                        다음
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             </CardContent>
           </Card>

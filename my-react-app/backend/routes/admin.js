@@ -25,6 +25,7 @@ router.delete('/reports/:reportId', adminController.deleteReport);
 
 // 평점 관리
 router.get('/ratings', adminController.getRatings);
+router.get('/ratings/dangerous-shops', adminController.getDangerousShopsRatings);
 router.delete('/ratings/:ratingId', adminController.deleteRating);
 
 // 사용자 관리

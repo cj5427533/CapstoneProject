@@ -737,16 +737,39 @@ async function getTopRatedShops() {
     ratingData[shopId].ratings.push(rate.rating);
   });
 
+  // 각 쇼핑몰의 신고 수 가져오기
+  const shopIds = Object.keys(ratingData).map(id => parseInt(id));
+  const { data: shopReports, error: reportsError } = await supabase
+    .from('shop_reports')
+    .select('shop_id')
+    .in('shop_id', shopIds)
+    .eq('status', 'approved'); // 승인된 신고만 조회
+
+  if (reportsError) {
+    console.error('신고 수 조회 에러:', reportsError);
+  }
+
+  // shop_id별 신고 수 집계
+  const reportCounts = {};
+  if (shopReports) {
+    shopReports.forEach(report => {
+      const shopId = report.shop_id;
+      reportCounts[shopId] = (reportCounts[shopId] || 0) + 1;
+    });
+  }
+
   const topRated = Object.values(ratingData)
     .map(item => {
       const ratings = item.ratings;
       const averageRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+      const shopId = item.shop.id;
       return {
-        id: item.shop.id,
+        id: shopId,
         url: item.shop.url,
         name: item.shop.name || item.shop.url, // name이 없으면 URL 사용
         averageRating: Number(averageRating.toFixed(1)),
-        totalRatings: ratings.length
+        totalRatings: ratings.length,
+        reportCount: reportCounts[shopId] || 0
       };
     })
     .filter(item => item.totalRatings >= 5)

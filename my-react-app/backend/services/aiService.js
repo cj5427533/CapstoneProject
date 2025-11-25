@@ -379,12 +379,14 @@ async function analyzeReviewTrustWithAI(reviews) {
     };
   }
 
-  // 배치 크기 설정 (한 번에 5~10개씩 처리)
-  const BATCH_SIZE = 8;
+  // 배치 크기 설정 (한 번에 15개씩 처리 - 시간 단축)
+  const BATCH_SIZE = 15;
   const batches = [];
   for (let i = 0; i < reviews.length; i += BATCH_SIZE) {
     batches.push(reviews.slice(i, i + BATCH_SIZE));
   }
+  
+  console.log(`[리뷰 신뢰도 분석] 총 ${reviews.length}개 리뷰를 ${batches.length}개 배치로 나눔 (배치당 ${BATCH_SIZE}개)`);
 
   const fetch = await import('node-fetch');
   const allSuspiciousReviews = [];
@@ -405,48 +407,34 @@ async function analyzeReviewTrustWithAI(reviews) {
         content: review.content || review.comment || ''
       }));
 
-      const systemMessage = `당신은 쇼핑몰 리뷰 신뢰도 전문가입니다. 
-주어진 리뷰들이 진짜 구매 경험에서 나온 것인지, 경쟁사 공격/조작인지, 홍보성인지 판단해야 합니다.
+      const systemMessage = `쇼핑몰 리뷰 신뢰도 분석 전문가. 리뷰가 진짜 구매 경험인지, 조작/공격/홍보인지 판단.
 
-의사결정 기준:
-1. 과도한 극단 표현 반복 (예: "최고", "완벽", "최악", "사기" 등이 과도하게 반복)
-2. 동일 패턴 리뷰 (비슷한 문체, 비슷한 내용)
-3. 시간대 편중 (짧은 시간 내 다수 리뷰)
-4. 너무 좋은/나쁜 표현만 있는 경우 (균형 없는 평가)
-5. 구체적인 경험 부족 (모호한 표현, 일반적인 문구)
-6. 비정상적인 평점 분포
+판단 기준:
+1. 과도한 극단 표현 반복 ("최고", "완벽", "최악", "사기" 등)
+2. 동일 패턴 리뷰 (비슷한 문체/내용)
+3. 시간대 편중 (짧은 시간 내 다수)
+4. 균형 없는 평가 (너무 좋거나 나쁨만)
+5. 구체적 경험 부족 (모호한 표현)
+6. 비정상 평점 분포
 
-응답은 반드시 유효한 JSON 형식으로만 반환해야 합니다.`;
+응답은 유효한 JSON만 반환.`;
 
-      const userMessage = `다음 리뷰들을 분석하여 신뢰도를 평가해주세요:
+      const userMessage = `리뷰 신뢰도 분석:
 
-${reviewsData.map((r, idx) => `
-리뷰 ${idx + 1}:
-- ID: ${r.id}
-- 작성자: ${r.authorNickname}
-- 작성일: ${r.createdAt}
-- 평점: ${r.rating}/5
-- 내용: ${r.content}
-`).join('\n---\n')}
+${reviewsData.map((r, idx) => `${idx + 1}. [${r.rating}/5] ${r.content}`).join('\n')}
 
-다음 JSON 형식으로 응답해주세요:
+JSON 응답:
 {
   "overallTrustScore": 0.75,
   "overallLevel": "MEDIUM",
   "summary": "리뷰 신뢰도는 전반적으로 보통 수준입니다.",
-  "suspiciousReviews": [
-    {
-      "reviewId": ${reviewsData[0].id},
-      "reason": "과도한 긍정 표현 반복",
-      "suggestedAction": "REVIEW"
-    }
-  ]
+  "suspiciousReviews": [{"reviewId": "rating_1", "reason": "과도한 긍정 표현 반복", "suggestedAction": "REVIEW"}]
 }
 
-overallTrustScore는 0~1 사이 숫자 (1에 가까울수록 신뢰도 높음)
-overallLevel은 "HIGH", "MEDIUM", "LOW" 중 하나
-suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
-각 suspiciousReview의 suggestedAction은 "REVIEW", "FLAG", "IGNORE" 중 하나`;
+overallTrustScore: 0~1 (1=높은 신뢰도)
+overallLevel: "HIGH"|"MEDIUM"|"LOW"
+suspiciousReviews: 의심 리뷰만 (없으면 [])
+suggestedAction: "REVIEW"|"FLAG"|"IGNORE"`;
 
       const response = await fetch.default('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -454,7 +442,7 @@ suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': process.env.APP_URL || 'https://localhost:3001',
-          'X-Title': '여기몰까 리뷰 신뢰도 분석'
+          'X-Title': 'Yeogimolkka Review Trust Analysis'
         },
         body: JSON.stringify({
           model: 'anthropic/claude-3.5-sonnet',
@@ -462,10 +450,10 @@ suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
             { role: 'system', content: systemMessage },
             { role: 'user', content: userMessage }
           ],
-          max_tokens: 2000,
+          max_tokens: 1500,
           temperature: 0.3
         }),
-        timeout: 30000
+        timeout: 20000
       });
 
       if (!response.ok) {
@@ -509,9 +497,9 @@ suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
         allSuspiciousReviews.push(...batchResult.suspiciousReviews);
       }
 
-      // 배치 간 딜레이 (API 레이트 리밋 방지)
+      // 배치 간 딜레이 (API 레이트 리밋 방지, 시간 단축을 위해 200ms로 단축)
       if (batchIdx < batches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
     } catch (batchError) {
@@ -539,6 +527,18 @@ suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
   const normalCount = reviews.length - suspiciousCount;
   const suspiciousRatio = reviews.length > 0 ? suspiciousCount / reviews.length : 0;
 
+  // 리뷰와 신고 구분
+  const ratingReviews = reviews.filter(r => r.type === 'rating');
+  const reportReviews = reviews.filter(r => r.type === 'report');
+  const suspiciousRatings = allSuspiciousReviews.filter(s => {
+    const reviewId = String(s.reviewId || '');
+    return reviewId.startsWith('rating_');
+  });
+  const suspiciousReports = allSuspiciousReviews.filter(s => {
+    const reviewId = String(s.reviewId || '');
+    return reviewId.startsWith('report_');
+  });
+
   let summary = '리뷰 신뢰도 분석이 완료되었습니다.';
   if (averageTrustScore !== null) {
     if (overallLevel === 'HIGH') {
@@ -556,8 +556,12 @@ suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
     summary,
     suspiciousReviews: allSuspiciousReviews,
     stats: {
-      totalReviews: reviews.length,
+      totalReviews: reviews.length, // 전체 (리뷰 + 신고)
+      totalRatings: ratingReviews.length, // 리뷰만
+      totalReports: reportReviews.length, // 신고만
       suspiciousCount,
+      suspiciousRatingsCount: suspiciousRatings.length,
+      suspiciousReportsCount: suspiciousReports.length,
       normalCount,
       suspiciousRatio: Number(suspiciousRatio.toFixed(3))
     }
@@ -581,21 +585,37 @@ async function getShopReviewsForAnalysis(shopId) {
       .select('id, parent_shop_id')
       .or(`id.eq.${shopId},parent_shop_id.eq.${shopId}`);
     
+    if (shopDataError) {
+      console.error(`[리뷰 신뢰도 분석] shops 조회 오류:`, shopDataError);
+    } else {
+      console.log(`[리뷰 신뢰도 분석] shops 조회 결과: ${shopData?.length || 0}개`);
+      if (shopData && shopData.length > 0) {
+        shopData.forEach(shop => {
+          console.log(`  - shop_id=${shop.id}, parent_shop_id=${shop.parent_shop_id}`);
+        });
+      }
+    }
+    
     let targetShopIds = [shopId];
     if (!shopDataError && shopData && shopData.length > 0) {
       // 현재 쇼핑몰 정보 찾기
       const currentShop = shopData.find(s => s.id === shopId);
       if (currentShop) {
+        console.log(`[리뷰 신뢰도 분석] 현재 쇼핑몰: id=${currentShop.id}, parent_shop_id=${currentShop.parent_shop_id}`);
         // 부모 쇼핑몰 ID도 포함
         if (currentShop.parent_shop_id) {
           targetShopIds.push(currentShop.parent_shop_id);
+          console.log(`[리뷰 신뢰도 분석] 부모 쇼핑몰 ID 추가: ${currentShop.parent_shop_id}`);
         }
       }
       // 자식 쇼핑몰 ID들도 포함
       const childShopIds = shopData
         .filter(s => s.parent_shop_id === shopId)
         .map(s => s.id);
-      targetShopIds = [...targetShopIds, ...childShopIds];
+      if (childShopIds.length > 0) {
+        console.log(`[리뷰 신뢰도 분석] 자식 쇼핑몰 ID 추가: ${childShopIds.join(', ')}`);
+        targetShopIds = [...targetShopIds, ...childShopIds];
+      }
       targetShopIds = [...new Set(targetShopIds)]; // 중복 제거
     }
     
@@ -604,7 +624,8 @@ async function getShopReviewsForAnalysis(shopId) {
     // 1. shop_ratings에서 comment가 있는 리뷰 조회 (목업 리뷰 포함)
     // comment가 있는 리뷰만 조회하되, 목업 리뷰도 포함
     // parent_shop_id를 고려하여 관련된 모든 쇼핑몰의 리뷰 조회
-    const { data: ratings, error: ratingsError } = await supabase
+    // Supabase 쿼리 조건이 제대로 작동하지 않을 수 있으므로, 먼저 전체 리뷰를 조회한 후 JavaScript에서 필터링
+    const { data: allRatingsQuery, error: ratingsError } = await supabase
       .from('shop_ratings')
       .select(`
         id, 
@@ -612,19 +633,38 @@ async function getShopReviewsForAnalysis(shopId) {
         comment, 
         created_at, 
         user_id,
+        shop_id,
         users:user_id(username)
       `)
       .in('shop_id', targetShopIds)
-      .not('comment', 'is', null)
-      .neq('comment', '')
       .order('created_at', { ascending: false });
+    
+    // JavaScript에서 comment가 있는 리뷰만 필터링
+    const ratings = allRatingsQuery ? allRatingsQuery.filter(r => 
+      r.comment !== null && 
+      r.comment !== undefined && 
+      typeof r.comment === 'string' && 
+      r.comment.trim() !== ''
+    ) : [];
 
     if (ratingsError) {
       console.error(`[리뷰 신뢰도 분석] shop_ratings 조회 오류:`, ratingsError);
     } else {
-      console.log(`[리뷰 신뢰도 분석] shop_ratings 조회 결과: ${ratings?.length || 0}개 (목업 리뷰 포함)`);
+      console.log(`[리뷰 신뢰도 분석] 전체 리뷰 조회: ${allRatingsQuery?.length || 0}개`);
+      console.log(`[리뷰 신뢰도 분석] comment 필터링 후: ${ratings?.length || 0}개`);
+      
+      if (allRatingsQuery && allRatingsQuery.length > 0 && ratings.length === 0) {
+        // 전체 리뷰는 있는데 comment 필터링 후 없으면, comment 상태 확인
+        console.log(`[리뷰 신뢰도 분석] ⚠️ 전체 리뷰는 있지만 comment 필터링 후 없음. comment 상태 확인:`);
+        allRatingsQuery.slice(0, 5).forEach((rating, index) => {
+          console.log(`  - 리뷰 ${index + 1}: id=${rating.id}, shop_id=${rating.shop_id}, comment=${rating.comment === null ? 'NULL' : rating.comment === undefined ? 'UNDEFINED' : `"${rating.comment.substring(0, 30)}" (타입: ${typeof rating.comment}, 길이: ${rating.comment?.length || 0})`}`);
+        });
+      }
+      
       if (ratings && ratings.length > 0) {
-        ratings.forEach(rating => {
+        console.log(`[리뷰 신뢰도 분석] ✅ comment 있는 리뷰 ${ratings.length}개 발견`);
+        ratings.forEach((rating, index) => {
+          console.log(`  - 리뷰 ${index + 1}: id=${rating.id}, shop_id=${rating.shop_id}, rating=${rating.rating}, comment_length=${rating.comment?.length || 0}, comment_preview=${rating.comment?.substring(0, 50) || ''}...`);
           // 목업 리뷰도 포함하여 분석 (comment가 있는 모든 리뷰)
           reviews.push({
             id: `rating_${rating.id}`,
@@ -636,6 +676,38 @@ async function getShopReviewsForAnalysis(shopId) {
             originalId: rating.id
           });
         });
+      } else {
+        // 리뷰가 없는 경우 (이미 위에서 전체 리뷰를 조회했으므로, allRatingsQuery 사용)
+        console.log(`[리뷰 신뢰도 분석] ⚠️ comment 있는 리뷰가 없습니다.`);
+        
+        if (allRatingsQuery && allRatingsQuery.length > 0) {
+          const ratingsWithComment = allRatingsQuery.filter(r => 
+            r.comment !== null && 
+            r.comment !== undefined && 
+            typeof r.comment === 'string' && 
+            r.comment.trim() !== ''
+          );
+          const ratingsWithoutComment = allRatingsQuery.filter(r => 
+            !r.comment || 
+            r.comment === null || 
+            r.comment === undefined || 
+            typeof r.comment !== 'string' || 
+            r.comment.trim() === ''
+          );
+          
+          console.log(`[리뷰 신뢰도 분석] 전체 리뷰: ${allRatingsQuery.length}개`);
+          console.log(`[리뷰 신뢰도 분석] comment 있는 리뷰: ${ratingsWithComment.length}개`);
+          console.log(`[리뷰 신뢰도 분석] comment 없는 리뷰: ${ratingsWithoutComment.length}개`);
+          
+          if (ratingsWithoutComment.length > 0) {
+            console.log(`[리뷰 신뢰도 분석] comment 없는 리뷰 상세 (처음 5개):`);
+            ratingsWithoutComment.slice(0, 5).forEach((rating, index) => {
+              console.log(`  - 리뷰 ${index + 1}: id=${rating.id}, shop_id=${rating.shop_id}, rating=${rating.rating}, comment=${rating.comment === null ? 'NULL' : rating.comment === undefined ? 'UNDEFINED' : `"${rating.comment}" (타입: ${typeof rating.comment}, 길이: ${rating.comment?.length || 0})`}`);
+            });
+          }
+        } else {
+          console.log(`[리뷰 신뢰도 분석] 전체 리뷰도 없음`);
+        }
       }
     }
 
@@ -674,40 +746,9 @@ async function getShopReviewsForAnalysis(shopId) {
       }
     }
 
-    // 3. community_posts에서 해당 쇼핑몰 관련 게시글 조회 (shop_id가 있는 경우)
-    const { data: posts, error: postsError } = await supabase
-      .from('community_posts')
-      .select(`
-        id, 
-        title, 
-        content, 
-        created_at, 
-        user_id,
-        users:user_id(username)
-      `)
-      .in('shop_id', targetShopIds)
-      .not('content', 'is', null)
-      .neq('content', '')
-      .order('created_at', { ascending: false });
-
-    if (postsError) {
-      console.error(`[리뷰 신뢰도 분석] community_posts 조회 오류:`, postsError);
-    } else {
-      console.log(`[리뷰 신뢰도 분석] community_posts 조회 결과: ${posts?.length || 0}개`);
-      if (posts && posts.length > 0) {
-        posts.forEach(post => {
-          reviews.push({
-            id: `post_${post.id}`,
-            type: 'post',
-            rating: null,
-            content: `${post.title}\n${post.content}`,
-            createdAt: post.created_at,
-            authorNickname: post.users?.username || '익명',
-            originalId: post.id
-          });
-        });
-      }
-    }
+    // 3. community_posts는 shop_id 컬럼이 없으므로 제외
+    // (community_posts 테이블에는 shop_id가 없어 쇼핑몰별 게시글을 조회할 수 없음)
+    console.log(`[리뷰 신뢰도 분석] community_posts는 shop_id 컬럼이 없어 제외됨`);
 
     console.log(`[리뷰 신뢰도 분석] 총 조회된 리뷰 수: ${reviews.length}개`);
 
@@ -723,9 +764,10 @@ async function getShopReviewsForAnalysis(shopId) {
  * AI 분석 캐시 조회
  * @param {number} shopId - 쇼핑몰 ID
  * @param {string} analysisType - 분석 유형
+ * @param {number} maxCacheAgeMinutes - 최대 캐시 유효 시간 (분, 기본값: 5분)
  * @returns {Promise<object|null>} 캐시된 분석 결과
  */
-async function getAnalysisCache(shopId, analysisType) {
+async function getAnalysisCache(shopId, analysisType, maxCacheAgeMinutes = 5) {
   try {
     const { data, error } = await supabase
       .from(AI_ANALYSIS_CACHE_TABLE)
@@ -743,8 +785,20 @@ async function getAnalysisCache(shopId, analysisType) {
     }
 
     if (data && data.analysis_result) {
+      // 캐시 생성 시간 확인 (5분 이내면 사용, 그 이후면 새로 분석)
+      const cacheDate = new Date(data.analysis_date || data.created_at);
+      const now = new Date();
+      const cacheAgeMinutes = (now - cacheDate) / (1000 * 60);
+      
+      if (cacheAgeMinutes > maxCacheAgeMinutes) {
+        console.log(`[캐시] 캐시 생성 후 ${cacheAgeMinutes.toFixed(1)}분 경과 (최대 ${maxCacheAgeMinutes}분). 새로 분석합니다.`);
+        return null;
+      }
+      
       try {
-        return JSON.parse(data.analysis_result);
+        const result = JSON.parse(data.analysis_result);
+        console.log(`[캐시] 캐시 사용 (생성 후 ${cacheAgeMinutes.toFixed(1)}분 경과)`);
+        return result;
       } catch (parseError) {
         console.error('캐시 결과 파싱 오류:', parseError);
         return null;

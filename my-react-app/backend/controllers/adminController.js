@@ -382,35 +382,47 @@ exports.deleteReport = async (req, res) => {
 };
 
 /**
- * 전체 평점 조회 (한국어 검색 지원)
+ * 전체 평점 조회 (한국어 검색 지원, 정렬: 주의가 필요한 Top 5 쇼핑몰 리뷰 우선, 실제 쇼핑몰 리뷰 우선)
  * GET /api/admin/ratings?search=검색어&page=1&limit=50
  */
 exports.getRatings = async (req, res) => {
   try {
+    const shopService = require('../services/shopService');
     const searchTerm = req.query.search ? sanitizeInput(req.query.search) : null;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
 
-    let ratings = [];
+    let allRatings = [];
     let totalCount = 0;
+    let top5ShopIdsSet = new Set();
+
+    // 주의가 필요한 Top 5 쇼핑몰 ID 목록 가져오기 (에러 발생 시 빈 Set 사용)
+    try {
+      const dangerousShops = await shopService.getDangerousShops();
+      if (Array.isArray(dangerousShops) && dangerousShops.length > 0) {
+        const top5ShopIds = dangerousShops.slice(0, 5).map(shop => shop.id).filter(id => id != null);
+        top5ShopIdsSet = new Set(top5ShopIds);
+        console.log('주의가 필요한 Top 5 쇼핑몰 ID:', Array.from(top5ShopIdsSet));
+      }
+    } catch (dangerousShopsError) {
+      console.warn('주의가 필요한 쇼핑몰 조회 실패 (계속 진행):', dangerousShopsError);
+      // 에러가 발생해도 전체 리뷰는 조회하도록 계속 진행
+    }
 
     // 검색어가 있으면 검색
     if (searchTerm && searchTerm.trim()) {
       const normalizedSearch = normalizeSearchTerm(searchTerm);
       
-      // 먼저 검색어와 일치하는 shop_ratings를 조회
-      const { data: ratingsData, error: dbError } = await supabase
+      // 먼저 검색어와 일치하는 shop_ratings를 조회 (전체 조회)
+      const { data: ratingsByComment, error: commentError } = await supabase
         .from('shop_ratings')
         .select(`
           *,
           shops (id, url, name)
-        `, { count: 'exact' })
-        .ilike('comment', `%${normalizedSearch}%`)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        `)
+        .ilike('comment', `%${normalizedSearch}%`);
 
-      if (dbError) throw dbError;
+      if (commentError) throw commentError;
 
       // 쇼핑몰 이름/URL로도 검색
       const { data: shopsData } = await supabase
@@ -420,73 +432,121 @@ exports.getRatings = async (req, res) => {
 
       const shopIds = shopsData?.map(s => s.id) || [];
 
+      let ratingsByShop = [];
       if (shopIds.length > 0) {
-        const { data: ratingsByShop, error: shopError } = await supabase
+        const { data: shopRatingsData, error: shopError } = await supabase
           .from('shop_ratings')
           .select(`
             *,
             shops (id, url, name)
           `)
-          .in('shop_id', shopIds)
-          .order('created_at', { ascending: false })
-          .range(offset, offset + limit - 1);
+          .in('shop_id', shopIds);
 
-        if (!shopError && ratingsByShop) {
-          // 중복 제거 및 병합
-          const existingIds = new Set((ratingsData || []).map(r => r.id));
-          const newRatings = (ratingsByShop || []).filter(r => !existingIds.has(r.id));
-          ratings = [...(ratingsData || []), ...newRatings];
-        } else {
-          ratings = ratingsData || [];
+        if (!shopError && shopRatingsData) {
+          ratingsByShop = shopRatingsData;
         }
-      } else {
-        ratings = ratingsData || [];
       }
+
+      // 중복 제거 및 병합
+      const existingIds = new Set((ratingsByComment || []).map(r => r.id));
+      const newRatings = (ratingsByShop || []).filter(r => !existingIds.has(r.id));
+      allRatings = [...(ratingsByComment || []), ...newRatings];
       
-      // 총 개수 조회
-      const { count: commentCount } = await supabase
-        .from('shop_ratings')
-        .select('*', { count: 'exact', head: true })
-        .ilike('comment', `%${normalizedSearch}%`);
-
-      const { count: shopCount } = await supabase
-        .from('shop_ratings')
-        .select('*', { count: 'exact', head: true })
-        .in('shop_id', shopIds);
-
-      totalCount = (commentCount || 0) + (shopCount || 0);
+      // 총 개수
+      totalCount = allRatings.length;
     } else {
-      // 검색어가 없으면 일반 조회
+      // 검색어가 없으면 전체 조회
       const { data: ratingsData, error: dbError } = await supabase
         .from('shop_ratings')
         .select(`
           *,
           shops (id, url, name)
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        `)
+        .order('created_at', { ascending: false });
 
       if (dbError) throw dbError;
 
-      ratings = ratingsData || [];
+      allRatings = ratingsData || [];
       
-      // 총 개수 조회
-      const { count, error: countError } = await supabase
-        .from('shop_ratings')
-        .select('*', { count: 'exact', head: true });
-
-      totalCount = count || 0;
+      // 총 개수
+      totalCount = allRatings.length;
     }
 
-    return success(res, {
-      ratings: ratings || [],
+    // 정렬: 실제 쇼핑몰 리뷰 우선, 그 중에서도 주의가 필요한 Top 5 쇼핑몰 리뷰 우선
+    if (allRatings.length > 0) {
+      allRatings.sort((a, b) => {
+        // shop_id가 없는 경우 처리
+        const aShopId = a.shop_id || (a.shops && a.shops.id);
+        const bShopId = b.shop_id || (b.shops && b.shops.id);
+        
+        const aIsDangerous = aShopId && top5ShopIdsSet.has(aShopId);
+        const bIsDangerous = bShopId && top5ShopIdsSet.has(bShopId);
+        
+        // 테스트 데이터 판별: comment 또는 쇼핑몰 이름에 테스트 표시가 있는지 확인
+        const aCommentTest = a.comment && typeof a.comment === 'string' && a.comment.includes('[테스트 데이터]');
+        const bCommentTest = b.comment && typeof b.comment === 'string' && b.comment.includes('[테스트 데이터]');
+        const aShopNameTest = (a.shops && a.shops.name && typeof a.shops.name === 'string' && 
+          (a.shops.name.includes('[테스트]') || a.shops.name.includes('[TEST]') || a.shops.name.includes('테스트')));
+        const bShopNameTest = (b.shops && b.shops.name && typeof b.shops.name === 'string' && 
+          (b.shops.name.includes('[테스트]') || b.shops.name.includes('[TEST]') || b.shops.name.includes('테스트')));
+        const aShopUrlTest = (a.shops && a.shops.url && typeof a.shops.url === 'string' && 
+          (a.shops.url.includes('test') || a.shops.url.includes('mock') || a.shops.url.includes('demo')));
+        const bShopUrlTest = (b.shops && b.shops.url && typeof b.shops.url === 'string' && 
+          (b.shops.url.includes('test') || b.shops.url.includes('mock') || b.shops.url.includes('demo')));
+        
+        const aIsTest = aCommentTest || aShopNameTest || aShopUrlTest;
+        const bIsTest = bCommentTest || bShopNameTest || bShopUrlTest;
+
+        // 1순위: 실제 쇼핑몰 리뷰 (테스트 데이터가 아닌 것) vs 테스트 쇼핑몰 리뷰
+        if (!aIsTest && bIsTest) return -1;  // a는 실제, b는 테스트 -> a 우선
+        if (aIsTest && !bIsTest) return 1;   // a는 테스트, b는 실제 -> b 우선
+
+        // 2순위: 둘 다 실제 쇼핑몰 리뷰인 경우, 주의가 필요한 Top 5 쇼핑몰 리뷰 우선
+        if (!aIsTest && !bIsTest) {
+          if (aIsDangerous && !bIsDangerous) return -1;  // a는 주의 필요, b는 일반 -> a 우선
+          if (!aIsDangerous && bIsDangerous) return 1;   // a는 일반, b는 주의 필요 -> b 우선
+        }
+
+        // 3순위: 둘 다 테스트 쇼핑몰 리뷰인 경우, 주의가 필요한 Top 5 쇼핑몰 리뷰 우선
+        if (aIsTest && bIsTest) {
+          if (aIsDangerous && !bIsDangerous) return -1;
+          if (!aIsDangerous && bIsDangerous) return 1;
+        }
+
+        // 4순위: 최신순 (created_at 내림차순)
+        const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bDate - aDate;
+      });
+    }
+
+    console.log(`평점 조회 완료: 총 ${totalCount}개, 페이지 ${page}, 표시 ${allRatings.slice((page - 1) * limit, page * limit).length}개`);
+
+    // 페이지네이션 적용
+    const offset = (page - 1) * limit;
+    const paginatedRatings = allRatings.slice(offset, offset + limit);
+
+    console.log(`페이지네이션 적용: offset=${offset}, limit=${limit}, paginatedRatings.length=${paginatedRatings.length}`);
+    console.log(`첫 번째 리뷰 샘플:`, paginatedRatings.length > 0 ? {
+      id: paginatedRatings[0].id,
+      shop_id: paginatedRatings[0].shop_id,
+      rating: paginatedRatings[0].rating,
+      hasShop: !!paginatedRatings[0].shops
+    } : '없음');
+
+    const responseData = {
+      ratings: paginatedRatings || [],
       pagination: {
         page,
         limit,
         total: totalCount,
         totalPages: Math.ceil(totalCount / limit)
       }
-    });
+    };
+
+    console.log(`응답 데이터 구조: ratings.length=${responseData.ratings.length}, pagination.total=${responseData.pagination.total}`);
+
+    return success(res, responseData);
   } catch (err) {
     console.error('평점 조회 오류:', err);
     return error(res, '평점 조회 실패', 500);
@@ -511,6 +571,73 @@ exports.deleteRating = async (req, res) => {
   } catch (err) {
     console.error('평점 삭제 오류:', err);
     return error(res, '평점 삭제 실패', 500);
+  }
+};
+
+/**
+ * 주의가 필요한 Top 5 쇼핑몰의 리뷰 조회
+ * GET /api/admin/ratings/dangerous-shops?page=1&limit=10
+ */
+exports.getDangerousShopsRatings = async (req, res) => {
+  try {
+    const shopService = require('../services/shopService');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // 주의가 필요한 쇼핑몰 목록 가져오기 (Top 5)
+    const dangerousShops = await shopService.getDangerousShops();
+    const top5Shops = dangerousShops.slice(0, 5);
+    
+    if (top5Shops.length === 0) {
+      return success(res, {
+        ratings: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        },
+        shops: []
+      });
+    }
+
+    const shopIds = top5Shops.map(shop => shop.id);
+
+    // 해당 쇼핑몰들의 리뷰 조회
+    const { data: ratingsData, error: dbError } = await supabase
+      .from('shop_ratings')
+      .select(`
+        *,
+        shops (id, url, name)
+      `, { count: 'exact' })
+      .in('shop_id', shopIds)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (dbError) throw dbError;
+
+    // 총 개수 조회
+    const { count, error: countError } = await supabase
+      .from('shop_ratings')
+      .select('*', { count: 'exact', head: true })
+      .in('shop_id', shopIds);
+
+    if (countError) throw countError;
+
+    return success(res, {
+      ratings: ratingsData || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      },
+      shops: top5Shops
+    });
+  } catch (err) {
+    console.error('주의가 필요한 쇼핑몰 리뷰 조회 오류:', err);
+    return error(res, '주의가 필요한 쇼핑몰 리뷰 조회 실패', 500);
   }
 };
 

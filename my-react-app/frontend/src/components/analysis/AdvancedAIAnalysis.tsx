@@ -66,10 +66,10 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   const basicFakeReviewDetector = FakeReviewDetector.getInstance();
 
   const reviewCriteria = [
-    '과도한 극단 표현 반복 (예: "최고", "완벽", "최악", "사기" 등)',
+    '균형 없는 평가 (너무 좋은/나쁜 표현만 있는 경우)',
     '동일 패턴 리뷰 (비슷한 문체, 비슷한 내용)',
     '시간대 편중 (짧은 시간 내 다수 리뷰)',
-    '균형 없는 평가 (너무 좋은/나쁜 표현만 있는 경우)',
+    '과도한 극단 표현 반복 (예: "최고", "완벽", "최악", "사기" 등)',
     '구체적인 경험 부족 (모호한 표현, 일반적인 문구)',
     '비정상적인 평점 분포'
   ];
@@ -909,9 +909,13 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                       {/* 통계 정보 */}
                       <div className="analysis-stats-grid">
                         <div className="analysis-stat-card">
-                          <h5 className="analysis-stat-title">전체 리뷰 수</h5>
+                          <h5 className="analysis-stat-title">전체 분석 대상</h5>
                           <p className="analysis-stat-value">{reviewTrustResult.stats.totalReviews}개</p>
-                          <p className="analysis-stat-subtitle">분석 대상 리뷰</p>
+                          <p className="analysis-stat-subtitle">
+                            {reviewTrustResult.stats.totalRatings !== undefined && reviewTrustResult.stats.totalReports !== undefined
+                              ? `리뷰 ${reviewTrustResult.stats.totalRatings}개 + 신고 ${reviewTrustResult.stats.totalReports}개`
+                              : '분석 대상 리뷰'}
+                          </p>
                         </div>
                         <div className="analysis-stat-card">
                           <h5 className="analysis-stat-title">의심 리뷰</h5>
@@ -920,6 +924,9 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                             {reviewTrustResult.stats.totalReviews > 0 
                               ? `${(reviewTrustResult.stats.suspiciousRatio * 100).toFixed(1)}%`
                               : '0%'}
+                            {reviewTrustResult.stats.suspiciousRatingsCount !== undefined && reviewTrustResult.stats.suspiciousReportsCount !== undefined
+                              ? ` (리뷰 ${reviewTrustResult.stats.suspiciousRatingsCount}개, 신고 ${reviewTrustResult.stats.suspiciousReportsCount}개)`
+                              : ''}
                           </p>
                         </div>
                         <div className="analysis-stat-card">

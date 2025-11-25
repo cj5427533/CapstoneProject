@@ -13,6 +13,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 // Supabase 클라이언트 및 유틸리티
 const supabase = require('./config/supabase');
 const { normalizeUrl } = require('./utils/url');
+const { computeMlTrustScore } = require('./utils/mlTrustScore');
 
 // 라우터 import
 const authRoutes = require('./routes/auth');
@@ -179,13 +180,27 @@ async function runPhishingMLPrediction(rawUrl, req) {
             console.error("Supabase ml_prediction_results insert error:", error);
           }
           
-          resolve({
-            url: rawUrl,
-            normalizedUrl: normalized,
-            label,
-            confidence,
-            id: saved && saved[0] ? saved[0].id : null,
-          });
+          // 실제 저장된 값 확인
+          if (saved && saved[0]) {
+            console.log(`[ML 예측 저장] 저장된 값: label=${saved[0].label}, confidence=${saved[0].confidence}, id=${saved[0].id}`);
+            // 저장된 값을 사용하여 반환
+            resolve({
+              url: saved[0].url || rawUrl,
+              normalizedUrl: saved[0].normalized_url || normalized,
+              label: saved[0].label,
+              confidence: saved[0].confidence,
+              id: saved[0].id,
+            });
+          } else {
+            // 저장 실패 시 원본 값 반환
+            resolve({
+              url: rawUrl,
+              normalizedUrl: normalized,
+              label,
+              confidence,
+              id: null,
+            });
+          }
         } catch (dbErr) {
           console.error("ML log DB error:", dbErr);
           // Still resolve with prediction even if logging fails
@@ -243,24 +258,28 @@ app.post("/api/ml/predict", async (req, res) => {
           
           console.log(`[ML 예측] shop 정보: id=${shopData.id}, parent_shop_id=${shopData.parent_shop_id}, targetShopId=${targetShopId}`);
           
-          // ML 예측 결과를 techRisk로 변환
-          // label 1 (PHISHING)이면 높은 위험도, label 0 (LEGIT)이면 낮은 위험도
-          const techRisk = prediction.label === 1 
-            ? Math.max(0.5, prediction.confidence)  // 피싱이면 confidence가 높을수록 위험도 높음
-            : Math.min(0.3, 1 - prediction.confidence);  // 정상이면 confidence가 높을수록 위험도 낮음
+          // ML 예측 결과를 직접 trust score로 변환
+          const mlTrustScore = computeMlTrustScore(prediction.label, prediction.confidence);
+          console.log(`[ML 예측] ML trust score 계산: label=${prediction.label}, confidence=${prediction.confidence}, mlTrustScore=${mlTrustScore}`);
           
           // reviewRisk와 reportPenalty 계산
           const reviewRisk = await trustScoreService.getReviewRiskFromAnalysis(targetShopId);
           const reportPenalty = await trustScoreService.calculateReportPenalty(targetShopId);
           
-          // 최종 trust score 계산
-          const { finalTrust, trustGrade } = trustScoreService.calculateFinalTrustScore({
-            techRisk,
-            reviewRisk,
-            reportPenalty
-          });
+          // ML trust score를 기반으로 techRisk 역산 (호환성을 위해)
+          // mlTrustScore = 100 * normalizedConfidence (label=0인 경우)
+          // 따라서 techRisk는 ML trust score를 고려하여 계산
+          // 하지만 최종 trust score는 ML trust score를 직접 사용
+          const techRisk = prediction.label === 1 
+            ? Math.max(0.5, prediction.confidence)  // 피싱이면 confidence가 높을수록 위험도 높음
+            : Math.min(0.3, 1 - prediction.confidence);  // 정상이면 confidence가 높을수록 위험도 낮음
           
-          console.log(`[ML 예측] trust score 계산: techRisk=${techRisk}, reviewRisk=${reviewRisk}, reportPenalty=${reportPenalty}, finalTrust=${finalTrust}, trustGrade=${trustGrade}`);
+          // 최종 trust score는 ML trust score를 직접 사용 (reviewRisk와 reportPenalty는 별도로 고려하지 않음)
+          // 또는 reviewRisk와 reportPenalty를 고려하여 조정할 수도 있음
+          const finalTrust = Math.max(0, Math.min(100, mlTrustScore));
+          const trustGrade = trustScoreService.calculateTrustGrade(finalTrust);
+          
+          console.log(`[ML 예측] trust score 계산: mlTrustScore=${mlTrustScore}, reviewRisk=${reviewRisk}, reportPenalty=${reportPenalty}, finalTrust=${finalTrust}, trustGrade=${trustGrade}`);
           
           // shop_trust_scores 테이블에 저장
           const savedData = await trustScoreService.upsertTrustScore(targetShopId, {

@@ -5,6 +5,7 @@ const aiService = require('../services/aiService');
 const { success, error } = require('../utils/response');
 const { sanitizeInput, validateUrl } = require('../utils/validation');
 const { normalizeUrl } = require('../utils/url');
+const { computeMlTrustScore } = require('../utils/mlTrustScore');
 const supabase = require('../config/supabase');
 
 // server.js에서 runPhishingMLPrediction 함수 가져오기
@@ -14,44 +15,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-/**
- * ML 기반 신뢰도 점수 계산
- * @param {number} label - 0 (SAFE) 또는 1 (PHISHING)
- * @param {number} confidence - 0~1 사이의 신뢰도
- * @returns {number} 0~100 사이의 trustScore (소수점 첫째 자리까지)
- */
-function computeMlTrustScore(label, confidence) {
-  // confidence 값이 유효한 범위인지 확인
-  if (typeof confidence !== 'number' || isNaN(confidence) || confidence < 0 || confidence > 1) {
-    console.warn(`Invalid confidence value: ${confidence}, using default 0.5`);
-    confidence = 0.5;
-  }
-  
-  let trustScore;
-  if (label === 0) {
-    // SAFE: confidence가 높을수록 높은 trustScore
-    // confidence를 0.1~0.99 범위로 정규화하여 더 다양한 점수 생성
-    const normalizedConfidence = Math.max(0.1, Math.min(0.99, confidence));
-    trustScore = 100 * normalizedConfidence;
-  } else if (label === 1) {
-    // PHISHING: confidence가 높을수록 낮은 trustScore
-    // confidence를 0.1~0.99 범위로 정규화하여 더 다양한 점수 생성
-    const normalizedConfidence = Math.max(0.1, Math.min(0.99, confidence));
-    trustScore = 100 * (1 - normalizedConfidence);
-  } else {
-    // 기본값 (예상치 못한 경우)
-    trustScore = 50;
-  }
-  
-  // 소수점 첫째 자리까지 반올림 (0.1 단위)
-  // 100점은 정확히 100.0 이상일 때만 부여
-  if (trustScore >= 100.0) {
-    return 100;
-  }
-  
-  // 0.1 단위로 반올림하여 더 다양한 점수 생성
-  return Math.max(0, Math.min(99.9, Math.round(trustScore * 10) / 10));
-}
+// computeMlTrustScore는 utils/mlTrustScore.js에서 import됨
 
 /**
  * 피싱 URL ML 예측 실행
@@ -162,13 +126,27 @@ async function runPhishingMLPrediction(rawUrl, req) {
             console.error("Supabase ml_prediction_results insert error:", error);
           }
           
-          resolve({
-            url: rawUrl,
-            normalizedUrl: normalized,
-            label,
-            confidence,
-            id: saved && saved[0] ? saved[0].id : null,
-          });
+          // 실제 저장된 값 확인
+          if (saved && saved[0]) {
+            console.log(`[ML 예측 저장] 저장된 값: label=${saved[0].label}, confidence=${saved[0].confidence}, id=${saved[0].id}`);
+            // 저장된 값을 사용하여 반환
+            resolve({
+              url: saved[0].url || rawUrl,
+              normalizedUrl: saved[0].normalized_url || normalized,
+              label: saved[0].label,
+              confidence: saved[0].confidence,
+              id: saved[0].id,
+            });
+          } else {
+            // 저장 실패 시 원본 값 반환
+            resolve({
+              url: rawUrl,
+              normalizedUrl: normalized,
+              label,
+              confidence,
+              id: null,
+            });
+          }
         } catch (dbErr) {
           console.error("ML log DB error:", dbErr);
           // Still resolve with prediction even if logging fails
@@ -373,34 +351,37 @@ exports.analyzeReviewTrust = async (req, res) => {
         return error(res, '해당 쇼핑몰을 찾을 수 없습니다.', 404);
       }
 
+      console.log(`[리뷰 신뢰도 분석] shopUrl로 쇼핑몰 찾음: id=${shop.id}, parent_shop_id=${shop.parent_shop_id}`);
       targetShopId = shop.parent_shop_id || shop.id;
+      console.log(`[리뷰 신뢰도 분석] targetShopId 결정: ${targetShopId}`);
     } else {
       targetShopId = parseInt(shopId, 10);
       if (isNaN(targetShopId)) {
         return error(res, '유효하지 않은 shopId입니다.', 400);
       }
+      console.log(`[리뷰 신뢰도 분석] shopId 직접 제공: ${targetShopId}`);
+      
+      // shopId로 쇼핑몰 정보 확인 (디버깅용)
+      const { data: shopInfo, error: shopInfoError } = await supabase
+        .from('shops')
+        .select('id, parent_shop_id, name')
+        .eq('id', targetShopId)
+        .single();
+      
+      if (!shopInfoError && shopInfo) {
+        console.log(`[리뷰 신뢰도 분석] 쇼핑몰 정보: id=${shopInfo.id}, name=${shopInfo.name}, parent_shop_id=${shopInfo.parent_shop_id}`);
+      }
     }
 
-    // 캐시 확인
-    const CACHE_TYPE = 'REVIEW_TRUST';
-    const cachedResult = await aiService.getAnalysisCache(targetShopId, CACHE_TYPE);
-    
-    if (cachedResult) {
-      console.log(`리뷰 신뢰도 분석 캐시 히트: shopId=${targetShopId}`);
-      return success(res, {
-        ...cachedResult,
-        cached: true
-      });
-    }
-
-    // 리뷰 데이터 조회
+    // 캐시 확인 전에 먼저 리뷰가 있는지 확인
     console.log(`[리뷰 신뢰도 분석] 컨트롤러: shopId=${targetShopId}에 대한 분석 시작`);
     const reviews = await aiService.getShopReviewsForAnalysis(targetShopId);
     console.log(`[리뷰 신뢰도 분석] 컨트롤러: 조회된 리뷰 수=${reviews?.length || 0}`);
 
-    // 리뷰가 없을 경우
+    // 리뷰가 없으면 캐시 확인 없이 바로 빈 결과 반환
     if (!reviews || reviews.length === 0) {
       console.log(`[리뷰 신뢰도 분석] 리뷰가 없어 빈 결과 반환`);
+      const CACHE_TYPE = 'REVIEW_TRUST';
       const emptyResult = {
         overallTrustScore: null,
         overallLevel: 'UNKNOWN',
@@ -415,10 +396,27 @@ exports.analyzeReviewTrust = async (req, res) => {
         cached: false
       };
 
-      // 빈 결과도 캐시에 저장 (10분)
-      await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, emptyResult, 10);
+      // 빈 결과도 캐시에 저장 (1분으로 단축 - 리뷰가 추가될 수 있으므로)
+      await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, emptyResult, 1);
 
       return success(res, emptyResult);
+    }
+
+    // 리뷰가 있으면 캐시 확인 (리뷰 수가 변경되었을 수 있으므로 리뷰 수도 확인)
+    // 캐시는 5분 이내 생성된 것만 사용 (그 이후면 새로 분석)
+    const CACHE_TYPE = 'REVIEW_TRUST';
+    const cachedResult = await aiService.getAnalysisCache(targetShopId, CACHE_TYPE, 5);
+    
+    if (cachedResult && cachedResult.stats && cachedResult.stats.totalReviews === reviews.length) {
+      console.log(`리뷰 신뢰도 분석 캐시 히트: shopId=${targetShopId}, 리뷰 수=${reviews.length}`);
+      return success(res, {
+        ...cachedResult,
+        cached: true
+      });
+    } else if (cachedResult) {
+      console.log(`[리뷰 신뢰도 분석] 캐시된 리뷰 수(${cachedResult.stats?.totalReviews || 0})와 현재 리뷰 수(${reviews.length})가 다름. 새로 분석합니다.`);
+    } else {
+      console.log(`[리뷰 신뢰도 분석] 캐시 없음 또는 만료됨. 새로 분석합니다.`);
     }
 
     // OpenRouter를 사용한 AI 분석
@@ -443,8 +441,8 @@ exports.analyzeReviewTrust = async (req, res) => {
       cached: false
     };
 
-    // 결과를 캐시에 저장 (10분)
-    await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, finalResult, 10);
+    // 결과를 캐시에 저장 (5분 - 자주 업데이트되도록)
+    await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, finalResult, 5);
 
     // trust score를 shop_trust_scores 테이블에 저장
     if (analysisResult.overallTrustScore !== null && analysisResult.overallTrustScore !== undefined) {

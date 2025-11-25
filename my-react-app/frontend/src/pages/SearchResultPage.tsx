@@ -5,7 +5,7 @@ import { Rating } from '../components/shop/Rating';
 import { AdvancedAIAnalysis } from '../components/analysis/AdvancedAIAnalysis';
 import { ReviewForm } from '../components/shop/ReviewForm';
 import { ReviewsList } from '../components/shop/ReviewsList';
-import { searchOrCreateShop, getShopReports, getShopRatings, getBusinessRegistration, getTrustScore, Report, Rating as RatingData, Shop } from '../utils/api';
+import { searchOrCreateShop, getShopReports, getShopRatings, getBusinessRegistration, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -28,7 +28,6 @@ export function SearchResultPage() {
   const [imgError, setImgError] = useState(false);
   const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
   const [businessRegistration, setBusinessRegistration] = useState<any | null>(null);
-  const [trustScore, setTrustScore] = useState<{ final_trust: number; trust_grade: string } | null>(null);
   const [currentReportPage, setCurrentReportPage] = useState(1);
 
   useEffect(() => {
@@ -67,27 +66,6 @@ export function SearchResultPage() {
     ]);
   };
 
-  // trustScore를 다시 불러오는 함수
-  const refreshTrustScore = async () => {
-    if (shop && shop.id > 0) {
-      try {
-        // parent_shop_id가 있으면 부모 ID 사용, 없으면 shop.id 사용
-        const targetShopId = shop.parent_shop_id || shop.id;
-        console.log(`[trustScore 새로고침] shop.id=${shop.id}, parent_shop_id=${shop.parent_shop_id}, targetShopId=${targetShopId}`);
-        
-        // 백엔드에서 저장하는 데 시간이 걸릴 수 있으므로 약간의 지연 후 조회
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        const trustData = await withTimeout(getTrustScore(targetShopId), 10000).catch(() => null);
-        console.log(`[trustScore 새로고침] 조회 결과:`, trustData);
-        setTrustScore(trustData);
-      } catch (error) {
-        console.error('신뢰도 점수 새로고침 에러:', error);
-      }
-    } else {
-      console.warn('[trustScore 새로고침] shop이 없거나 shop.id가 유효하지 않음:', shop);
-    }
-  };
-
   const loadShopData = async (shopUrl: string, isMock: boolean = false) => {
     try {
       setLoading(true);
@@ -112,11 +90,10 @@ export function SearchResultPage() {
         // 유효한 쇼핑몰 ID가 있을 때만 신고 목록과 평점 데이터를 로드
         if (shopData.id > 0) {
           try {
-            const [reportsData, ratingsData, businessData, trustData] = await Promise.all([
+            const [reportsData, ratingsData, businessData] = await Promise.all([
               withTimeout(getShopReports(shopData.id), 10000),
               withTimeout(getShopRatings(shopData.id), 10000),
-              withTimeout(getBusinessRegistration(shopData.id), 10000).catch(() => null),
-              withTimeout(getTrustScore(shopData.id), 10000).catch(() => null)
+              withTimeout(getBusinessRegistration(shopData.id), 10000).catch(() => null)
             ]);
 
             setReports(reportsData || []);
@@ -135,9 +112,8 @@ export function SearchResultPage() {
               });
             }
             
-            // 사업자 등록 정보 및 신뢰도 점수 설정
+            // 사업자 등록 정보 설정
             setBusinessRegistration(businessData);
-            setTrustScore(trustData);
           } catch (dataErr) {
             console.error('신고/평점 데이터 로드 에러:', dataErr);
             // 부분 실패 시에도 기본값 설정
@@ -148,7 +124,6 @@ export function SearchResultPage() {
               ratingDistribution: {}
             });
             setBusinessRegistration(null);
-            setTrustScore(null);
           }
         } else {
           // 임시 쇼핑몰인 경우 빈 데이터로 설정
@@ -159,7 +134,6 @@ export function SearchResultPage() {
             ratingDistribution: {}
           });
           setBusinessRegistration(null);
-          setTrustScore(null);
         }
       }
     } catch (err) {
@@ -172,7 +146,6 @@ export function SearchResultPage() {
         ratingDistribution: {}
       });
       setBusinessRegistration(null);
-      setTrustScore(null);
       
       // 임시 쇼핑몰 데이터 생성 (URL만으로)
       setShop({
@@ -215,16 +188,14 @@ export function SearchResultPage() {
         if (actualShop.id > 0) {
           try {
             // 실제 신고 데이터 가져오기 (타임아웃 적용)
-            const [reportsData, ratingData, businessData, trustData] = await Promise.all([
+            const [reportsData, ratingData, businessData] = await Promise.all([
               withTimeout(getShopReports(actualShop.id), 10000),
               withTimeout(getShopRatings(actualShop.id), 10000),
-              withTimeout(getBusinessRegistration(actualShop.id), 10000).catch(() => null),
-              withTimeout(getTrustScore(actualShop.id), 10000).catch(() => null)
+              withTimeout(getBusinessRegistration(actualShop.id), 10000).catch(() => null)
             ]);
             setReports(reportsData);
             setShopRating(ratingData);
             setBusinessRegistration(businessData);
-            setTrustScore(trustData);
           } catch (error) {
             console.error('데이터 로드 오류:', error);
             // 에러 시 기본값 설정
@@ -235,7 +206,6 @@ export function SearchResultPage() {
               ratingDistribution: {}
             });
             setBusinessRegistration(null);
-            setTrustScore(null);
           }
         } else {
           // ID가 0인 경우 기본값 설정
@@ -246,7 +216,6 @@ export function SearchResultPage() {
             ratingDistribution: {}
           });
           setBusinessRegistration(null);
-          setTrustScore(null);
         }
       } catch (error) {
         console.error('목업 쇼핑몰 데이터 로드 오류:', error);
@@ -285,7 +254,6 @@ export function SearchResultPage() {
         ratingDistribution: {}
       });
       setBusinessRegistration(null);
-      setTrustScore(null);
     }
   };
 
@@ -546,46 +514,6 @@ export function SearchResultPage() {
                 </div>
               )}
             </div>
-            <div className="px-4 py-4 text-base leading-relaxed">
-              <div className="flex items-center justify-between text-sm font-medium" style={{ color: '#1e293b' }}>
-                <span>이전 사용자의 신뢰도 분석결과</span>
-                <span style={{ color: '#64748b' }}>BarChart</span>
-              </div>
-              {trustScore && trustScore.final_trust !== undefined && trustScore.final_trust !== null ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(() => {
-                    const score = Number(trustScore.final_trust);
-                    const level = score >= 90 ? '매우안전' : 
-                                 score >= 70 ? '안전' : 
-                                 score >= 40 ? '주의' : '의심';
-                    const bgColor = score >= 90 ? '#dbeafe' :  // 파란색 배경
-                                   score >= 70 ? '#dcfce7' :  // 초록색 배경
-                                   score >= 40 ? '#fef3c7' :  // 노란색 배경
-                                   '#fee2e2';                  // 빨간색 배경
-                    const textColor = score >= 90 ? '#1e40af' :  // 파란색 텍스트
-                                     score >= 70 ? '#166534' :  // 초록색 텍스트
-                                     score >= 40 ? '#92400e' :  // 노란색 텍스트
-                                     '#991b1b';                  // 빨간색 텍스트
-                    return (
-                      <>
-                        <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: bgColor, color: textColor }}>
-                          📊 {score.toFixed(1)}점
-                        </span>
-                        <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: bgColor, color: textColor }}>
-                          {level === '매우안전' ? '✅' : level === '안전' ? '✅' : level === '주의' ? '⚠️' : '🚨'} {level}
-                        </span>
-                      </>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#f3f4f6', color: '#64748b' }}>
-                    📊 분석 결과 없음
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -707,7 +635,6 @@ export function SearchResultPage() {
             reports={reports}
             ratings={[]} // 실제 리뷰 데이터는 백엔드에서 가져옴
             shopUrl={url}
-            onTrustScoreUpdate={refreshTrustScore}
           />
         </div>
       )}
