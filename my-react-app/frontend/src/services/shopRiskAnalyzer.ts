@@ -583,11 +583,10 @@ export class ShopRiskAnalyzer {
         ratingTrustScore * weights.ratingAnalysis +
         domainTrustScore * weights.domainAnalysis +
         businessTrustScore * weights.businessAnalysis;
-      // 소수점 첫째 자리까지 표시하고, 100점은 정확히 100.0 이상일 때만 부여
-      // 99.5 이상이어도 100점이 되지 않도록 Math.floor 사용
-      const trustScore = Math.min(99.9, Math.max(0, Math.floor(rawTrustScore * 10) / 10));
-      // 정확히 100.0 이상일 때만 100점 부여
-      const finalTrustScore = rawTrustScore >= 100.0 ? 100 : trustScore;
+      
+      // 신뢰도 점수를 0.1 단위로 반올림 (최대 99.9점까지)
+      // 100점은 절대 부여하지 않음 (완벽한 쇼핑몰은 없으므로)
+      const finalTrustScore = Math.min(99.9, Math.max(0, Math.round(rawTrustScore * 10) / 10));
       
       // 리스크 점수는 신뢰도 점수의 역수 (100 - trustScore)
       const riskScore = 100 - finalTrustScore;

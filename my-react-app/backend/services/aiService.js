@@ -2,6 +2,7 @@
  * AI 분석 관련 서비스
  */
 const { normalizeUrl, calculateSimilarity } = require('../utils/url');
+const supabase = require('../config/supabase');
 
 /**
  * SSL 검사
@@ -334,11 +335,383 @@ async function detectPhishing(url) {
   };
 }
 
+/**
+ * OpenRouter API를 사용하여 리뷰 신뢰도 분석
+ * @param {Array} reviews - 분석할 리뷰 배열
+ * @returns {Promise<object>} 분석 결과
+ */
+async function analyzeReviewTrustWithAI(reviews) {
+  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+  
+  if (!OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY 환경변수가 설정되지 않았습니다.');
+  }
+
+  if (!reviews || reviews.length === 0) {
+    return {
+      overallTrustScore: null,
+      overallLevel: 'UNKNOWN',
+      summary: '분석할 리뷰가 없습니다.',
+      suspiciousReviews: [],
+      stats: {
+        totalReviews: 0,
+        suspiciousCount: 0,
+        normalCount: 0,
+        suspiciousRatio: 0
+      }
+    };
+  }
+
+  // 배치 크기 설정 (한 번에 5~10개씩 처리)
+  const BATCH_SIZE = 8;
+  const batches = [];
+  for (let i = 0; i < reviews.length; i += BATCH_SIZE) {
+    batches.push(reviews.slice(i, i + BATCH_SIZE));
+  }
+
+  const fetch = await import('node-fetch');
+  const allSuspiciousReviews = [];
+  let totalTrustScore = 0;
+  let validBatches = 0;
+
+  // 각 배치를 순차적으로 처리
+  for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+    const batch = batches[batchIdx];
+    
+    try {
+      // 리뷰 데이터를 JSON 형식으로 준비
+      const reviewsData = batch.map(review => ({
+        id: review.id,
+        authorNickname: review.authorNickname || review.username || '익명',
+        createdAt: review.createdAt || review.created_at,
+        rating: review.rating,
+        content: review.content || review.comment || ''
+      }));
+
+      const systemMessage = `당신은 쇼핑몰 리뷰 신뢰도 전문가입니다. 
+주어진 리뷰들이 진짜 구매 경험에서 나온 것인지, 경쟁사 공격/조작인지, 홍보성인지 판단해야 합니다.
+
+의사결정 기준:
+1. 과도한 극단 표현 반복 (예: "최고", "완벽", "최악", "사기" 등이 과도하게 반복)
+2. 동일 패턴 리뷰 (비슷한 문체, 비슷한 내용)
+3. 시간대 편중 (짧은 시간 내 다수 리뷰)
+4. 너무 좋은/나쁜 표현만 있는 경우 (균형 없는 평가)
+5. 구체적인 경험 부족 (모호한 표현, 일반적인 문구)
+6. 비정상적인 평점 분포
+
+응답은 반드시 유효한 JSON 형식으로만 반환해야 합니다.`;
+
+      const userMessage = `다음 리뷰들을 분석하여 신뢰도를 평가해주세요:
+
+${reviewsData.map((r, idx) => `
+리뷰 ${idx + 1}:
+- ID: ${r.id}
+- 작성자: ${r.authorNickname}
+- 작성일: ${r.createdAt}
+- 평점: ${r.rating}/5
+- 내용: ${r.content}
+`).join('\n---\n')}
+
+다음 JSON 형식으로 응답해주세요:
+{
+  "overallTrustScore": 0.75,
+  "overallLevel": "MEDIUM",
+  "summary": "리뷰 신뢰도는 전반적으로 보통 수준입니다.",
+  "suspiciousReviews": [
+    {
+      "reviewId": ${reviewsData[0].id},
+      "reason": "과도한 긍정 표현 반복",
+      "suggestedAction": "REVIEW"
+    }
+  ]
+}
+
+overallTrustScore는 0~1 사이 숫자 (1에 가까울수록 신뢰도 높음)
+overallLevel은 "HIGH", "MEDIUM", "LOW" 중 하나
+suspiciousReviews는 의심스러운 리뷰만 포함 (없으면 빈 배열)
+각 suspiciousReview의 suggestedAction은 "REVIEW", "FLAG", "IGNORE" 중 하나`;
+
+      const response = await fetch.default('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.APP_URL || 'https://localhost:3001',
+          'X-Title': '여기몰까 리뷰 신뢰도 분석'
+        },
+        body: JSON.stringify({
+          model: 'anthropic/claude-3.5-sonnet',
+          messages: [
+            { role: 'system', content: systemMessage },
+            { role: 'user', content: userMessage }
+          ],
+          max_tokens: 2000,
+          temperature: 0.3
+        }),
+        timeout: 30000
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenRouter API 오류 (배치 ${batchIdx + 1}):`, response.status, errorText);
+        // 배치 실패해도 계속 진행
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        console.error(`OpenRouter 응답에 content가 없음 (배치 ${batchIdx + 1})`);
+        continue;
+      }
+
+      // JSON 추출 (마크다운 코드 블록 제거)
+      let jsonStr = content.trim();
+      if (jsonStr.includes('```json')) {
+        jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
+      } else if (jsonStr.includes('```')) {
+        jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
+      }
+
+      let batchResult;
+      try {
+        batchResult = JSON.parse(jsonStr);
+      } catch (parseError) {
+        console.error(`JSON 파싱 오류 (배치 ${batchIdx + 1}):`, parseError, '원본:', jsonStr);
+        continue;
+      }
+
+      // 배치 결과 수집
+      if (typeof batchResult.overallTrustScore === 'number') {
+        totalTrustScore += batchResult.overallTrustScore;
+        validBatches++;
+      }
+
+      if (Array.isArray(batchResult.suspiciousReviews)) {
+        allSuspiciousReviews.push(...batchResult.suspiciousReviews);
+      }
+
+      // 배치 간 딜레이 (API 레이트 리밋 방지)
+      if (batchIdx < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+    } catch (batchError) {
+      console.error(`배치 ${batchIdx + 1} 처리 오류:`, batchError);
+      // 배치 실패해도 계속 진행
+      continue;
+    }
+  }
+
+  // 전체 결과 병합
+  const averageTrustScore = validBatches > 0 ? totalTrustScore / validBatches : null;
+  
+  let overallLevel = 'UNKNOWN';
+  if (averageTrustScore !== null) {
+    if (averageTrustScore >= 0.7) {
+      overallLevel = 'HIGH';
+    } else if (averageTrustScore >= 0.4) {
+      overallLevel = 'MEDIUM';
+    } else {
+      overallLevel = 'LOW';
+    }
+  }
+
+  const suspiciousCount = allSuspiciousReviews.length;
+  const normalCount = reviews.length - suspiciousCount;
+  const suspiciousRatio = reviews.length > 0 ? suspiciousCount / reviews.length : 0;
+
+  let summary = '리뷰 신뢰도 분석이 완료되었습니다.';
+  if (averageTrustScore !== null) {
+    if (overallLevel === 'HIGH') {
+      summary = '리뷰 신뢰도는 전반적으로 높은 수준입니다.';
+    } else if (overallLevel === 'MEDIUM') {
+      summary = '리뷰 신뢰도는 전반적으로 보통 수준입니다.';
+    } else {
+      summary = '리뷰 신뢰도는 낮은 수준입니다. 일부 리뷰를 검토할 필요가 있습니다.';
+    }
+  }
+
+  return {
+    overallTrustScore: averageTrustScore,
+    overallLevel,
+    summary,
+    suspiciousReviews: allSuspiciousReviews,
+    stats: {
+      totalReviews: reviews.length,
+      suspiciousCount,
+      normalCount,
+      suspiciousRatio: Number(suspiciousRatio.toFixed(3))
+    }
+  };
+}
+
+/**
+ * 쇼핑몰의 리뷰 데이터 조회 (shop_ratings, shop_reports, community_posts)
+ * @param {number} shopId - 쇼핑몰 ID
+ * @returns {Promise<Array>} 리뷰 배열
+ */
+async function getShopReviewsForAnalysis(shopId) {
+  const reviews = [];
+
+  try {
+    // 1. shop_ratings에서 comment가 있는 리뷰 조회
+    const { data: ratings, error: ratingsError } = await supabase
+      .from('shop_ratings')
+      .select('id, rating, comment, created_at, user_id, users!shop_ratings_user_id_fkey(username)')
+      .eq('shop_id', shopId)
+      .not('comment', 'is', null)
+      .neq('comment', '')
+      .order('created_at', { ascending: false });
+
+    if (!ratingsError && ratings) {
+      ratings.forEach(rating => {
+        reviews.push({
+          id: `rating_${rating.id}`,
+          type: 'rating',
+          rating: rating.rating,
+          content: rating.comment,
+          createdAt: rating.created_at,
+          authorNickname: rating.users?.username || '익명',
+          originalId: rating.id
+        });
+      });
+    }
+
+    // 2. shop_reports에서 description이 있는 신고 조회
+    const { data: reports, error: reportsError } = await supabase
+      .from('shop_reports')
+      .select('id, description, created_at, user_id, reporter_name, users!shop_reports_user_id_fkey(username)')
+      .eq('shop_id', shopId)
+      .not('description', 'is', null)
+      .neq('description', '')
+      .order('created_at', { ascending: false });
+
+    if (!reportsError && reports) {
+      reports.forEach(report => {
+        reviews.push({
+          id: `report_${report.id}`,
+          type: 'report',
+          rating: null, // 신고는 평점 없음
+          content: report.description,
+          createdAt: report.created_at,
+          authorNickname: report.users?.username || report.reporter_name || '익명',
+          originalId: report.id
+        });
+      });
+    }
+
+    // 3. community_posts에서 해당 쇼핑몰 관련 게시글 조회 (shop_id가 있는 경우)
+    const { data: posts, error: postsError } = await supabase
+      .from('community_posts')
+      .select('id, title, content, created_at, user_id, users!community_posts_user_id_fkey(username)')
+      .eq('shop_id', shopId)
+      .not('content', 'is', null)
+      .neq('content', '')
+      .order('created_at', { ascending: false });
+
+    if (!postsError && posts) {
+      posts.forEach(post => {
+        reviews.push({
+          id: `post_${post.id}`,
+          type: 'post',
+          rating: null,
+          content: `${post.title}\n${post.content}`,
+          createdAt: post.created_at,
+          authorNickname: post.users?.username || '익명',
+          originalId: post.id
+        });
+      });
+    }
+
+  } catch (error) {
+    console.error('리뷰 데이터 조회 오류:', error);
+    throw error;
+  }
+
+  return reviews;
+}
+
+/**
+ * AI 분석 캐시 조회
+ * @param {number} shopId - 쇼핑몰 ID
+ * @param {string} analysisType - 분석 유형
+ * @returns {Promise<object|null>} 캐시된 분석 결과
+ */
+async function getAnalysisCache(shopId, analysisType) {
+  try {
+    const { data, error } = await supabase
+      .from('ai_analysis_cache')
+      .select('*')
+      .eq('shop_id', shopId)
+      .eq('analysis_type', analysisType)
+      .gt('expires_at', new Date().toISOString())
+      .order('analysis_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('캐시 조회 오류:', error);
+      return null;
+    }
+
+    if (data && data.analysis_result) {
+      try {
+        return JSON.parse(data.analysis_result);
+      } catch (parseError) {
+        console.error('캐시 결과 파싱 오류:', parseError);
+        return null;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('캐시 조회 중 오류:', error);
+    return null;
+  }
+}
+
+/**
+ * AI 분석 결과 캐시 저장
+ * @param {number} shopId - 쇼핑몰 ID
+ * @param {string} analysisType - 분석 유형
+ * @param {object} analysisResult - 분석 결과
+ * @param {number} cacheMinutes - 캐시 유지 시간 (분)
+ * @returns {Promise<void>}
+ */
+async function saveAnalysisCache(shopId, analysisType, analysisResult, cacheMinutes = 10) {
+  try {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + cacheMinutes);
+
+    const { error } = await supabase
+      .from('ai_analysis_cache')
+      .insert({
+        shop_id: shopId,
+        analysis_type: analysisType,
+        analysis_result: JSON.stringify(analysisResult),
+        analysis_date: new Date().toISOString(),
+        expires_at: expiresAt.toISOString()
+      });
+
+    if (error) {
+      console.error('캐시 저장 오류:', error);
+    }
+  } catch (error) {
+    console.error('캐시 저장 중 오류:', error);
+  }
+}
+
 module.exports = {
   detectPhishing,
   checkSSL,
   checkRedirects,
   getDomainAge,
-  fetchPageContent
+  fetchPageContent,
+  analyzeReviewTrustWithAI,
+  getShopReviewsForAnalysis,
+  getAnalysisCache,
+  saveAnalysisCache
 };
 

@@ -4,6 +4,7 @@ import json
 import pickle
 import os
 import warnings
+import math
 from urllib.parse import urlparse
 
 # scikit-learn 버전 호환성 경고 무시
@@ -82,11 +83,90 @@ else:
     probs = model.predict_proba(features)
     
     for i, url in enumerate(urls):
-        confidence = round(max(probs[i]), 3)
+        # 기본 confidence는 예측된 클래스의 확률
+        base_confidence = max(probs[i])
+        
+        # URL 특징 기반 confidence 보정
+        # 확률 분포의 차이를 반영하여 더 정확한 confidence 계산
+        prob_diff = abs(probs[i][0] - probs[i][1])  # 두 클래스 확률 차이
+        
+        # URL 특징 분석
+        url_features = features[i]
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+        
+        # 특징 기반 confidence 조정
+        adjustment = 0.0
+        
+        # 1. 확률 차이가 클수록 confidence 증가 (모델이 확신할수록)
+        if prob_diff > 0.5:
+            adjustment += 0.1
+        elif prob_diff > 0.3:
+            adjustment += 0.05
+        elif prob_diff < 0.1:
+            adjustment -= 0.1  # 확률 차이가 작으면 불확실성 증가
+        
+        # 2. URL 길이 기반 조정 (너무 짧거나 긴 URL은 의심)
+        url_len = url_features[0]
+        if url_len < 10 or url_len > 200:
+            adjustment -= 0.05
+        
+        # 3. 하이픈 개수 기반 조정 (하이픈이 많으면 의심)
+        hyphens = url_features[1]
+        if hyphens > 3:
+            adjustment -= 0.05
+        elif hyphens == 0:
+            adjustment += 0.02
+        
+        # 4. 의심 키워드 기반 조정
+        has_suspicious_kw = url_features[2]
+        if has_suspicious_kw:
+            adjustment -= 0.08
+        
+        # 5. TLD 기반 조정
+        non_com_tld = url_features[3]
+        if non_com_tld:
+            adjustment -= 0.05
+        
+        # 6. HTTPS 기반 조정
+        has_https = url_features[4]
+        if has_https:
+            adjustment += 0.03
+        
+        # 7. 서브도메인 개수 기반 조정
+        subdomains = url_features[5]
+        if subdomains > 3:
+            adjustment -= 0.05
+        
+        # 8. IP 주소 사용 여부
+        is_ip = url_features[6]
+        if is_ip:
+            adjustment -= 0.1
+        
+        # 9. URL 단축 서비스 사용 여부
+        is_shortener = url_features[8]
+        if is_shortener:
+            adjustment -= 0.1
+        
+        # confidence 보정 적용 (0~1 범위 유지)
+        adjusted_confidence = base_confidence + adjustment
+        adjusted_confidence = max(0.1, min(0.99, adjusted_confidence))
+        
+        # 확률 분포의 엔트로피를 고려한 최종 confidence 계산
+        # 엔트로피가 낮을수록(확신할수록) confidence 증가
+        entropy = -sum(p * math.log2(p) if p > 0 else 0 for p in probs[i])
+        max_entropy = math.log2(len(probs[i]))  # 최대 엔트로피 (균등 분포)
+        entropy_normalized = entropy / max_entropy if max_entropy > 0 else 0
+        
+        # 최종 confidence: 보정된 confidence와 엔트로피 기반 confidence의 가중 평균
+        # 엔트로피가 낮을수록(1 - entropy_normalized가 높을수록) confidence 증가
+        final_confidence = adjusted_confidence * 0.7 + (1 - entropy_normalized) * 0.3
+        final_confidence = max(0.1, min(0.99, final_confidence))
+        
         results.append({
             "url": url,
             "label": int(labels[i]),
-            "confidence": confidence
+            "confidence": round(final_confidence, 3)
         })
 
 # 출력

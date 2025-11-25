@@ -12,23 +12,45 @@ const supabase = require('../config/supabase');
 // 일단 여기서 직접 구현하거나, server.js에서 export하도록 수정
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 /**
  * ML 기반 신뢰도 점수 계산
  * @param {number} label - 0 (SAFE) 또는 1 (PHISHING)
  * @param {number} confidence - 0~1 사이의 신뢰도
- * @returns {number} 0~100 사이의 trustScore
+ * @returns {number} 0~100 사이의 trustScore (소수점 첫째 자리까지)
  */
 function computeMlTrustScore(label, confidence) {
+  // confidence 값이 유효한 범위인지 확인
+  if (typeof confidence !== 'number' || isNaN(confidence) || confidence < 0 || confidence > 1) {
+    console.warn(`Invalid confidence value: ${confidence}, using default 0.5`);
+    confidence = 0.5;
+  }
+  
+  let trustScore;
   if (label === 0) {
     // SAFE: confidence가 높을수록 높은 trustScore
-    return Math.round(100 * confidence);
+    // confidence를 0.1~0.99 범위로 정규화하여 더 다양한 점수 생성
+    const normalizedConfidence = Math.max(0.1, Math.min(0.99, confidence));
+    trustScore = 100 * normalizedConfidence;
   } else if (label === 1) {
     // PHISHING: confidence가 높을수록 낮은 trustScore
-    return Math.round(100 * (1 - confidence));
+    // confidence를 0.1~0.99 범위로 정규화하여 더 다양한 점수 생성
+    const normalizedConfidence = Math.max(0.1, Math.min(0.99, confidence));
+    trustScore = 100 * (1 - normalizedConfidence);
+  } else {
+    // 기본값 (예상치 못한 경우)
+    trustScore = 50;
   }
-  // 기본값 (예상치 못한 경우)
-  return 50;
+  
+  // 소수점 첫째 자리까지 반올림 (0.1 단위)
+  // 100점은 정확히 100.0 이상일 때만 부여
+  if (trustScore >= 100.0) {
+    return 100;
+  }
+  
+  // 0.1 단위로 반올림하여 더 다양한 점수 생성
+  return Math.max(0, Math.min(99.9, Math.round(trustScore * 10) / 10));
 }
 
 /**
@@ -42,9 +64,26 @@ async function runPhishingMLPrediction(rawUrl, req) {
   const urls = [normalized];
   
   return new Promise((resolve, reject) => {
-    // Windows에서는 python, Linux/Mac에서는 python3
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    const scriptPath = path.join(__dirname, "..", "ml", "predict.py");
+    // 가상환경 Python 경로 확인
+    const mlDir = path.join(__dirname, "..", "ml");
+    const venvPythonPath = process.platform === 'win32' 
+      ? path.join(mlDir, ".venv-ml", "Scripts", "python.exe")
+      : path.join(mlDir, ".venv-ml", "bin", "python");
+    
+    // 시스템 Python 경로 (fallback)
+    const systemPythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    
+    // 가상환경 Python이 존재하면 사용, 없으면 시스템 Python 사용
+    let pythonCmd;
+    if (fs.existsSync(venvPythonPath)) {
+      pythonCmd = venvPythonPath;
+      console.log('가상환경 Python 사용:', pythonCmd);
+    } else {
+      pythonCmd = systemPythonCmd;
+      console.log('시스템 Python 사용:', pythonCmd);
+    }
+    
+    const scriptPath = path.join(mlDir, "predict.py");
     
     console.log(`Python 실행: ${pythonCmd} ${scriptPath}`);
     console.log(`입력 URL: ${JSON.stringify(urls)}`);
@@ -302,6 +341,113 @@ exports.detectPhishing = async (req, res) => {
   } catch (err) {
     console.error('피싱 탐지 오류:', err);
     return error(res, `피싱 탐지 중 오류가 발생했습니다: ${err.message}`, 500);
+  }
+};
+
+/**
+ * 리뷰 신뢰도 분석
+ * 
+ * 특정 쇼핑몰에 대한 리뷰/신고/후기 텍스트의 신뢰도를 분석합니다.
+ */
+exports.analyzeReviewTrust = async (req, res) => {
+  try {
+    const { shopId, shopUrl } = req.body;
+
+    // shopId 또는 shopUrl 중 하나는 필수
+    if (!shopId && !shopUrl) {
+      return error(res, 'shopId 또는 shopUrl 중 하나는 필수입니다.', 400);
+    }
+
+    let targetShopId = null;
+
+    // shopUrl이 제공된 경우 shopId로 변환
+    if (shopUrl && !shopId) {
+      const normalizedUrl = normalizeUrl(shopUrl);
+      const { data: shop, error: shopError } = await supabase
+        .from('shops')
+        .select('id, parent_shop_id')
+        .eq('url', normalizedUrl)
+        .single();
+
+      if (shopError || !shop) {
+        return error(res, '해당 쇼핑몰을 찾을 수 없습니다.', 404);
+      }
+
+      targetShopId = shop.parent_shop_id || shop.id;
+    } else {
+      targetShopId = parseInt(shopId, 10);
+      if (isNaN(targetShopId)) {
+        return error(res, '유효하지 않은 shopId입니다.', 400);
+      }
+    }
+
+    // 캐시 확인
+    const CACHE_TYPE = 'REVIEW_TRUST';
+    const cachedResult = await aiService.getAnalysisCache(targetShopId, CACHE_TYPE);
+    
+    if (cachedResult) {
+      console.log(`리뷰 신뢰도 분석 캐시 히트: shopId=${targetShopId}`);
+      return success(res, {
+        ...cachedResult,
+        cached: true
+      });
+    }
+
+    // 리뷰 데이터 조회
+    const reviews = await aiService.getShopReviewsForAnalysis(targetShopId);
+
+    // 리뷰가 없을 경우
+    if (!reviews || reviews.length === 0) {
+      const emptyResult = {
+        overallTrustScore: null,
+        overallLevel: 'UNKNOWN',
+        summary: '분석할 리뷰가 아직 없습니다.',
+        suspiciousReviews: [],
+        stats: {
+          totalReviews: 0,
+          suspiciousCount: 0,
+          normalCount: 0,
+          suspiciousRatio: 0
+        },
+        cached: false
+      };
+
+      // 빈 결과도 캐시에 저장 (10분)
+      await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, emptyResult, 10);
+
+      return success(res, emptyResult);
+    }
+
+    // OpenRouter를 사용한 AI 분석
+    let analysisResult;
+    try {
+      analysisResult = await aiService.analyzeReviewTrustWithAI(reviews);
+    } catch (aiError) {
+      console.error('OpenRouter AI 분석 오류:', aiError);
+      
+      // 타임아웃 또는 API 오류 시 에러 응답
+      if (aiError.message.includes('timeout') || aiError.message.includes('TIMEOUT')) {
+        return error(res, '분석에 시간이 너무 오래 걸렸습니다. 잠시 후 다시 시도해 주세요.', 504);
+      }
+      
+      return error(res, '분석에 실패했습니다. 잠시 후 다시 시도해 주세요.', 500);
+    }
+
+    // 결과에 추가 정보 포함
+    const finalResult = {
+      ...analysisResult,
+      shopId: targetShopId,
+      cached: false
+    };
+
+    // 결과를 캐시에 저장 (10분)
+    await aiService.saveAnalysisCache(targetShopId, CACHE_TYPE, finalResult, 10);
+
+    return success(res, finalResult);
+
+  } catch (err) {
+    console.error('리뷰 신뢰도 분석 오류:', err);
+    return error(res, `리뷰 신뢰도 분석 중 오류가 발생했습니다: ${err.message}`, 500);
   }
 };
 

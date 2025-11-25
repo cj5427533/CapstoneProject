@@ -81,9 +81,26 @@ async function runPhishingMLPrediction(rawUrl, req) {
   const urls = [normalized];
   
   return new Promise((resolve, reject) => {
-    // Windows에서는 python, Linux/Mac에서는 python3
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    const scriptPath = path.join(__dirname, "ml", "predict.py");
+    // 가상환경 Python 경로 확인
+    const mlDir = path.join(__dirname, "ml");
+    const venvPythonPath = process.platform === 'win32' 
+      ? path.join(mlDir, ".venv-ml", "Scripts", "python.exe")
+      : path.join(mlDir, ".venv-ml", "bin", "python");
+    
+    // 시스템 Python 경로 (fallback)
+    const systemPythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    
+    // 가상환경 Python이 존재하면 사용, 없으면 시스템 Python 사용
+    let pythonCmd;
+    if (fs.existsSync(venvPythonPath)) {
+      pythonCmd = venvPythonPath;
+      console.log('가상환경 Python 사용:', pythonCmd);
+    } else {
+      pythonCmd = systemPythonCmd;
+      console.log('시스템 Python 사용:', pythonCmd);
+    }
+    
+    const scriptPath = path.join(mlDir, "predict.py");
     
     console.log(`Python 실행: ${pythonCmd} ${scriptPath}`);
     console.log(`입력 URL: ${JSON.stringify(urls)}`);

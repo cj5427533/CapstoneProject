@@ -6,7 +6,7 @@ import { RealTimePhishingSystem, PhishingAlert } from '../../services/realTimePh
 import { FakeReviewDetector, ShopType } from '../../services/fakeReviewDetector';
 import { Review } from '../../utils/openRouter';
 import { ScoreDial } from '../report/ScoreDial';
-import { predictPhishingWithML, MLPredictionResult } from '../../utils/api';
+import { predictPhishingWithML, MLPredictionResult, analyzeReviewTrust, ReviewTrustAnalysisResult } from '../../utils/api';
 
 interface AdvancedAIAnalysisProps {
   shop: Shop;
@@ -56,12 +56,19 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
     phishing: 0
   });
   
-  // AI 리뷰 분석 관련 상태
+  // AI 리뷰 분석 관련 상태 (기존 프론트엔드 로직용)
   const [isReviewAnalyzing, setIsReviewAnalyzing] = useState(false);
   const [fakeReviews, setFakeReviews] = useState<FakeReviewResult[]>([]);
   const [reviewStatistics, setReviewStatistics] = useState<AnalysisStatistics | null>(null);
   const [showReviewDetails, setShowReviewDetails] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // 리뷰 신뢰도 분석 관련 상태 (백엔드 API용)
+  const [isReviewTrustAnalyzing, setIsReviewTrustAnalyzing] = useState(false);
+  const [isReviewTrustComplete, setIsReviewTrustComplete] = useState(false);
+  const [reviewTrustResult, setReviewTrustResult] = useState<ReviewTrustAnalysisResult | null>(null);
+  const [showReviewTrustModal, setShowReviewTrustModal] = useState(false);
+  const [showReviewTrustDetails, setShowReviewTrustDetails] = useState(false);
 
   const fakeReviewDetector = AdvancedFakeReviewDetector.getInstance();
   const shopRiskAnalyzer = ShopRiskAnalyzer.getInstance();
@@ -219,6 +226,42 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   };
 
 
+  // 백엔드 API를 사용한 리뷰 신뢰도 분석
+  const runReviewTrustAnalysis = async () => {
+    setIsReviewTrustAnalyzing(true);
+    setIsReviewTrustComplete(false);
+    setReviewTrustResult(null);
+
+    try {
+      const result = await analyzeReviewTrust(shop.id, shopUrl);
+      setReviewTrustResult(result);
+      setIsReviewTrustComplete(true);
+    } catch (error: any) {
+      console.error('리뷰 신뢰도 분석 오류:', error);
+      setIsReviewTrustAnalyzing(false);
+      setIsReviewTrustComplete(false);
+      toast.error(error.message || '리뷰 신뢰도 분석 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 리뷰 신뢰도 분석 결과 확인하기 버튼 클릭 핸들러
+  const handleViewReviewTrustResults = () => {
+    setIsReviewTrustAnalyzing(false);
+    setIsReviewTrustComplete(false);
+    setShowReviewTrustModal(true);
+    
+    if (reviewTrustResult) {
+      if (reviewTrustResult.overallLevel === 'HIGH') {
+        toast.success('리뷰 신뢰도가 높습니다.');
+      } else if (reviewTrustResult.overallLevel === 'MEDIUM') {
+        toast.info('리뷰 신뢰도가 보통 수준입니다.');
+      } else if (reviewTrustResult.overallLevel === 'LOW') {
+        toast.warning('리뷰 신뢰도가 낮습니다. 일부 리뷰를 검토할 필요가 있습니다.');
+      }
+    }
+  };
+
+  // 기존 프론트엔드 로직 (레거시, 사용하지 않음)
   const runReviewAnalysis = async () => {
     if (ratings.length === 0) {
       toast.error('분석할 리뷰가 없습니다.');
@@ -295,7 +338,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   const [loadingDots, setLoadingDots] = useState('');
   
   useEffect(() => {
-    if (isAnalyzing && !isAnalysisComplete) {
+    if ((isAnalyzing && !isAnalysisComplete) || (isReviewTrustAnalyzing && !isReviewTrustComplete)) {
       const interval = setInterval(() => {
         setLoadingDots(prev => {
           if (prev === '') return '.';
@@ -308,7 +351,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
     } else {
       setLoadingDots('');
     }
-  }, [isAnalyzing, isAnalysisComplete]);
+  }, [isAnalyzing, isAnalysisComplete, isReviewTrustAnalyzing, isReviewTrustComplete]);
 
   // 전체 진행률 계산
   const totalProgress = Math.round(
@@ -320,7 +363,7 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
 
   return (
     <div className="advanced-ai-analysis bg-white rounded-lg shadow-lg p-6 mb-6">
-      {/* 분석 로딩 화면 */}
+      {/* 쇼핑몰 신뢰도 분석 로딩 화면 */}
       {isAnalyzing && (
         <div className="analysis-modal-overlay">
           <div className="analysis-modal-content">
@@ -412,6 +455,84 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
         </div>
       )}
 
+      {/* 리뷰 신뢰도 분석 로딩 화면 */}
+      {isReviewTrustAnalyzing && (
+        <div className="analysis-modal-overlay">
+          <div className="analysis-modal-content">
+            <div className="analysis-modal-header">
+              <h3 className="analysis-modal-title">
+                {isReviewTrustComplete ? '✅ 분석 완료!' : '리뷰 신뢰도 분석 진행중' + loadingDots}
+              </h3>
+              {!isReviewTrustComplete && (
+                <button 
+                  className="analysis-modal-close"
+                  onClick={() => {
+                    setIsReviewTrustAnalyzing(false);
+                    setIsReviewTrustComplete(false);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            
+            <div className="analysis-modal-body">
+              <div className="analysis-loading-content">
+                {isReviewTrustComplete ? (
+                  <div className="analysis-complete-actions">
+                    <div className="analysis-complete-icon">
+                      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" fill="#10b981" opacity="0.2"/>
+                        <path d="M9 12l2 2 4-4" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="#10b981" strokeWidth="2"/>
+                      </svg>
+                    </div>
+                    <h4 className="analysis-complete-title">분석이 완료되었습니다!</h4>
+                    <p className="analysis-complete-message">
+                      리뷰 신뢰도 분석이 성공적으로 완료되었습니다.<br/>
+                      결과를 확인하여 신뢰할 수 있는 리뷰를 확인하세요.
+                    </p>
+                    <button 
+                      className="analysis-view-results-btn"
+                      onClick={handleViewReviewTrustResults}
+                    >
+                      <span>결과 확인하기</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="analysis-loading-progress-container">
+                    {/* 로딩 아이콘 */}
+                    <div className="analysis-loading-icon">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="#e2e8f0" strokeWidth="2"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="#2563eb" strokeWidth="2" strokeLinecap="round">
+                          <animateTransform
+                            attributeName="transform"
+                            type="rotate"
+                            from="0 12 12"
+                            to="360 12 12"
+                            dur="1s"
+                            repeatCount="indefinite"
+                          />
+                        </path>
+                      </svg>
+                    </div>
+                    
+                    {/* 안내 메시지 */}
+                    <p className="analysis-loading-hint">
+                      잠시만 기다려주세요. 리뷰를 분석하고 있습니다...
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 섹션은 분석 기준 컨테이너로 이동됨 */}
 
 
@@ -427,15 +548,15 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
           <div className="action-buttons">
             <button 
               className="review-analyze-btn"
-              onClick={runReviewAnalysis}
-              disabled={isReviewAnalyzing}
+              onClick={runReviewTrustAnalysis}
+              disabled={isReviewTrustAnalyzing || isAnalyzing}
             >
-              {isReviewAnalyzing ? '분석 중...' : '리뷰 신뢰도 분석하기'}
+              {isReviewTrustAnalyzing ? '분석 중...' : '리뷰 신뢰도 분석하기'}
             </button>
             <button 
               className="review-analyze-btn"
               onClick={runAdvancedAnalysis}
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || isReviewTrustAnalyzing}
             >
               {isAnalyzing ? '분석 중...' : '쇼핑몰 신뢰도 분석'}
             </button>
@@ -545,13 +666,37 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   } else if (analysisResults.mlPrediction) {
                     // 실제 쇼핑몰: ML 예측 결과 사용
                     // ML 예측 결과: label 0 = legit, 1 = phishing
-                    // 신뢰도 점수: label이 0이면 confidence를 신뢰도로, 1이면 (1 - confidence)를 신뢰도로
+                    // 백엔드의 computeMlTrustScore와 동일한 로직 사용
                     isPhishing = analysisResults.mlPrediction.label === 1;
-                    const trustScoreRaw = isPhishing 
-                      ? (1 - analysisResults.mlPrediction.confidence) * 100
-                      : analysisResults.mlPrediction.confidence * 100;
-                    // 소수점 첫째 자리까지 표시하되, 100점은 정확히 100.0 이상일 때만 부여
-                    trustScore = trustScoreRaw >= 100.0 ? 100 : Math.max(0, Math.min(99.9, Math.floor(trustScoreRaw * 10) / 10));
+                    
+                    // confidence 값 유효성 검사
+                    let confidence = analysisResults.mlPrediction.confidence;
+                    if (typeof confidence !== 'number' || isNaN(confidence) || confidence < 0 || confidence > 1) {
+                      console.warn(`Invalid confidence value: ${confidence}, using default 0.5`);
+                      confidence = 0.5;
+                    }
+                    
+                    // 백엔드와 동일한 정규화 로직 적용 (0.1~0.99 범위로 제한)
+                    const normalizedConfidence = Math.max(0.1, Math.min(0.99, confidence));
+                    
+                    let trustScoreRaw: number;
+                    if (analysisResults.mlPrediction.label === 0) {
+                      // SAFE: confidence가 높을수록 높은 trustScore
+                      trustScoreRaw = 100 * normalizedConfidence;
+                    } else if (analysisResults.mlPrediction.label === 1) {
+                      // PHISHING: confidence가 높을수록 낮은 trustScore
+                      trustScoreRaw = 100 * (1 - normalizedConfidence);
+                    } else {
+                      // 기본값
+                      trustScoreRaw = 50;
+                    }
+                    
+                    // 백엔드와 동일한 반올림 로직
+                    if (trustScoreRaw >= 100.0) {
+                      trustScore = 100;
+                    } else {
+                      trustScore = Math.max(0, Math.min(99.9, Math.round(trustScoreRaw * 10) / 10));
+                    }
                   } else {
                     // shopRisk만 있는 경우
                     trustScore = analysisResults.shopRisk ? 100 - analysisResults.shopRisk.riskScore : 50;
@@ -881,6 +1026,141 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   );
                 })()}
 
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 리뷰 신뢰도 분석 결과 모달 */}
+      {showReviewTrustModal && reviewTrustResult && (
+        <div className="analysis-modal-overlay">
+          <div className="analysis-modal-content">
+            <div className="analysis-modal-header">
+              <h3 className="analysis-modal-title">리뷰 신뢰도 분석 결과</h3>
+              <button className="analysis-modal-close" onClick={() => setShowReviewTrustModal(false)}>✕</button>
+            </div>
+            <div className="analysis-modal-body bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50">
+              <div className="space-y-6">
+                {/* 리뷰 신뢰도 분석 결과 */}
+                <div className="analysis-result-section fake-review bg-gradient-to-b from-sky-50 via-sky-100 to-sky-50 rounded-lg p-6">
+                  <h4 className="analysis-result-title mb-6">리뷰 신뢰도 분석</h4>
+                  
+                  {/* 신뢰도 점수 섹션 */}
+                  {reviewTrustResult.overallTrustScore !== null ? (
+                    <>
+                      <div className="mb-8 bg-white rounded-lg p-6 shadow-sm">
+                        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+                          {/* 원형 점수 표시기 */}
+                          <div className="flex-shrink-0">
+                            <ScoreDial 
+                              score={reviewTrustResult.overallTrustScore * 100} 
+                              status={
+                                reviewTrustResult.overallTrustScore >= 0.7 ? 'safe' :
+                                reviewTrustResult.overallTrustScore >= 0.4 ? 'warning' : 'danger'
+                              } 
+                            />
+                          </div>
+                          
+                          {/* 설명 텍스트 */}
+                          <div className="flex-1">
+                            <p className="text-base mb-2">
+                              현재 이 쇼핑몰의 리뷰 신뢰도 점수는 <span className="text-blue-600 font-semibold">{(reviewTrustResult.overallTrustScore * 100).toFixed(1)}점</span>이며, 
+                              <span className={`font-semibold ${
+                                reviewTrustResult.overallLevel === 'HIGH' ? 'text-green-600' :
+                                reviewTrustResult.overallLevel === 'MEDIUM' ? 'text-yellow-600' : 'text-orange-600'
+                              }`}> '{reviewTrustResult.overallLevel === 'HIGH' ? '높음' : reviewTrustResult.overallLevel === 'MEDIUM' ? '보통' : '낮음'}'</span> 단계입니다.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {reviewTrustResult.summary}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 통계 정보 */}
+                      <div className="analysis-stats-grid">
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">전체 리뷰 수</h5>
+                          <p className="analysis-stat-value">{reviewTrustResult.stats.totalReviews}개</p>
+                          <p className="analysis-stat-subtitle">분석 대상 리뷰</p>
+                        </div>
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">의심 리뷰</h5>
+                          <p className="analysis-stat-value">{reviewTrustResult.stats.suspiciousCount}개</p>
+                          <p className="analysis-stat-subtitle">
+                            {reviewTrustResult.stats.totalReviews > 0 
+                              ? `${(reviewTrustResult.stats.suspiciousRatio * 100).toFixed(1)}%`
+                              : '0%'}
+                          </p>
+                        </div>
+                        <div className="analysis-stat-card">
+                          <h5 className="analysis-stat-title">정상 리뷰</h5>
+                          <p className="analysis-stat-value">{reviewTrustResult.stats.normalCount}개</p>
+                          <p className="analysis-stat-subtitle">
+                            {reviewTrustResult.stats.totalReviews > 0 
+                              ? `${((1 - reviewTrustResult.stats.suspiciousRatio) * 100).toFixed(1)}%`
+                              : '0%'}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mb-8 bg-white rounded-lg p-6 shadow-sm">
+                      <p className="text-base text-muted-foreground">
+                        {reviewTrustResult.summary}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* 의심 리뷰 상세 */}
+                  {reviewTrustResult.suspiciousReviews.length > 0 && (
+                    <div className="mt-6">
+                      <button
+                        onClick={() => setShowReviewTrustDetails(!showReviewTrustDetails)}
+                        className="analysis-details-button"
+                      >
+                        {showReviewTrustDetails ? '상세 정보 숨기기' : '상세 정보 보기'} ({reviewTrustResult.suspiciousReviews.length}개)
+                      </button>
+                      
+                      {showReviewTrustDetails && (
+                        <div className="analysis-details mt-4">
+                          {reviewTrustResult.suspiciousReviews.map((suspicious, index) => (
+                            <div key={index} className="analysis-detail-card">
+                              <div className="analysis-detail-header">
+                                <div className="analysis-detail-badges">
+                                  <span className="analysis-badge fake">의심 리뷰</span>
+                                  <span className="analysis-badge confidence">
+                                    {suspicious.suggestedAction === 'REVIEW' ? '검토 필요' :
+                                     suspicious.suggestedAction === 'FLAG' ? '주의 필요' : '무시 가능'}
+                                  </span>
+                                </div>
+                                <span className="analysis-detail-date">리뷰 ID: {suspicious.reviewId}</span>
+                              </div>
+                              <div className="analysis-patterns mt-3">
+                                <h6 className="analysis-patterns-title">의심 이유:</h6>
+                                <p className="text-sm text-muted-foreground mt-1">{suspicious.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* 안내 메시지 */}
+                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 mb-3">
+                      💡 <strong>리뷰 신뢰도 분석 설명:</strong> 이 분석은 여기몰까 플랫폼에 등록된 리뷰/신고/후기 텍스트를 기반으로 수행됩니다. 
+                      OpenRouter의 Claude 3.5 Sonnet 모델이 각 리뷰의 패턴을 분석하여 신뢰도를 평가합니다.
+                    </p>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 mb-3 ml-2">
+                      <li><strong>분석 기준:</strong> 과도한 극단 표현 반복, 동일 패턴 리뷰, 시간대 편중, 균형 없는 평가 등</li>
+                      <li><strong>의심 리뷰:</strong> AI가 의심스러운 패턴을 발견한 리뷰입니다. 반드시 가짜 리뷰를 의미하는 것은 아닙니다.</li>
+                      <li><strong>참고용:</strong> 이 분석 결과는 참고용이며, 최종 판단은 사용자 본인의 몫입니다.</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { Rating } from '../components/shop/Rating';
 import { AdvancedAIAnalysis } from '../components/analysis/AdvancedAIAnalysis';
 import { ReviewForm } from '../components/shop/ReviewForm';
 import { ReviewsList } from '../components/shop/ReviewsList';
-import { searchOrCreateShop, getShopReports, getShopRatings, Report, Rating as RatingData, Shop } from '../utils/api';
+import { searchOrCreateShop, getShopReports, getShopRatings, getBusinessRegistration, getTrustScore, Report, Rating as RatingData, Shop } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -27,6 +27,9 @@ export function SearchResultPage() {
   const [isMockShop, setIsMockShop] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
+  const [businessRegistration, setBusinessRegistration] = useState<any | null>(null);
+  const [trustScore, setTrustScore] = useState<{ final_trust: number; trust_grade: string } | null>(null);
+  const [currentReportPage, setCurrentReportPage] = useState(1);
 
   useEffect(() => {
     const searchUrl = searchParams.get('url');
@@ -48,6 +51,11 @@ export function SearchResultPage() {
   useEffect(() => {
     setImgError(false);
   }, [url]);
+
+  // reports가 변경될 때 페이지를 1로 리셋
+  useEffect(() => {
+    setCurrentReportPage(1);
+  }, [reports.length]);
 
   // 타임아웃 래퍼 함수
   const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T> => {
@@ -83,9 +91,11 @@ export function SearchResultPage() {
         // 유효한 쇼핑몰 ID가 있을 때만 신고 목록과 평점 데이터를 로드
         if (shopData.id > 0) {
           try {
-            const [reportsData, ratingsData] = await Promise.all([
+            const [reportsData, ratingsData, businessData, trustData] = await Promise.all([
               withTimeout(getShopReports(shopData.id), 10000),
-              withTimeout(getShopRatings(shopData.id), 10000)
+              withTimeout(getShopRatings(shopData.id), 10000),
+              withTimeout(getBusinessRegistration(shopData.id), 10000).catch(() => null),
+              withTimeout(getTrustScore(shopData.id), 10000).catch(() => null)
             ]);
 
             setReports(reportsData || []);
@@ -103,6 +113,10 @@ export function SearchResultPage() {
                 ratingDistribution: {}
               });
             }
+            
+            // 사업자 등록 정보 및 신뢰도 점수 설정
+            setBusinessRegistration(businessData);
+            setTrustScore(trustData);
           } catch (dataErr) {
             console.error('신고/평점 데이터 로드 에러:', dataErr);
             // 부분 실패 시에도 기본값 설정
@@ -112,6 +126,8 @@ export function SearchResultPage() {
               totalRatings: 0,
               ratingDistribution: {}
             });
+            setBusinessRegistration(null);
+            setTrustScore(null);
           }
         } else {
           // 임시 쇼핑몰인 경우 빈 데이터로 설정
@@ -121,6 +137,8 @@ export function SearchResultPage() {
             totalRatings: 0,
             ratingDistribution: {}
           });
+          setBusinessRegistration(null);
+          setTrustScore(null);
         }
       }
     } catch (err) {
@@ -132,6 +150,8 @@ export function SearchResultPage() {
         totalRatings: 0,
         ratingDistribution: {}
       });
+      setBusinessRegistration(null);
+      setTrustScore(null);
       
       // 임시 쇼핑몰 데이터 생성 (URL만으로)
       setShop({
@@ -177,58 +197,42 @@ export function SearchResultPage() {
           created_at: actualShop.created_at
         });
 
-        // 실제 데이터베이스에서 신고와 평점 데이터 가져오기
+            // 실제 데이터베이스에서 신고와 평점 데이터 가져오기
         if (actualShop.id > 0) {
           try {
             // 실제 신고 데이터 가져오기 (타임아웃 적용)
-            const reportsData = await withTimeout(getShopReports(actualShop.id), 10000);
+            const [reportsData, ratingData, businessData, trustData] = await Promise.all([
+              withTimeout(getShopReports(actualShop.id), 10000),
+              withTimeout(getShopRatings(actualShop.id), 10000),
+              withTimeout(getBusinessRegistration(actualShop.id), 10000).catch(() => null),
+              withTimeout(getTrustScore(actualShop.id), 10000).catch(() => null)
+            ]);
             setReports(reportsData);
-            
-            // 실제 평점 데이터 가져오기 (타임아웃 적용)
-            const ratingData = await withTimeout(getShopRatings(actualShop.id), 10000);
             setShopRating(ratingData);
+            setBusinessRegistration(businessData);
+            setTrustScore(trustData);
           } catch (error) {
             console.error('데이터 로드 오류:', error);
-            // 에러 시에도 목업 데이터 설정
-            const mockReports: Report[] = [
-              {
-                id: 1,
-                shop_id: actualShop.id,
-                categories: JSON.stringify(['사기/피싱', '배송 문제']),
-                description: '목업 신고입니다. 실제 피해 사례가 아닙니다.',
-                reporter_name: '목업 사용자',
-                created_at: new Date().toISOString()
-              }
-            ];
-            setReports(mockReports);
-
-            const mockRating: RatingData = {
-              averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
-              totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
-              ratingDistribution: {
-                5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
-                4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
-                3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
-                2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
-                1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
-              }
-            };
-            setShopRating(mockRating);
+            // 에러 시 기본값 설정
+            setReports([]);
+            setShopRating({
+              averageRating: 0,
+              totalRatings: 0,
+              ratingDistribution: {}
+            });
+            setBusinessRegistration(null);
+            setTrustScore(null);
           }
         } else {
-          // ID가 0인 경우에도 목업 데이터 설정
+          // ID가 0인 경우 기본값 설정
           setReports([]);
           setShopRating({
-            averageRating: mockShop.riskLevel === 'LOW' ? 4.5 : mockShop.riskLevel === 'MEDIUM' ? 3.2 : 2.1,
-            totalRatings: mockShop.riskLevel === 'LOW' ? 25 : mockShop.riskLevel === 'MEDIUM' ? 12 : 8,
-            ratingDistribution: {
-              5: mockShop.riskLevel === 'LOW' ? 15 : mockShop.riskLevel === 'MEDIUM' ? 3 : 1,
-              4: mockShop.riskLevel === 'LOW' ? 8 : mockShop.riskLevel === 'MEDIUM' ? 4 : 2,
-              3: mockShop.riskLevel === 'LOW' ? 2 : mockShop.riskLevel === 'MEDIUM' ? 3 : 2,
-              2: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 2,
-              1: mockShop.riskLevel === 'LOW' ? 0 : mockShop.riskLevel === 'MEDIUM' ? 1 : 1
-            }
+            averageRating: 0,
+            totalRatings: 0,
+            ratingDistribution: {}
           });
+          setBusinessRegistration(null);
+          setTrustScore(null);
         }
       } catch (error) {
         console.error('목업 쇼핑몰 데이터 로드 오류:', error);
@@ -266,6 +270,8 @@ export function SearchResultPage() {
         totalRatings: 0,
         ratingDistribution: {}
       });
+      setBusinessRegistration(null);
+      setTrustScore(null);
     }
   };
 
@@ -366,12 +372,6 @@ export function SearchResultPage() {
 
   const domain = (() => { try { return new URL(url).hostname; } catch { return url; } })();
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
-  
-  // trusted-mall.co.kr 전용 설정
-  const isTrustedMall = domain === 'trusted-mall.co.kr' || url.includes('trusted-mall.co.kr');
-  const shopLogoUrl = isTrustedMall 
-    ? 'https://via.placeholder.com/64/4F46E5/FFFFFF?text=TM' // 임시 로고 (실제 로고 URL로 교체 가능)
-    : faviconUrl;
 
   return (
     <div className="container-custom max-w-[1100px] mx-auto pt-10 pb-16 space-y-6 px-4 sm:px-6 lg:px-8" style={{ background: 'radial-gradient(circle at 20% 0%, rgba(211, 236, 254, 0.95) 0%, rgba(248, 251, 255, 0.95) 60%, rgba(255, 255, 255, 0.98) 100%)', minHeight: '100vh' }}>
@@ -382,8 +382,8 @@ export function SearchResultPage() {
             <div className="relative h-12 w-12 overflow-hidden rounded-md border bg-white">
               {!imgError ? (
                 <img
-                  src={isTrustedMall ? shopLogoUrl : faviconUrl}
-                  alt={`${domain} ${isTrustedMall ? '로고' : '파비콘'}`}
+                  src={faviconUrl}
+                  alt={`${domain} 파비콘`}
                   className="h-full w-full object-cover"
                   onError={() => setImgError(true)}
                 />
@@ -444,44 +444,83 @@ export function SearchResultPage() {
                 <span>사업자 등록</span>
                 <span style={{ color: '#64748b' }}>Building</span>
               </div>
-              {isTrustedMall ? (
+              {businessRegistration ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#dbeafe', color: '#1e40af' }}>
-                    ✅ 사업자등록번호 확인됨
-                  </span>
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#dcfce7', color: '#166534' }}>
-                    🏢 정식 등록
-                  </span>
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fef3c7', color: '#92400e' }}>
-                    📋 통신판매업 신고
-                  </span>
+                  {businessRegistration.business_number ? (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#dbeafe', color: '#1e40af' }}>
+                      ✅ 사업자등록번호 확인됨
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                      ⚠️ 사업자등록번호 없음
+                    </span>
+                  )}
+                  {businessRegistration.business_status === 'ACTIVE' && (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#dcfce7', color: '#166534' }}>
+                      🏢 정식 등록
+                    </span>
+                  )}
+                  {businessRegistration.business_status === 'SUSPENDED' && (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                      ⚠️ 휴업 상태
+                    </span>
+                  )}
+                  {businessRegistration.business_status === 'CLOSED' && (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                      ❌ 폐업 상태
+                    </span>
+                  )}
+                  {businessRegistration.business_status === 'UNKNOWN' && (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fef3c7', color: '#92400e' }}>
+                      ❓ 등록 상태 불명
+                    </span>
+                  )}
+                  {businessRegistration.business_type && (
+                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fef3c7', color: '#92400e' }}>
+                      📋 {businessRegistration.business_type}
+                    </span>
+                  )}
                 </div>
               ) : (
-                <p className="mt-3 text-sm" style={{ color: '#64748b' }}>데이터가 없습니다</p>
+                <div className="mt-3">
+                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fee2e2', color: '#991b1b' }}>
+                    ⚠️ 사업자 등록 정보 없음
+                  </span>
+                  <p className="mt-2 text-xs" style={{ color: '#64748b' }}>
+                    이 쇼핑몰의 사업자 등록 정보가 등록되지 않았습니다.
+                  </p>
+                </div>
               )}
             </div>
             <div className="px-4 py-4 text-base leading-relaxed">
               <div className="flex items-center justify-between text-sm font-medium" style={{ color: '#1e293b' }}>
-                <span>결제/보안</span>
-                <span style={{ color: '#64748b' }}>CreditCard</span>
+                <span>이전 사용자의 신뢰도 분석결과</span>
+                <span style={{ color: '#64748b' }}>BarChart</span>
               </div>
-              {isTrustedMall ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#dcfce7', color: '#166534' }}>
-                    🔒 SSL 인증서
-                  </span>
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#dbeafe', color: '#1e40af' }}>
-                    💳 신용카드 결제
-                  </span>
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#fef3c7', color: '#92400e' }}>
-                    🛡️ 안전결제
-                  </span>
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" style={{ background: '#e0e7ff', color: '#3730a3' }}>
-                    🔐 개인정보보호
-                  </span>
+              {trustScore && trustScore.final_trust !== undefined && trustScore.final_trust !== null ? (
+                <div className="mt-3">
+                  <p className="text-base font-semibold" style={{ color: '#1e293b' }}>
+                    {Number(trustScore.final_trust).toFixed(1)}점
+                  </p>
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5" style={{ background: '#e5e7eb' }}>
+                    <div 
+                      className="h-2.5 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${Math.min(100, Math.max(0, Number(trustScore.final_trust)))}%`,
+                        background: Number(trustScore.final_trust) >= 90 ? '#3B82F6' : 
+                                   Number(trustScore.final_trust) >= 70 ? '#10B981' : 
+                                   Number(trustScore.final_trust) >= 40 ? '#F59E0B' : '#F97316'
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs" style={{ color: '#64748b' }}>
+                    {Number(trustScore.final_trust) >= 90 ? '매우 안전' : 
+                     Number(trustScore.final_trust) >= 70 ? '안전' : 
+                     Number(trustScore.final_trust) >= 40 ? '주의' : '의심'}
+                  </p>
                 </div>
               ) : (
-                <p className="mt-3 text-sm" style={{ color: '#64748b' }}>데이터가 없습니다</p>
+                <p className="mt-3 text-sm" style={{ color: '#64748b' }}>아직 분석 결과가 없습니다</p>
               )}
             </div>
           </div>
@@ -548,27 +587,52 @@ export function SearchResultPage() {
             </div>
           </div>
         ) : (
-          <div className="reports-list">
-            {(Array.isArray(reports) ? reports : []).map((report) => {
-              const categories = JSON.parse(report.categories);
-              return (
-                <div key={report.id} className="report-card">
-                  <div className="report-header">
-                    <div className="categories">
-                      {categories.map((category: string, index: number) => (
-                        <span key={index} className="category">{category}</span>
-                      ))}
+          <>
+            <div className="reports-list-compact">
+              {(Array.isArray(reports) ? reports : []).slice((currentReportPage - 1) * 5, currentReportPage * 5).map((report) => {
+                const categories = JSON.parse(report.categories);
+                return (
+                  <div key={report.id} className="report-card-compact">
+                    <div className="report-header-compact">
+                      <div className="categories-compact">
+                        {categories.map((category: string, index: number) => (
+                          <span key={index} className="category-compact">{category}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="report-description-compact">{report.description}</p>
+                    <div className="report-footer-compact">
+                      <span className="date-compact">{new Date(report.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
+                      <span className="reporter-compact">{report.reporter_name || '익명'}</span>
                     </div>
                   </div>
-                  <p className="report-description">{report.description}</p>
-                  <div className="report-footer">
-                    <span className="date">{new Date(report.created_at).toLocaleDateString('ko-KR')}</span>
-                    <span className="reporter">{report.reporter_name || '익명'}</span>
-                  </div>
+                );
+              })}
+            </div>
+            
+            {/* 페이지네이션 */}
+            {reports.length > 5 && (
+              <div className="pagination-container">
+                <button
+                  onClick={() => setCurrentReportPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentReportPage === 1}
+                  className="pagination-button"
+                >
+                  이전
+                </button>
+                <div className="pagination-info">
+                  {currentReportPage} / {Math.ceil(reports.length / 5)}
                 </div>
-              );
-            })}
-          </div>
+                <button
+                  onClick={() => setCurrentReportPage(prev => Math.min(Math.ceil(reports.length / 5), prev + 1))}
+                  disabled={currentReportPage >= Math.ceil(reports.length / 5)}
+                  className="pagination-button"
+                >
+                  다음
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

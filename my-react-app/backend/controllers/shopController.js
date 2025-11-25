@@ -50,11 +50,17 @@ exports.searchShop = async (req, res) => {
 exports.getShopReports = async (req, res) => {
   try {
     const { shopId } = req.params;
-    const reports = await shopService.getShopReports(shopId);
+    const shopIdNum = parseInt(shopId, 10);
+    
+    if (isNaN(shopIdNum)) {
+      return error(res, '유효하지 않은 쇼핑몰 ID입니다.', 400);
+    }
+    
+    const reports = await shopService.getShopReports(shopIdNum);
     return success(res, reports);
   } catch (err) {
     console.error('신고 목록 조회 오류:', err);
-    return error(res, '신고 목록 조회 실패', 500);
+    return error(res, `신고 목록 조회 실패: ${err.message}`, 500);
   }
 };
 
@@ -64,11 +70,17 @@ exports.getShopReports = async (req, res) => {
 exports.getShopRatings = async (req, res) => {
   try {
     const { shopId } = req.params;
-    const ratings = await shopService.getShopRatings(shopId);
+    const shopIdNum = parseInt(shopId, 10);
+    
+    if (isNaN(shopIdNum)) {
+      return error(res, '유효하지 않은 쇼핑몰 ID입니다.', 400);
+    }
+    
+    const ratings = await shopService.getShopRatings(shopIdNum);
     return success(res, ratings);
   } catch (err) {
     console.error('평점 조회 오류:', err);
-    return error(res, '평점 조회 실패', 500);
+    return error(res, `평점 조회 실패: ${err.message}`, 500);
   }
 };
 
@@ -289,6 +301,58 @@ exports.getRecommendedShopsDetailed = async (req, res) => {
   } catch (err) {
     console.error('추천 쇼핑몰 조회 오류:', err);
     return error(res, `추천 쇼핑몰 조회 실패: ${err.message}`, 500);
+  }
+};
+
+/**
+ * 쇼핑몰의 사업자 등록 정보 조회
+ */
+exports.getBusinessRegistration = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const shopIdNum = parseInt(shopId, 10);
+    
+    if (isNaN(shopIdNum)) {
+      return error(res, '유효하지 않은 쇼핑몰 ID입니다.', 400);
+    }
+    
+    const { data, error } = await supabase
+      .from('business_registrations')
+      .select('*')
+      .eq('shop_id', shopIdNum)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+    
+    // 데이터가 없으면 null 반환
+    return success(res, data || null);
+  } catch (err) {
+    console.error('사업자 등록 정보 조회 오류:', err);
+    return error(res, `사업자 등록 정보 조회 실패: ${err.message}`, 500);
+  }
+};
+
+/**
+ * 쇼핑몰의 신뢰도 점수 조회
+ */
+exports.getTrustScore = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const shopIdNum = parseInt(shopId, 10);
+    
+    if (isNaN(shopIdNum)) {
+      return error(res, '유효하지 않은 쇼핑몰 ID입니다.', 400);
+    }
+    
+    const trustScore = await trustScoreService.getTrustScore(shopIdNum);
+    
+    // 데이터가 없으면 null 반환
+    return success(res, trustScore);
+  } catch (err) {
+    console.error('신뢰도 점수 조회 오류:', err);
+    return error(res, `신뢰도 점수 조회 실패: ${err.message}`, 500);
   }
 };
 

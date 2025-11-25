@@ -17,6 +17,8 @@ router.post('/analyze', shopController.analyzeShop);
 router.get('/:shopId/reports', shopController.getShopReports);
 router.get('/:shopId/ratings', shopController.getShopRatings);
 router.get('/:shopId/reviews', shopController.getShopReviews);
+router.get('/:shopId/business-registration', shopController.getBusinessRegistration);
+router.get('/:shopId/trust-score', shopController.getTrustScore);
 
 // 평점 등록 (인증 필요)
 router.post('/ratings', verifyTokenMiddleware, ratingController.createRating);

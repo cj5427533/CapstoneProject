@@ -9,4 +9,7 @@ const aiController = require('../controllers/aiController');
 router.post('/phishing/detect', aiController.detectPhishing);
 router.post('/detect', aiController.detectPhishing); // 별칭
 
+// 리뷰 신뢰도 분석
+router.post('/review-trust', aiController.analyzeReviewTrust);
+
 module.exports = router;

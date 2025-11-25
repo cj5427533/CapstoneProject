@@ -1033,6 +1033,65 @@ export async function getOrCreateBusinessRegistration(
   }
 }
 
+// 사업자 등록 정보 조회
+export async function getBusinessRegistration(shopId: number): Promise<any | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shops/${shopId}/business-registration`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      if (response.status === 404 || result === null) {
+        return null; // 데이터가 없으면 null 반환
+      }
+      throw new Error(result.message || '사업자 등록 정보 조회에 실패했습니다.');
+    }
+    
+    // 백엔드 응답 구조: { success: true, message: "Success", data: ... }
+    // data가 null이거나 undefined면 null 반환
+    if (result && result.data !== undefined) {
+      return result.data; // data 필드에서 실제 데이터 추출
+    }
+    
+    // data 필드가 없으면 result 자체가 데이터일 수 있음
+    return result || null;
+  } catch (error) {
+    console.error('사업자 등록 정보 조회 에러:', error);
+    return null; // 에러 시 null 반환
+  }
+}
+
+// 신뢰도 점수 조회
+export async function getTrustScore(shopId: number): Promise<{ final_trust: number; trust_grade: string } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shops/${shopId}/trust-score`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      if (response.status === 404 || data === null) {
+        return null; // 데이터가 없으면 null 반환
+      }
+      throw new Error(data.message || '신뢰도 점수 조회에 실패했습니다.');
+    }
+    
+    return data || null;
+  } catch (error) {
+    console.error('신뢰도 점수 조회 에러:', error);
+    return null; // 에러 시 null 반환
+  }
+}
+
 // 웹 분석 결과 저장
 export async function storeWebAnalysis(
   shopId: number,
@@ -1717,6 +1776,48 @@ export const deleteAdminCommunityComment = async (commentId: number): Promise<vo
     }
   } catch (error) {
     console.error('관리자 댓글 삭제 에러:', error);
+    throw error;
+  }
+};
+
+// 리뷰 신뢰도 분석 결과 타입
+export interface ReviewTrustAnalysisResult {
+  overallTrustScore: number | null;
+  overallLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+  summary: string;
+  suspiciousReviews: Array<{
+    reviewId: string;
+    reason: string;
+    suggestedAction: string;
+  }>;
+  stats: {
+    totalReviews: number;
+    suspiciousCount: number;
+    normalCount: number;
+    suspiciousRatio: number;
+  };
+  shopId?: number;
+  cached?: boolean;
+}
+
+// 리뷰 신뢰도 분석
+export const analyzeReviewTrust = async (shopId?: number, shopUrl?: string): Promise<ReviewTrustAnalysisResult> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ai/review-trust`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ shopId, shopUrl })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '리뷰 신뢰도 분석에 실패했습니다.');
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  } catch (error) {
+    console.error('리뷰 신뢰도 분석 에러:', error);
     throw error;
   }
 };

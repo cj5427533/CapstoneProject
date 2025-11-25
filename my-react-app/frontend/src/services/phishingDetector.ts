@@ -1,4 +1,6 @@
 // 실시간 피싱 사이트 탐지 서비스 - 구체적 기준 기반
+import { API_BASE_URL } from '../utils/api';
+
 export interface PhishingResult {
   phishingScore: number; // 0-100점
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -425,13 +427,7 @@ export class PhishingDetector {
    */
   async detectPhishing(url: string): Promise<PhishingResult> {
     try {
-      // 백엔드 API 호출
-      const API_BASE_URL = typeof window !== 'undefined' 
-        ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3001/api'
-            : `http://${window.location.hostname}:3001/api`)
-        : 'http://localhost:3001/api';
-
+      // 백엔드 API 호출 (api.ts의 API_BASE_URL 사용 - 프로덕션 환경에서 HTTPS 자동 사용)
       const response = await fetch(`${API_BASE_URL}/phishing/detect`, {
         method: 'POST',
         headers: {
@@ -508,17 +504,10 @@ export class PhishingDetector {
       
     } catch (error) {
       console.error('피싱 탐지 오류:', error);
-      return {
-        phishingScore: 0,
-        riskLevel: 'LOW',
-        reasons: ['분석 중 오류가 발생했습니다'],
-        recommendations: ['일반적인 온라인 쇼핑 주의사항을 준수하세요'],
-        analysis: {
-          domainAnalysis: 0,
-          contentAnalysis: 0,
-          technicalAnalysis: 0
-        }
-      };
+      // 에러 발생 시 기본값을 반환하지 않고 에러를 다시 던져서
+      // 상위 레벨(realTimePhishingSystem)에서 null을 반환하도록 함
+      // 이렇게 하면 ML 예측 결과만 사용하게 됨
+      throw error;
     }
   }
 
