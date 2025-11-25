@@ -186,7 +186,7 @@ export function ReportsListPage() {
             {filteredReports.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">📝</div>
-                <h3>아직 제보된 피해사례가 없습니다</h3>
+                <h3>아직 제보된 피해사례가 없습니다.</h3>
                 <p>첫 번째 피해사례를 제보해주세요!</p>
                 <Link to="/report" className="report-button">
                   피해사례 제보하기

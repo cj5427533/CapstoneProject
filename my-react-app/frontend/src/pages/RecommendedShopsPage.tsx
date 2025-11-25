@@ -208,7 +208,7 @@ export function RecommendedShopsPage() {
           {shops.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">😔</div>
-              <h3 className="empty-state-title">검색된 쇼핑몰이 없습니다</h3>
+              <h3 className="empty-state-title">검색된 쇼핑몰이 없습니다.</h3>
               <p className="empty-state-description">아직 검색된 쇼핑몰이 없습니다. 먼저 쇼핑몰을 검색해보세요.</p>
             </div>
           ) : (

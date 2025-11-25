@@ -230,7 +230,7 @@ export function HomePage() {
               여기몰까
               <img src={logoMark} alt="여기몰까 로고" className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 object-contain" />
             </h1>
-            <p className="mt-3 text-sm sm:text-base md:text-lg text-slate-700">믿을 수 있는 쇼핑몰인지 확인해보세요</p>
+            <p className="mt-3 text-sm sm:text-base md:text-lg text-slate-700">믿을 수 있는 쇼핑몰인지 확인해보세요.</p>
             <div className="mt-8">
               <URLSearchBar
                 value={url}
@@ -272,7 +272,7 @@ export function HomePage() {
           <div className="mx-auto max-w-6xl">
             <div className="text-center mb-8 sm:mb-12">
               <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2 sm:mb-3">어떤 서비스를 제공하나요?</h2>
-              <p className="text-sm sm:text-base text-slate-700 px-4">AI와 사용자 데이터를 결합한 종합적인 쇼핑몰 신뢰도 분석</p>
+              <p className="text-sm sm:text-base text-slate-700 px-4">AI와 사용자 데이터를 결합한 종합적인 쇼핑몰 신뢰도 분석.</p>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -341,7 +341,7 @@ export function HomePage() {
                 </h3>
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
                   {dangerousPages.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-8">아직 데이터가 없습니다</p>
+                    <p className="text-sm text-gray-500 text-center py-8">아직 데이터가 없습니다.</p>
                   ) : (
                     dangerousPages.slice(0, 5).map((shop, index) => (
                       <div 
@@ -382,7 +382,7 @@ export function HomePage() {
                 </h3>
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
                   {topRatedPages.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-8">아직 데이터가 없습니다</p>
+                    <p className="text-sm text-gray-500 text-center py-8">아직 데이터가 없습니다.</p>
                   ) : (
                     topRatedPages.slice(0, 5).map((shop, index) => (
                       <div 

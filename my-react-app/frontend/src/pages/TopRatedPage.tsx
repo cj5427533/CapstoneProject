@@ -63,7 +63,7 @@ export function TopRatedPage() {
             </div>
           ) : topRatedPages.length === 0 ? (
             <div className="empty-container">
-              <p className="empty-message">아직 평가된 쇼핑몰이 없습니다</p>
+              <p className="empty-message">아직 평가된 쇼핑몰이 없습니다.</p>
             </div>
           ) : (
             topRatedPages.map((shop, index) => (

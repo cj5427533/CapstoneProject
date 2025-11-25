@@ -63,7 +63,7 @@ export function DangerousPage() {
             </div>
           ) : dangerousPages.length === 0 ? (
             <div className="empty-container">
-              <p className="empty-message">아직 신고된 쇼핑몰이 없습니다</p>
+              <p className="empty-message">아직 신고된 쇼핑몰이 없습니다.</p>
             </div>
           ) : (
             dangerousPages.map((shop, index) => (

@@ -520,7 +520,7 @@ export function SearchResultPage() {
                   </p>
                 </div>
               ) : (
-                <p className="mt-3 text-sm" style={{ color: '#64748b' }}>아직 분석 결과가 없습니다</p>
+                <p className="mt-3 text-sm" style={{ color: '#64748b' }}>아직 분석 결과가 없습니다.</p>
               )}
             </div>
           </div>
@@ -577,7 +577,7 @@ export function SearchResultPage() {
         {reports.length === 0 ? (
           <div className="no-reports">
             <div className="no-reports-content">
-              <h3>아직 피해 사례 제보된 내용이 없습니다</h3>
+              <h3>아직 피해 사례 제보된 내용이 없습니다.</h3>
               <p>이 쇼핑몰에 대한 첫 번째 피해 사례 제보를 작성해보세요!</p>
               <div className="no-reports-actions">
                 <button onClick={handleNewReport} className="report-button primary">

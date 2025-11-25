@@ -171,6 +171,8 @@ export function AdminPage() {
   const [communityCommentSearchTerm, setCommunityCommentSearchTerm] = useState<string>('');
   const [shopPagination, setShopPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [reportPagination, setReportPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [userPagination, setUserPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [selectedUserActivity, setSelectedUserActivity] = useState<UserData | null>(null);
 
   // 관리자 인증 체크 (role 기반)
   useEffect(() => {
@@ -288,20 +290,27 @@ export function AdminPage() {
     }
   };
 
-  // 사용자 데이터 로드 (Full-Text Search 지원)
-  const loadUsers = async () => {
+  // 사용자 데이터 로드 (Full-Text Search 지원, 페이지네이션)
+  const loadUsers = async (page: number = 1) => {
     try {
       const usersData = await getAdminUsers({
         search: userSearchTerm || undefined,
-        page: 1,
-        limit: 100
+        page: page,
+        limit: 10
       });
       console.log('사용자 데이터:', usersData);
       // API가 { users: [...], pagination: {...} } 형태로 반환
-      setUsers(Array.isArray(usersData) ? usersData : (usersData.users || []));
+      if (Array.isArray(usersData)) {
+        setUsers(usersData);
+        setUserPagination({ page: 1, limit: 10, total: usersData.length, totalPages: 1 });
+      } else {
+        setUsers(usersData.users || []);
+        setUserPagination(usersData.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
+      }
     } catch (error) {
       console.error('사용자 조회 실패:', error);
       setUsers([]);
+      setUserPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
     }
   };
 
@@ -425,7 +434,10 @@ export function AdminPage() {
         await loadReports(1);
       }
       else if (currentTab === 'ratings') await loadRatings();
-      else if (currentTab === 'users') await loadUsers();
+      else if (currentTab === 'users') {
+        setUserPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
+        await loadUsers(1);
+      }
       else if (currentTab === 'community') {
         await loadCommunityPosts();
         await loadCommunityComments();
@@ -693,7 +705,8 @@ export function AdminPage() {
       setReportPagination(prev => ({ ...prev, page: 1 }));
       loadReports(1);
     } else if (currentTab === 'users') {
-      loadUsers();
+      setUserPagination(prev => ({ ...prev, page: 1 }));
+      loadUsers(1);
     } else if (currentTab === 'ratings') {
       loadRatings();
     } else if (currentTab === 'community') {
@@ -1753,7 +1766,7 @@ export function AdminPage() {
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">👥 사용자 관리 ({users.length}명)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">👥 사용자 관리 ({userPagination.total}명)</h2>
                 <div className="flex gap-2 w-full sm:w-auto">
                   <Input
                     type="text"
@@ -1782,15 +1795,15 @@ export function AdminPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b-2 border-gray-200">
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">사용자명</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">이메일</th>
-                      <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">전화번호</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">권한</th>
-                      <th className="hidden lg:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">활성도</th>
-                      <th className="hidden lg:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">활동</th>
-                      <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">가입일</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-900 bg-gray-50">관리</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">ID</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">사용자명</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">이메일</th>
+                      <th className="hidden md:table-cell px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">전화번호</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">권한</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">활성도</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">활동</th>
+                      <th className="hidden md:table-cell px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">가입일</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-900 bg-gray-50 text-xs">관리</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1812,53 +1825,52 @@ export function AdminPage() {
                       
                       return (
                         <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
-                          <td className="px-4 py-3 text-gray-900">{user.id}</td>
-                          <td className="px-4 py-3 text-gray-900">{user.username}</td>
-                          <td className="px-4 py-3 text-gray-900">{user.email}</td>
-                          <td className="hidden md:table-cell px-4 py-3 text-gray-900">{user.phone_number}</td>
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-2 text-gray-900 text-sm">{user.id}</td>
+                          <td className="px-3 py-2 text-gray-900 text-sm">{user.username}</td>
+                          <td className="px-3 py-2 text-gray-900 text-sm max-w-xs truncate" title={user.email}>{user.email}</td>
+                          <td className="hidden md:table-cell px-3 py-2 text-gray-900 text-sm">{user.phone_number}</td>
+                          <td className="px-3 py-2">
                             <Badge 
                               className={
                                 user.role === 'admin' 
-                                  ? 'bg-blue-100 text-blue-700 border-blue-300' 
-                                  : 'bg-gray-100 text-gray-700 border-gray-300'
+                                  ? 'bg-blue-100 text-blue-700 border-blue-300 text-xs' 
+                                  : 'bg-gray-100 text-gray-700 border-gray-300 text-xs'
                               }
                             >
                               {user.role === 'admin' ? '관리자' : '일반 사용자'}
                             </Badge>
                           </td>
-                          <td className="hidden lg:table-cell px-4 py-3">
+                          <td className="px-3 py-2">
                             {user.activity ? (
-                              <div className="flex flex-col gap-1">
-                                <Badge className={activityLevelColors[user.activity.activityLevel as keyof typeof activityLevelColors] || 'bg-gray-100 text-gray-700'}>
+                              <div className="flex flex-col gap-0.5">
+                                <Badge className={`${activityLevelColors[user.activity.activityLevel as keyof typeof activityLevelColors] || 'bg-gray-100 text-gray-700'} text-xs`}>
                                   {activityLevelLabels[user.activity.activityLevel as keyof typeof activityLevelLabels] || user.activity.activityLevel}
                                 </Badge>
                                 <span className="text-xs text-gray-600">{user.activity.activityScore}점</span>
                               </div>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-gray-400 text-xs">-</span>
                             )}
                           </td>
-                          <td className="hidden lg:table-cell px-4 py-3">
+                          <td className="px-3 py-2">
                             {user.activity ? (
-                              <div className="text-xs text-gray-600 space-y-0.5">
-                                <div>🔐 로그인: {user.activity.loginCount}회</div>
-                                <div>🔍 검색: {user.activity.searchCount}회</div>
-                                <div>📝 신고: {user.activity.reportCount}건</div>
-                                <div>⭐ 평점: {user.activity.ratingCount}건</div>
-                                <div>💬 커뮤니티: {user.activity.postCount + user.activity.commentCount}건</div>
-                              </div>
+                              <button
+                                onClick={() => setSelectedUserActivity(user)}
+                                className="px-2 py-1 text-xs border border-gray-300 bg-white text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                              >
+                                활동 상세보기
+                              </button>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-gray-400 text-xs">-</span>
                             )}
                           </td>
-                          <td className="hidden md:table-cell px-4 py-3 text-gray-900">{new Date(user.created_at).toLocaleString('ko-KR')}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-2">
+                          <td className="hidden md:table-cell px-3 py-2 text-gray-900 text-sm">{new Date(user.created_at).toLocaleDateString('ko-KR')}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1">
                               {user.role === 'admin' ? (
                                 <button 
                                   onClick={() => handleUpdateUserRole(user.id, 'user')}
-                                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="px-2 py-1 text-xs border border-gray-300 bg-white text-gray-900 rounded hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   disabled={user.id === currentUser?.id}
                                 >
                                   일반 사용자로 변경
@@ -1866,7 +1878,7 @@ export function AdminPage() {
                               ) : (
                                 <button 
                                   onClick={() => handleUpdateUserRole(user.id, 'admin')}
-                                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-gray-50 touch-manipulation"
+                                  className="px-2 py-1 text-xs border border-gray-300 bg-white text-gray-900 rounded hover:bg-gray-50 transition-colors"
                                 >
                                   관리자로 지정
                                 </button>
@@ -1880,8 +1892,190 @@ export function AdminPage() {
                 </table>
               </div>
             )}
+            {userPagination.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <Button
+                  onClick={() => {
+                    const newPage = userPagination.page - 1;
+                    if (newPage >= 1) {
+                      loadUsers(newPage);
+                    }
+                  }}
+                  disabled={userPagination.page === 1}
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </Button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, userPagination.totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (userPagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (userPagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (userPagination.page >= userPagination.totalPages - 2) {
+                      pageNum = userPagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = userPagination.page - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        onClick={() => loadUsers(pageNum)}
+                        className={`min-h-[44px] px-4 py-2 border rounded-md text-sm font-medium transition-colors touch-manipulation ${
+                          userPagination.page === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  onClick={() => {
+                    const newPage = userPagination.page + 1;
+                    if (newPage <= userPagination.totalPages) {
+                      loadUsers(newPage);
+                    }
+                  }}
+                  disabled={userPagination.page === userPagination.totalPages}
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </Button>
+                <span className="text-sm text-gray-600 ml-2">
+                  {userPagination.page} / {userPagination.totalPages} 페이지
+                </span>
+              </div>
+            )}
             </CardContent>
           </Card>
+        )}
+
+        {/* 사용자 활동 상세보기 모달 */}
+        {selectedUserActivity && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedUserActivity(null)}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-2xl font-bold text-gray-900">사용자 활동 상세</h3>
+                  <button
+                    onClick={() => setSelectedUserActivity(null)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="mb-6">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">사용자명</p>
+                      <p className="text-base font-semibold text-gray-900">{selectedUserActivity.username}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">이메일</p>
+                      <p className="text-base font-semibold text-gray-900">{selectedUserActivity.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedUserActivity.activity ? (
+                  <div className="space-y-4">
+                    <div className="border rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-3">활동 통계</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">🔐</span>
+                          <div>
+                            <p className="text-sm text-gray-600">로그인</p>
+                            <p className="text-lg font-semibold text-gray-900">{selectedUserActivity.activity.loginCount}회</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">🔍</span>
+                          <div>
+                            <p className="text-sm text-gray-600">검색</p>
+                            <p className="text-lg font-semibold text-gray-900">{selectedUserActivity.activity.searchCount}회</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">📝</span>
+                          <div>
+                            <p className="text-sm text-gray-600">신고</p>
+                            <p className="text-lg font-semibold text-gray-900">{selectedUserActivity.activity.reportCount}건</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">⭐</span>
+                          <div>
+                            <p className="text-sm text-gray-600">평점</p>
+                            <p className="text-lg font-semibold text-gray-900">{selectedUserActivity.activity.ratingCount}건</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">💬</span>
+                          <div>
+                            <p className="text-sm text-gray-600">커뮤니티</p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              게시글 {selectedUserActivity.activity.postCount}건, 댓글 {selectedUserActivity.activity.commentCount}건
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">📊</span>
+                          <div>
+                            <p className="text-sm text-gray-600">활동 점수</p>
+                            <p className="text-lg font-semibold text-gray-900">{selectedUserActivity.activity.activityScore}점</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-3">활동 정보</h4>
+                      <div className="space-y-2">
+                        {selectedUserActivity.activity.lastLogin && (
+                          <div>
+                            <p className="text-sm text-gray-600">마지막 로그인</p>
+                            <p className="text-base text-gray-900">{new Date(selectedUserActivity.activity.lastLogin).toLocaleString('ko-KR')}</p>
+                          </div>
+                        )}
+                        {selectedUserActivity.activity.lastActivity && (
+                          <div>
+                            <p className="text-sm text-gray-600">마지막 활동</p>
+                            <p className="text-base text-gray-900">{new Date(selectedUserActivity.activity.lastActivity).toLocaleString('ko-KR')}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">활동 데이터가 없습니다.</p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button
+                    onClick={() => setSelectedUserActivity(null)}
+                    className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-700 rounded-md"
+                  >
+                    닫기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* 커뮤니티 관리 탭 */}

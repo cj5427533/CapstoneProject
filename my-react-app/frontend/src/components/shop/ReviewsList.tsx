@@ -150,7 +150,7 @@ export function ReviewsList({ shopId, onReviewAdded, refreshKey }: ReviewsListPr
       {reviews.length === 0 ? (
         <div className="empty-reviews">
           <div className="empty-icon">💬</div>
-          <h4>아직 작성된 리뷰가 없습니다</h4>
+          <h4>아직 작성된 리뷰가 없습니다.</h4>
           <p>첫 번째 리뷰를 작성해보세요!</p>
         </div>
       ) : (

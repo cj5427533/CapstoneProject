@@ -185,7 +185,7 @@ export function CommunityPage() {
       <div className="community-container">
         <div className="community-header">
           <h1>커뮤니티</h1>
-          <p>쇼핑몰 정보를 공유하고 소통하는 공간입니다</p>
+          <p>쇼핑몰 정보를 공유하고 소통하는 공간입니다.</p>
         </div>
 
         {/* 게시글 작성 버튼 */}
