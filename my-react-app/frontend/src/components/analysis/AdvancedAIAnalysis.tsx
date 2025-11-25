@@ -69,11 +69,33 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   const [reviewTrustResult, setReviewTrustResult] = useState<ReviewTrustAnalysisResult | null>(null);
   const [showReviewTrustModal, setShowReviewTrustModal] = useState(false);
   const [showReviewTrustDetails, setShowReviewTrustDetails] = useState(false);
+  const [showAllReviewCriteria, setShowAllReviewCriteria] = useState(false);
+  const [showAllPhishingCriteria, setShowAllPhishingCriteria] = useState(false);
 
   const fakeReviewDetector = AdvancedFakeReviewDetector.getInstance();
   const shopRiskAnalyzer = ShopRiskAnalyzer.getInstance();
   const phishingSystem = RealTimePhishingSystem.getInstance();
   const basicFakeReviewDetector = FakeReviewDetector.getInstance();
+
+  const reviewCriteria = [
+    '과도한 극단 표현 반복 (예: "최고", "완벽", "최악", "사기" 등)',
+    '동일 패턴 리뷰 (비슷한 문체, 비슷한 내용)',
+    '시간대 편중 (짧은 시간 내 다수 리뷰)',
+    '균형 없는 평가 (너무 좋은/나쁜 표현만 있는 경우)',
+    '구체적인 경험 부족 (모호한 표현, 일반적인 문구)',
+    '비정상적인 평점 분포'
+  ];
+
+  const phishingCriteria = [
+    '유명 사이트와 85% 이상 유사한 도메인 (타이포스쿼팅)',
+    '긴급성 강조 표현 3개 이상',
+    '결제 압박 표현 2개 이상',
+    '30일 이내 신규 도메인',
+    'SSL 인증서 없음/무효',
+    '과도한 리다이렉트 (5회 이상)',
+    '연락처 정보 2개 이상 부족',
+    '사업자 정보 2개 이상 부족'
+  ];
 
   // 목업 쇼핑몰인지 확인하는 함수
   const isMockShop = (url: string): boolean => {
@@ -564,29 +586,49 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
         </div>
 
         <div className="criteria-subtitle">
-          <span className="triangle-icon">▲</span>
+          <span className="triangle-icon">▼</span>
           <span>우리만의 구체적 검사 기준</span>
         </div>
 
         <div className="criteria-grid">
-          <div className="criteria-section">
+          <div className="criteria-section criteria-section--review">
             <h6 className="section-title fake-review">리뷰 신뢰도 분석:</h6>
             <ul className="criteria-list">
-              <li>과도한 긍정 표현 2개 이상 사용</li>
-              <li>5분 내 3개 이상 연속 리뷰</li>
-              <li>90% 이상 5점 리뷰</li>
-              <li>비현실적 배송/가격 표현</li>
+              {(showAllReviewCriteria ? reviewCriteria : reviewCriteria.slice(0, 3)).map((criteria, index) => (
+                <li key={`review-criteria-${index}`}>{criteria}</li>
+              ))}
             </ul>
+            {reviewCriteria.length > 3 && (
+              <div className="criteria-toggle">
+                <button
+                  type="button"
+                  className="criteria-toggle-btn"
+                  onClick={() => setShowAllReviewCriteria(prev => !prev)}
+                >
+                  {showAllReviewCriteria ? '기준 접기' : `+ ${reviewCriteria.length - 3}개 더 보기`}
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="criteria-section">
-            <h6 className="section-title phishing">피싱 사이트 검사:</h6>
+          <div className="criteria-section criteria-section--phishing">
+            <h6 className="section-title phishing">쇼핑몰 신뢰도 분석:</h6>
             <ul className="criteria-list">
-              <li>유명 사이트와 85% 이상 유사한 도메인</li>
-              <li>긴급성 강조 표현 3개 이상</li>
-              <li>30일 이내 신규 도메인</li>
-              <li>사업자 정보 2개 이상 부족</li>
+              {(showAllPhishingCriteria ? phishingCriteria : phishingCriteria.slice(0, 3)).map((criteria, index) => (
+                <li key={`phishing-criteria-${index}`}>{criteria}</li>
+              ))}
             </ul>
+            {phishingCriteria.length > 3 && (
+              <div className="criteria-toggle">
+                <button
+                  type="button"
+                  className="criteria-toggle-btn"
+                  onClick={() => setShowAllPhishingCriteria(prev => !prev)}
+                >
+                  {showAllPhishingCriteria ? '기준 접기' : `+ ${phishingCriteria.length - 3}개 더 보기`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1107,9 +1149,24 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     </>
                   ) : (
                     <div className="mb-8 bg-white rounded-lg p-6 shadow-sm">
-                      <p className="text-base text-muted-foreground">
-                        {reviewTrustResult.summary}
-                      </p>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 9v4M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="text-lg font-semibold text-gray-900 mb-1">리뷰 데이터 없음</h5>
+                          <p className="text-base text-gray-700">
+                            {reviewTrustResult.summary || '분석할 리뷰가 아직 없습니다.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-sm text-gray-600">
+                          이 쇼핑몰에 대한 리뷰, 신고, 또는 커뮤니티 게시글이 등록되면 신뢰도 분석을 수행할 수 있습니다.
+                        </p>
+                      </div>
                     </div>
                   )}
                   

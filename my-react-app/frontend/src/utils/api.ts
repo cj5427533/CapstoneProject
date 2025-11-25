@@ -1304,6 +1304,25 @@ export async function getSecurityAlerts() {
   }
 }
 
+// 보안 알림 목업 데이터 조회
+export async function getSecurityMockAlerts() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/security/mock-alerts`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || '보안 목업 데이터 조회에 실패했습니다.');
+    }
+
+    return data.data || data;
+  } catch (error) {
+    console.error('보안 목업 알림 조회 에러:', error);
+    throw error;
+  }
+}
+
 // 사용자 권한 업데이트
 export async function updateUserRole(userId: number, role: 'user' | 'admin') {
   try {

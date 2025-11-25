@@ -340,8 +340,25 @@ async function detectPhishing(url) {
  * @param {Array} reviews - 분석할 리뷰 배열
  * @returns {Promise<object>} 분석 결과
  */
+const OPENROUTER_ENV_KEYS = [
+  'OPENROUTER_API_KEY',
+  'VITE_OPENROUTER_API_KEY',
+  'OPENROUTER_KEY'
+];
+
+const getOpenRouterApiKey = () => {
+  for (const key of OPENROUTER_ENV_KEYS) {
+    if (process.env[key]) {
+      return process.env[key];
+    }
+  }
+  return null;
+};
+
+const AI_ANALYSIS_CACHE_TABLE = process.env.AI_ANALYSIS_CACHE_TABLE || 'ai_analysis_cache_entries';
+
 async function analyzeReviewTrustWithAI(reviews) {
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+  const OPENROUTER_API_KEY = getOpenRouterApiKey();
   
   if (!OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY 환경변수가 설정되지 않았습니다.');
@@ -556,78 +573,118 @@ async function getShopReviewsForAnalysis(shopId) {
   const reviews = [];
 
   try {
+    console.log(`[리뷰 신뢰도 분석] shopId=${shopId}에 대한 리뷰 데이터 조회 시작`);
+
     // 1. shop_ratings에서 comment가 있는 리뷰 조회
     const { data: ratings, error: ratingsError } = await supabase
       .from('shop_ratings')
-      .select('id, rating, comment, created_at, user_id, users!shop_ratings_user_id_fkey(username)')
+      .select(`
+        id, 
+        rating, 
+        comment, 
+        created_at, 
+        user_id,
+        users:user_id(username)
+      `)
       .eq('shop_id', shopId)
       .not('comment', 'is', null)
       .neq('comment', '')
       .order('created_at', { ascending: false });
 
-    if (!ratingsError && ratings) {
-      ratings.forEach(rating => {
-        reviews.push({
-          id: `rating_${rating.id}`,
-          type: 'rating',
-          rating: rating.rating,
-          content: rating.comment,
-          createdAt: rating.created_at,
-          authorNickname: rating.users?.username || '익명',
-          originalId: rating.id
+    if (ratingsError) {
+      console.error(`[리뷰 신뢰도 분석] shop_ratings 조회 오류:`, ratingsError);
+    } else {
+      console.log(`[리뷰 신뢰도 분석] shop_ratings 조회 결과: ${ratings?.length || 0}개`);
+      if (ratings && ratings.length > 0) {
+        ratings.forEach(rating => {
+          reviews.push({
+            id: `rating_${rating.id}`,
+            type: 'rating',
+            rating: rating.rating,
+            content: rating.comment,
+            createdAt: rating.created_at,
+            authorNickname: rating.users?.username || '익명',
+            originalId: rating.id
+          });
         });
-      });
+      }
     }
 
     // 2. shop_reports에서 description이 있는 신고 조회
     const { data: reports, error: reportsError } = await supabase
       .from('shop_reports')
-      .select('id, description, created_at, user_id, reporter_name, users!shop_reports_user_id_fkey(username)')
+      .select(`
+        id, 
+        description, 
+        created_at, 
+        user_id, 
+        reporter_name,
+        users:user_id(username)
+      `)
       .eq('shop_id', shopId)
       .not('description', 'is', null)
       .neq('description', '')
       .order('created_at', { ascending: false });
 
-    if (!reportsError && reports) {
-      reports.forEach(report => {
-        reviews.push({
-          id: `report_${report.id}`,
-          type: 'report',
-          rating: null, // 신고는 평점 없음
-          content: report.description,
-          createdAt: report.created_at,
-          authorNickname: report.users?.username || report.reporter_name || '익명',
-          originalId: report.id
+    if (reportsError) {
+      console.error(`[리뷰 신뢰도 분석] shop_reports 조회 오류:`, reportsError);
+    } else {
+      console.log(`[리뷰 신뢰도 분석] shop_reports 조회 결과: ${reports?.length || 0}개`);
+      if (reports && reports.length > 0) {
+        reports.forEach(report => {
+          reviews.push({
+            id: `report_${report.id}`,
+            type: 'report',
+            rating: null, // 신고는 평점 없음
+            content: report.description,
+            createdAt: report.created_at,
+            authorNickname: report.users?.username || report.reporter_name || '익명',
+            originalId: report.id
+          });
         });
-      });
+      }
     }
 
     // 3. community_posts에서 해당 쇼핑몰 관련 게시글 조회 (shop_id가 있는 경우)
     const { data: posts, error: postsError } = await supabase
       .from('community_posts')
-      .select('id, title, content, created_at, user_id, users!community_posts_user_id_fkey(username)')
+      .select(`
+        id, 
+        title, 
+        content, 
+        created_at, 
+        user_id,
+        users:user_id(username)
+      `)
       .eq('shop_id', shopId)
       .not('content', 'is', null)
       .neq('content', '')
       .order('created_at', { ascending: false });
 
-    if (!postsError && posts) {
-      posts.forEach(post => {
-        reviews.push({
-          id: `post_${post.id}`,
-          type: 'post',
-          rating: null,
-          content: `${post.title}\n${post.content}`,
-          createdAt: post.created_at,
-          authorNickname: post.users?.username || '익명',
-          originalId: post.id
+    if (postsError) {
+      console.error(`[리뷰 신뢰도 분석] community_posts 조회 오류:`, postsError);
+    } else {
+      console.log(`[리뷰 신뢰도 분석] community_posts 조회 결과: ${posts?.length || 0}개`);
+      if (posts && posts.length > 0) {
+        posts.forEach(post => {
+          reviews.push({
+            id: `post_${post.id}`,
+            type: 'post',
+            rating: null,
+            content: `${post.title}\n${post.content}`,
+            createdAt: post.created_at,
+            authorNickname: post.users?.username || '익명',
+            originalId: post.id
+          });
         });
-      });
+      }
     }
 
+    console.log(`[리뷰 신뢰도 분석] 총 조회된 리뷰 수: ${reviews.length}개`);
+
   } catch (error) {
-    console.error('리뷰 데이터 조회 오류:', error);
-    throw error;
+    console.error('[리뷰 신뢰도 분석] 리뷰 데이터 조회 오류:', error);
+    // 에러가 발생해도 빈 배열 반환 (분석은 계속 진행)
   }
 
   return reviews;
@@ -642,7 +699,7 @@ async function getShopReviewsForAnalysis(shopId) {
 async function getAnalysisCache(shopId, analysisType) {
   try {
     const { data, error } = await supabase
-      .from('ai_analysis_cache')
+      .from(AI_ANALYSIS_CACHE_TABLE)
       .select('*')
       .eq('shop_id', shopId)
       .eq('analysis_type', analysisType)
@@ -686,7 +743,7 @@ async function saveAnalysisCache(shopId, analysisType, analysisResult, cacheMinu
     expiresAt.setMinutes(expiresAt.getMinutes() + cacheMinutes);
 
     const { error } = await supabase
-      .from('ai_analysis_cache')
+      .from(AI_ANALYSIS_CACHE_TABLE)
       .insert({
         shop_id: shopId,
         analysis_type: analysisType,

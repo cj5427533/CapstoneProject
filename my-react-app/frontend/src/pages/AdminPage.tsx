@@ -21,7 +21,8 @@ import {
   getAdminCommunityComments,
   deleteAdminCommunityComment,
   generateMockRatings,
-  getSecurityAlerts
+  getSecurityAlerts,
+  getSecurityMockAlerts
 } from '../utils/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -154,6 +155,7 @@ export function AdminPage() {
   const [communityComments, setCommunityComments] = useState<CommunityComment[]>([]);
   const [securityAlerts, setSecurityAlerts] = useState<any[]>([]);
   const [securitySummary, setSecuritySummary] = useState<{ total: number; high: number; medium: number; low: number } | null>(null);
+  const [securityMockActive, setSecurityMockActive] = useState(false);
   const [editingShopId, setEditingShopId] = useState<number | null>(null);
   const [editingShopName, setEditingShopName] = useState('');
   const [mergingShopId, setMergingShopId] = useState<number | null>(null);
@@ -168,6 +170,7 @@ export function AdminPage() {
   const [communityPostSearchTerm, setCommunityPostSearchTerm] = useState<string>('');
   const [communityCommentSearchTerm, setCommunityCommentSearchTerm] = useState<string>('');
   const [shopPagination, setShopPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [reportPagination, setReportPagination] = useState<{ page: number; limit: number; total: number; totalPages: number }>({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
   // 관리자 인증 체크 (role 기반)
   useEffect(() => {
@@ -228,19 +231,37 @@ export function AdminPage() {
   };
 
   // 피해 사례 제보 데이터 로드 (Full-Text Search 지원)
-  const loadReports = async () => {
+  const loadReports = async (page: number = reportPagination.page) => {
     try {
-      const reportsData = await getAdminReports({
+      const { reports: fetchedReports, pagination } = await getAdminReports({
         search: reportSearchTerm || undefined,
-        page: 1,
-        limit: 100
+        page,
+        limit: 10
       });
-      console.log('피해 사례 제보 데이터:', reportsData);
-      // API가 { reports: [...], pagination: {...} } 형태로 반환
-      setReports(Array.isArray(reportsData) ? reportsData : (reportsData.reports || []));
+      console.log('피해 사례 제보 데이터:', fetchedReports);
+      const normalizedReports = Array.isArray(fetchedReports)
+        ? fetchedReports
+        : (Array.isArray((fetchedReports as any)?.reports) ? (fetchedReports as any).reports : []);
+      setReports(normalizedReports);
+      if (pagination) {
+        setReportPagination({
+          page: pagination.page || page,
+          limit: pagination.limit || 10,
+          total: pagination.total || normalizedReports.length,
+          totalPages: pagination.totalPages || Math.max(1, Math.ceil((pagination.total || normalizedReports.length || 1) / (pagination.limit || 10)))
+        });
+      } else {
+        setReportPagination({
+          page,
+          limit: 10,
+          total: normalizedReports.length,
+          totalPages: 1
+        });
+      }
     } catch (error) {
       console.error('피해 사례 제보 조회 실패:', error);
       setReports([]);
+      setReportPagination(prev => ({ ...prev, page: 1, total: 0, totalPages: 0 }));
     }
   };
 
@@ -334,10 +355,25 @@ export function AdminPage() {
       const alertsData = await getSecurityAlerts();
       setSecurityAlerts(alertsData.alerts || []);
       setSecuritySummary(alertsData.summary || null);
+      setSecurityMockActive(false);
     } catch (error) {
       console.error('보안 알림 조회 실패:', error);
       setSecurityAlerts([]);
       setSecuritySummary(null);
+      setSecurityMockActive(false);
+    }
+  };
+
+  const loadSecurityMockAlerts = async () => {
+    try {
+      const alertsData = await getSecurityMockAlerts();
+      setSecurityAlerts(alertsData.alerts || []);
+      setSecuritySummary(alertsData.summary || null);
+      setSecurityMockActive(true);
+      toast.info('보안 목업 데이터를 불러왔습니다.');
+    } catch (error) {
+      console.error('보안 목업 알림 조회 실패:', error);
+      toast.error('보안 목업 데이터를 불러오지 못했습니다.');
     }
   };
 
@@ -384,7 +420,10 @@ export function AdminPage() {
         setShopPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
         await loadShops(1);
       }
-      else if (currentTab === 'reports') await loadReports();
+      else if (currentTab === 'reports') {
+        setReportPagination({ page: 1, limit: 10, total: 0, totalPages: 0 });
+        await loadReports(1);
+      }
       else if (currentTab === 'ratings') await loadRatings();
       else if (currentTab === 'users') await loadUsers();
       else if (currentTab === 'community') {
@@ -651,7 +690,8 @@ export function AdminPage() {
       setShopPagination({ ...shopPagination, page: 1 });
       loadShops(1);
     } else if (currentTab === 'reports') {
-      loadReports();
+      setReportPagination(prev => ({ ...prev, page: 1 }));
+      loadReports(1);
     } else if (currentTab === 'users') {
       loadUsers();
     } else if (currentTab === 'ratings') {
@@ -1244,7 +1284,7 @@ export function AdminPage() {
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⚠️ 피해 사례 제보 관리 ({filteredReports.length}개)</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">⚠️ 피해 사례 제보 관리 ({reportPagination.total}개)</h2>
                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <div className="flex gap-2 w-full sm:w-auto">
                     <Input
@@ -1356,6 +1396,65 @@ export function AdminPage() {
                   ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {reportPagination.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <Button
+                  onClick={() => {
+                    const newPage = reportPagination.page - 1;
+                    if (newPage >= 1) {
+                      loadReports(newPage);
+                    }
+                  }}
+                  disabled={reportPagination.page === 1}
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </Button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, reportPagination.totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (reportPagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (reportPagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (reportPagination.page >= reportPagination.totalPages - 2) {
+                      pageNum = reportPagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = reportPagination.page - 2 + i;
+                    }
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        onClick={() => loadReports(pageNum)}
+                        className={`min-h-[44px] px-4 py-2 border rounded-md text-sm font-medium transition-colors touch-manipulation ${
+                          reportPagination.page === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  onClick={() => {
+                    const newPage = reportPagination.page + 1;
+                    if (newPage <= reportPagination.totalPages) {
+                      loadReports(newPage);
+                    }
+                  }}
+                  disabled={reportPagination.page === reportPagination.totalPages}
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 touch-manipulation rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </Button>
+                <span className="text-sm text-gray-600 ml-2">
+                  {reportPagination.page} / {reportPagination.totalPages} 페이지
+                </span>
               </div>
             )}
             </CardContent>
@@ -1938,10 +2037,33 @@ export function AdminPage() {
         {currentTab === 'security' && (
           <Card className="rounded-2xl shadow-md border-gray-200 bg-white">
             <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🔒 보안 모니터링</h2>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col lg:flex-row justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">🔒 보안 모니터링</h2>
+                    {securityMockActive && (
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-300">
+                        목업 데이터
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      onClick={loadSecurityAlerts}
+                      className="min-h-[40px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors"
+                    >
+                      실데이터 새로고침
+                    </Button>
+                    <Button
+                      onClick={loadSecurityMockAlerts}
+                      className="min-h-[40px] px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-md text-sm font-medium transition-colors"
+                    >
+                      목업 데이터 채우기
+                    </Button>
+                  </div>
+                </div>
                 {securitySummary && (
-                  <div className="flex gap-3 text-sm">
+                  <div className="flex flex-wrap gap-3 text-sm">
                     <span className="px-3 py-1 bg-red-100 text-red-700 rounded-md font-medium">
                       높음: {securitySummary.high}
                     </span>
@@ -1957,8 +2079,22 @@ export function AdminPage() {
             </CardHeader>
             <CardContent>
               {securityAlerts.length === 0 ? (
-                <div className="text-center py-12">
+                <div className="text-center py-12 space-y-4">
                   <p className="text-gray-600">의심스러운 활동이 감지되지 않았습니다.</p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                    <Button
+                      onClick={loadSecurityAlerts}
+                      className="min-h-[40px] px-4 py-2 border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors"
+                    >
+                      다시 확인
+                    </Button>
+                    <Button
+                      onClick={loadSecurityMockAlerts}
+                      className="min-h-[40px] px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-md text-sm font-medium transition-colors"
+                    >
+                      목업 데이터 채우기
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1988,13 +2124,18 @@ export function AdminPage() {
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <Badge className={severityBadgeColors[alert.severity as keyof typeof severityBadgeColors] || 'bg-gray-100 text-gray-700'}>
                                 {alert.severity === 'HIGH' ? '🔴 높음' : alert.severity === 'MEDIUM' ? '🟡 중간' : '⚪ 낮음'}
                               </Badge>
                               <span className="text-sm font-medium text-gray-700">
                                 {typeLabels[alert.type] || alert.type}
                               </span>
+                              {(alert.mock || securityMockActive) && (
+                                <Badge className="bg-purple-100 text-purple-700 border-purple-300">
+                                  Mock
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-sm text-gray-900 mb-2">{alert.description}</p>
                             <div className="flex flex-wrap gap-3 text-xs text-gray-600">

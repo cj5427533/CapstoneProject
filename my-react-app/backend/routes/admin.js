@@ -41,5 +41,6 @@ router.get('/trust-distribution', adminController.getTrustDistribution);
 
 // 보안 모니터링
 router.get('/security/alerts', adminController.getSecurityAlerts);
+router.get('/security/mock-alerts', adminController.getSecurityMockAlerts);
 
 module.exports = router;

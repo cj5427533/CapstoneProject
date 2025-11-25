@@ -3506,8 +3506,8 @@ a:hover {
 
 .criteria-section {
   background: white;
-  border-radius: 12px;
-  padding: 1.1rem 1.25rem;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border: 1px solid #e5e7eb;
   transition: all 0.3s ease;
@@ -3519,7 +3519,7 @@ a:hover {
 }
 
 .section-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: bold;
   margin-bottom: 0.75rem;
   padding-bottom: 0.4rem;
@@ -3530,7 +3530,7 @@ a:hover {
 }
 
 .analysis-criteria-container .section-title {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .section-title.fake-review {
@@ -3547,38 +3547,91 @@ a:hover {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
 }
 
 .criteria-list li {
-  padding: 0.6rem 0;
-  border-bottom: 1px solid #f3f4f6;
-  color: #4b5563;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  color: #1f2937;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  border-radius: 12px;
+  padding: 0.75rem 0.75rem 0.75rem 2.25rem;
   position: relative;
-  padding-left: 1.5rem;
-}
-
-.criteria-list li:last-child {
-  border-bottom: none;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
 }
 
 .criteria-list li::before {
-  content: "•";
+  content: "●";
   position: absolute;
-  left: 0;
-  color: #2563eb;
-  font-weight: bold;
-  font-size: 1.2rem;
+  left: 0.9rem;
+  font-size: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .criteria-list li:hover {
-  background: #f8fafc;
-  border-radius: 6px;
-  padding-left: 1.5rem;
-  margin: 0 -0.35rem;
-  padding-right: 0.35rem;
-  color: #1e293b;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #111827;
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.15);
+}
+
+.criteria-section--review .criteria-list li {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.criteria-section--review .criteria-list li:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  box-shadow: 0 6px 16px rgba(248, 113, 113, 0.2);
+}
+
+.criteria-section--review .criteria-list li::before {
+  color: #dc2626;
+}
+
+.criteria-section--phishing .criteria-list li {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.criteria-section--phishing .criteria-list li:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
+  box-shadow: 0 6px 16px rgba(251, 146, 60, 0.2);
+}
+
+.criteria-section--phishing .criteria-list li::before {
+  color: #ea580c;
+}
+
+.criteria-toggle {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.criteria-toggle-btn {
+  font-size: 0.8rem;
+  color: #2563eb;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.25rem 0;
+  transition: color 0.2s ease;
+}
+
+.criteria-toggle-btn:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
 }
 
 .analysis-criteria-container .disclaimer {

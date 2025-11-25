@@ -626,7 +626,7 @@ exports.getUsers = async (req, res) => {
         .order('created_at', { ascending: false });
 
       const successfulLogins = (loginLogs || []).filter(log => log.login_success === true);
-      const lastLogin = successfulLogins.length > 0 ? successfulLogs[0].created_at : null;
+      const lastLogin = successfulLogins.length > 0 ? successfulLogins[0].created_at : null;
       const loginCount = successfulLogins.length;
 
       // 검색 활동 (최근 30일)
@@ -1444,6 +1444,88 @@ exports.getSecurityAlerts = async (req, res) => {
   } catch (err) {
     console.error('보안 알림 조회 오류:', err);
     return error(res, `보안 알림 조회 실패: ${err.message || '알 수 없는 오류'}`, 500);
+  }
+};
+
+/**
+ * 보안 모니터링 - 목업 데이터 생성
+ */
+exports.getSecurityMockAlerts = async (_req, res) => {
+  try {
+    const now = new Date();
+    const iso = (minutesAgo = 0) => new Date(now.getTime() - minutesAgo * 60 * 1000).toISOString();
+
+    const alerts = [
+      {
+        type: 'MULTIPLE_ACCOUNTS_FROM_SAME_IP',
+        severity: 'HIGH',
+        ip: '203.0.113.45',
+        uniqueUserCount: 7,
+        failedAttempts: 4,
+        totalAttempts: 18,
+        lastAttempt: iso(5),
+        description: '같은 IP(203.0.113.45)에서 7개의 서로 다른 계정으로 로그인 시도',
+        mock: true
+      },
+      {
+        type: 'RAPID_FAILURES_BY_IP',
+        severity: 'HIGH',
+        ip: '198.51.100.12',
+        failureCount: 9,
+        timeWindow: '10분',
+        lastAttempt: iso(8),
+        description: 'IP 198.51.100.12에서 10분 내 9회 로그인 실패',
+        mock: true
+      },
+      {
+        type: 'RAPID_FAILURES_BY_USER',
+        severity: 'MEDIUM',
+        userId: 1042,
+        failureCount: 6,
+        timeWindow: '10분',
+        lastAttempt: iso(12),
+        description: '사용자 ID 1042에서 10분 내 6회 로그인 실패',
+        mock: true
+      },
+      {
+        type: 'SUSPICIOUS_USER_AGENT',
+        severity: 'MEDIUM',
+        userAgent: 'curl/8.5.0 (x86_64-pc-linux-gnu)',
+        occurrenceCount: 14,
+        uniqueIPs: 5,
+        lastSeen: iso(20),
+        description: '의심스러운 User-Agent 패턴 감지: "curl/8.5.0 (x86_64-pc-linux-gnu)" (14회 발생)',
+        mock: true
+      },
+      {
+        type: 'BOT_PATTERN_SMS_AND_LOGIN',
+        severity: 'HIGH',
+        ip: '192.0.2.77',
+        smsRequestCount: 5,
+        loginAttempts: 6,
+        phoneNumber: '010-1234-5678',
+        lastActivity: iso(3),
+        description: 'IP 192.0.2.77에서 SMS 요청 5회 후 로그인 시도 6회 (봇 패턴 의심)',
+        mock: true
+      }
+    ];
+
+    const summary = {
+      total: alerts.length,
+      high: alerts.filter(a => a.severity === 'HIGH').length,
+      medium: alerts.filter(a => a.severity === 'MEDIUM').length,
+      low: alerts.filter(a => a.severity === 'LOW').length
+    };
+
+    return success(res, {
+      alerts,
+      summary,
+      mock: true,
+      generatedAt: now.toISOString()
+    });
+  } catch (err) {
+    console.error('보안 목업 알림 생성 오류:', err);
+    return error(res, '목업 데이터를 생성하지 못했습니다.', 500);
   }
 };
 

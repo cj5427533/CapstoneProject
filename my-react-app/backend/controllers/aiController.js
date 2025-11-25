@@ -394,10 +394,13 @@ exports.analyzeReviewTrust = async (req, res) => {
     }
 
     // 리뷰 데이터 조회
+    console.log(`[리뷰 신뢰도 분석] 컨트롤러: shopId=${targetShopId}에 대한 분석 시작`);
     const reviews = await aiService.getShopReviewsForAnalysis(targetShopId);
+    console.log(`[리뷰 신뢰도 분석] 컨트롤러: 조회된 리뷰 수=${reviews?.length || 0}`);
 
     // 리뷰가 없을 경우
     if (!reviews || reviews.length === 0) {
+      console.log(`[리뷰 신뢰도 분석] 리뷰가 없어 빈 결과 반환`);
       const emptyResult = {
         overallTrustScore: null,
         overallLevel: 'UNKNOWN',
