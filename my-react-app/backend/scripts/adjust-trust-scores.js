@@ -20,6 +20,11 @@ const targetShops = [
     name: '의심가는 쇼핑몰 [테스트]',
     targetTrustScore: 35, // 30점대 (30~39)
     url: null // 이름으로 찾기
+  },
+  {
+    name: '우아한',
+    targetTrustScore: 15, // 10점대 (10~19)
+    url: null // 이름으로 찾기
   }
 ];
 

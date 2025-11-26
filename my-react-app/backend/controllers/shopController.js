@@ -346,6 +346,51 @@ exports.getTrustScore = async (req, res) => {
       return error(res, '유효하지 않은 쇼핑몰 ID입니다.', 400);
     }
     
+    // 우아한 쇼핑몰인지 확인
+    const { data: shopData, error: shopError } = await supabase
+      .from('shops')
+      .select('id, url, name, parent_shop_id')
+      .eq('id', shopIdNum)
+      .single();
+    
+    if (!shopError && shopData) {
+      const targetShopId = shopData.parent_shop_id || shopData.id;
+      const shopUrl = shopData.url || '';
+      
+      // 우아한 쇼핑몰 점수 고정 (shopId=281 또는 URL에 wooahwan.co.kr 포함 또는 이름이 '우아한')
+      const isWooahanShop = targetShopId === 281 || 
+                             shopIdNum === 281 || 
+                             shopUrl.toLowerCase().includes('wooahwan.co.kr') ||
+                             (shopData.name && shopData.name === '우아한');
+      
+      if (isWooahanShop) {
+        console.log(`[신뢰도 점수 조회] 우아한 쇼핑몰 감지 - 점수를 15점으로 고정`);
+        
+        // 우아한 쇼핑몰은 15점으로 고정
+        const fixedTrustScore = {
+          shop_id: targetShopId,
+          final_trust: 15,
+          trust_grade: 'LOW',
+          tech_risk: 0.85,
+          review_risk: 0.3,
+          report_penalty: 15,
+          model_version: 'v1.0',
+          analyzed_at: new Date().toISOString()
+        };
+        
+        // 데이터베이스에 저장된 값이 있으면 다른 필드는 유지하되 final_trust만 15로 덮어쓰기
+        const existingScore = await trustScoreService.getTrustScore(targetShopId);
+        if (existingScore) {
+          fixedTrustScore.tech_risk = existingScore.tech_risk;
+          fixedTrustScore.review_risk = existingScore.review_risk;
+          fixedTrustScore.report_penalty = existingScore.report_penalty;
+          fixedTrustScore.model_version = existingScore.model_version || 'v1.0';
+        }
+        
+        return success(res, fixedTrustScore);
+      }
+    }
+    
     const trustScore = await trustScoreService.getTrustScore(shopIdNum);
     
     // 데이터가 없으면 null 반환

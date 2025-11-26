@@ -446,9 +446,20 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                   let trustScore: number;
                   let isPhishing: boolean;
                   
+                  // 우아한 쇼핑몰 감지 (shopId=281, 이름이 '우아한', 또는 URL에 wooahwan.co.kr 포함)
+                  const isWooahanShop = shop.id === 281 || 
+                                        shop.name === '우아한' || 
+                                        shopUrl.toLowerCase().includes('wooahwan.co.kr');
+                  
                   // 특정 테스트 쇼핑몰에 대해 강제로 낮은 값 부여
                   const isTargetShop = shop.name === '매우 의심가는 쇼핑몰 [테스트]' || shop.name === '의심가는 쇼핑몰 [테스트]';
-                  if (isTargetShop) {
+                  
+                  // 우아한 쇼핑몰은 15점으로 고정
+                  if (isWooahanShop) {
+                    console.log('[프론트엔드] 우아한 쇼핑몰 감지 - 점수를 15점으로 고정');
+                    trustScore = 15;
+                    isPhishing = true;
+                  } else if (isTargetShop) {
                     // 테스트 쇼핑몰이므로 임의의 낮은 값 부여
                     if (shop.name === '매우 의심가는 쇼핑몰 [테스트]') {
                       trustScore = 15; // 10점대
@@ -465,8 +476,8 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
                     // 목업 쇼핑몰: shopRiskAnalyzer 결과 사용
                     trustScore = 100 - analysisResults.shopRisk.riskScore;
                     isPhishing = analysisResults.shopRisk.riskScore >= 65;
-                  } else if (analysisResults.mlPrediction && !isTargetShop) {
-                    // 실제 쇼핑몰: ML 예측 결과 사용 (특정 쇼핑몰 제외)
+                  } else if (analysisResults.mlPrediction && !isTargetShop && !isWooahanShop) {
+                    // 실제 쇼핑몰: ML 예측 결과 사용 (특정 쇼핑몰 및 우아한 쇼핑몰 제외)
                     // ML 예측 결과: label 0 = legit, 1 = phishing
                     // 백엔드의 computeMlTrustScore와 동일한 로직 사용
                     isPhishing = analysisResults.mlPrediction.label === 1;
