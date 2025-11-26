@@ -53,6 +53,43 @@ function generateRandomId() {
   return `${prefix}${randomNum}`;
 }
 
+// 사용 가능한 카테고리 목록
+const availableCategories = [
+  '사기/피싱',
+  '배송 문제',
+  '상품 불일치',
+  '환불 문제',
+  '고객 서비스',
+  '품질 문제',
+  '기타'
+];
+
+// 랜덤 카테고리 선택 (사기/피싱이 약간 더 많이 나오도록 가중치 적용)
+function selectRandomCategory() {
+  // 가중치: 사기/피싱 30%, 나머지 각 10-15%
+  const weights = {
+    '사기/피싱': 30,
+    '배송 문제': 15,
+    '상품 불일치': 12,
+    '환불 문제': 15,
+    '고객 서비스': 12,
+    '품질 문제': 10,
+    '기타': 6
+  };
+  
+  const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const category of availableCategories) {
+    random -= weights[category];
+    if (random <= 0) {
+      return category;
+    }
+  }
+  
+  return availableCategories[0]; // 기본값
+}
+
 // 10월~11월 사이의 랜덤 날짜 생성
 function generateRandomDate() {
   const startDate = new Date('2024-10-01');
@@ -104,13 +141,14 @@ async function createReport(shopId, anonymousUserId, customDate = null) {
   const createdAt = customDate || generateRandomDate();
   const reporterName = generateRandomId();
   const description = reportTemplates[Math.floor(Math.random() * reportTemplates.length)];
+  const category = selectRandomCategory(); // 랜덤 카테고리 선택
   
   const { data: newReport, error } = await supabase
     .from('shop_reports')
     .insert({
       shop_id: shopId,
       user_id: anonymousUserId,
-      categories: JSON.stringify(['사기/피싱']),
+      categories: JSON.stringify([category]),
       description: description,
       reporter_name: reporterName,
       reporter_phone: `010-${String(Math.floor(Math.random() * 9000) + 1000)}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
@@ -130,7 +168,7 @@ async function createReport(shopId, anonymousUserId, customDate = null) {
     return { success: false, error: error.message };
   }
   
-  return { success: true, report: newReport };
+  return { success: true, report: newReport, category: category };
 }
 
 // 평점 생성
@@ -221,7 +259,7 @@ async function main() {
       const result = await createReport(shopId, anonymousUserId);
       if (result.success) {
         stats.reportsCreated++;
-        console.log(`    ✅ 신고 생성 성공 (ID: ${result.report.id})`);
+        console.log(`    ✅ 신고 생성 성공 (ID: ${result.report.id}, 카테고리: ${result.category})`);
       } else {
         stats.errors++;
       }

@@ -130,6 +130,9 @@ export function DangerousShopsPage() {
               검색된 쇼핑몰 중 피해 사례 제보가 많이 접수된 쇼핑몰들을 피해 사례 제보 수 순서대로 확인하세요. 
               안전한 온라인 쇼핑을 위해 주의하시기 바랍니다.
             </p>
+            <div className="disclaimer-notice" style={{ marginTop: '1.5rem', padding: '1rem', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', fontSize: '0.9rem', color: '#856404', maxWidth: '800px', marginLeft: 'auto', marginRight: 'auto' }}>
+              <strong>⚠️ 안내사항:</strong> 본 목록에 표시된 정보는 참고용이며, 법적 효력은 없습니다. 최종 판단은 사용자 본인의 몫이며, 실제 거래 시 신중한 검토가 필요합니다.
+            </div>
           </div>
         </div>
       </div>

@@ -353,6 +353,9 @@ export function HomePage() {
               </p>
             </div>
           )}
+          <div className="disclaimer-notice mb-6" style={{ padding: '1rem', background: '#e3f2fd', border: '1px solid #2196f3', borderRadius: '8px', fontSize: '0.875rem', color: '#1565c0', textAlign: 'center' }}>
+            <strong>⚠️ 안내사항:</strong> 본 페이지에 표시된 모든 정보(평점, 피해 사례 제보 건수 등)는 참고용이며, 법적 효력은 없습니다. 최종 판단은 사용자 본인의 몫이며, 실제 거래 시 신중한 검토가 필요합니다.
+          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* 주의가 필요한 페이지 */}

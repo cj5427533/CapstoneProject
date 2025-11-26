@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 interface AdminDashboardChartsProps {
   reportsByDate?: { date: string; count: number }[];
   riskDistribution?: { level: string; count: number }[];
-  reportsByCategory?: { category: string; count: number }[];
   loginsByDate?: { date: string; total: number; success: number; failed: number }[];
   loginsByFailureReason?: { reason: string; count: number }[];
 }
@@ -11,7 +10,6 @@ interface AdminDashboardChartsProps {
 export function AdminDashboardCharts({
   reportsByDate,
   riskDistribution,
-  reportsByCategory,
   loginsByDate,
   loginsByFailureReason
 }: AdminDashboardChartsProps) {
@@ -119,40 +117,6 @@ export function AdminDashboardCharts({
         </Card>
       )}
 
-      {/* 신고 카테고리별 분포 */}
-      {reportsByCategory && reportsByCategory.length > 0 && (
-        <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">
-          <CardHeader className="p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-bold text-gray-900">📋 신고 카테고리별 분포</h3>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {reportsByCategory.map((item, index) => {
-                const total = reportsByCategory.reduce((sum, r) => sum + r.count, 0);
-                const percentage = total > 0 ? (item.count / total) * 100 : 0;
-                
-                return (
-                  <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs sm:text-sm font-medium text-gray-900 truncate pr-2">{item.category}</span>
-                      <span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">{item.count}건</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-600 mt-1 block">
-                      {percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* 로그인 추이 차트 */}
       {loginsByDate && loginsByDate.length > 0 && (
@@ -249,7 +213,6 @@ export function AdminDashboardCharts({
       {/* 데이터가 없는 경우 */}
       {(!reportsByDate || reportsByDate.length === 0) &&
        (!riskDistribution || riskDistribution.length === 0) &&
-       (!reportsByCategory || reportsByCategory.length === 0) &&
        (!loginsByDate || loginsByDate.length === 0) &&
        (!loginsByFailureReason || loginsByFailureReason.length === 0) && (
         <Card className="rounded-2xl shadow-md border-gray-200 bg-white lg:col-span-2">

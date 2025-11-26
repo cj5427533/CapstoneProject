@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Rating } from '../components/shop/Rating';
@@ -55,6 +55,89 @@ export function SearchResultPage() {
   useEffect(() => {
     setCurrentReportPage(1);
   }, [reports.length]);
+
+  // 첫 페이지의 5개 피해사례가 각각 다른 카테고리를 가지도록 정렬
+  const sortedReports = useMemo(() => {
+    if (!Array.isArray(reports) || reports.length === 0) {
+      return [];
+    }
+
+    // 카테고리 파싱 헬퍼 함수
+    const parseCategories = (categoriesString: string): string[] => {
+      try {
+        if (!categoriesString) return [];
+        const parsed = JSON.parse(categoriesString);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+
+    // 각 피해사례의 첫 번째 카테고리 추출
+    const reportsWithCategory = reports.map(report => ({
+      report,
+      firstCategory: parseCategories(report.categories)[0] || '기타'
+    }));
+
+    // 카테고리별로 그룹화
+    const categoryGroups = new Map<string, typeof reportsWithCategory>();
+    for (const item of reportsWithCategory) {
+      const category = item.firstCategory;
+      if (!categoryGroups.has(category)) {
+        categoryGroups.set(category, []);
+      }
+      categoryGroups.get(category)!.push(item);
+    }
+
+    // 첫 5개 선택: 각 카테고리에서 하나씩 선택
+    const firstFive: Report[] = [];
+    const usedCategories = new Set<string>();
+    const usedReports = new Set<number>();
+
+    // 각 카테고리에서 하나씩 선택 (최대 5개)
+    for (const [category, items] of categoryGroups.entries()) {
+      if (firstFive.length >= 5) break;
+      if (items.length > 0) {
+        const selected = items[0].report;
+        firstFive.push(selected);
+        usedCategories.add(category);
+        usedReports.add(selected.id);
+      }
+    }
+
+    // 첫 5개가 아직 채워지지 않았다면, 사용하지 않은 카테고리에서 추가
+    if (firstFive.length < 5) {
+      for (const [category, items] of categoryGroups.entries()) {
+        if (firstFive.length >= 5) break;
+        if (!usedCategories.has(category)) {
+          const selected = items[0].report;
+          firstFive.push(selected);
+          usedCategories.add(category);
+          usedReports.add(selected.id);
+        }
+      }
+    }
+
+    // 첫 5개가 여전히 부족하면, 이미 사용한 카테고리에서 추가
+    if (firstFive.length < 5) {
+      for (const [category, items] of categoryGroups.entries()) {
+        if (firstFive.length >= 5) break;
+        for (const item of items) {
+          if (firstFive.length >= 5) break;
+          if (!usedReports.has(item.report.id)) {
+            firstFive.push(item.report);
+            usedReports.add(item.report.id);
+          }
+        }
+      }
+    }
+
+    // 나머지 피해사례는 원래 순서대로 (최신순 유지)
+    const remainingReports = reports.filter(report => !usedReports.has(report.id));
+
+    // 첫 5개 + 나머지 합치기
+    return [...firstFive, ...remainingReports];
+  }, [reports]);
 
   // 타임아웃 래퍼 함수
   const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T> => {
@@ -364,9 +447,23 @@ export function SearchResultPage() {
 
   // 파비콘 URL 가져오기 함수
   const getFaviconUrl = (shopName: string | null | undefined, shopUrl: string): string => {
-    // 특정 쇼핑몰에 대한 커스텀 파비콘
+    // URL 기반 커스텀 파비콘 (도메인 매칭)
+    try {
+      const normalizedUrl = shopUrl.startsWith('http') ? shopUrl : `https://${shopUrl}`;
+      const urlObj = new URL(normalizedUrl);
+      const hostname = urlObj.hostname.toLowerCase();
+      
+      // wooahwan.co.kr 도메인에 대한 커스텀 파비콘
+      if (hostname.includes('wooahwan.co.kr')) {
+        return '/wooahwan-favicon.png';
+      }
+    } catch (e) {
+      // URL 파싱 실패 시 계속 진행
+    }
+
+    // 특정 쇼핑몰 이름에 대한 커스텀 파비콘
     const customFavicons: { [key: string]: string } = {
-      '우아한': 'https://api.dicebear.com/7.x/shapes/svg?seed=wooahwan&backgroundColor=b6e3f4',
+      '우아한': '/wooahwan-favicon.png',
       '매우 의심가는 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=very-suspicious&backgroundColor=ff6b6b',
       '의심가는 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=suspicious&backgroundColor=ffd5dc',
       '아리까리한 쇼핑몰 [테스트]': 'https://api.dicebear.com/7.x/shapes/svg?seed=confusing&backgroundColor=ffeaa7'
@@ -519,37 +616,92 @@ export function SearchResultPage() {
 
         {/* Accordion: 쇼핑몰 별점 */}
         <details className="rounded-lg border bg-white shadow" style={{ color: '#1e293b' }} open>
-          <summary className="flex cursor-pointer items-center justify-between p-4">
+          <summary className="flex cursor-pointer items-center justify-between p-3 hover:bg-gray-50 transition-colors">
             <span className="text-base font-medium" style={{ color: '#1e293b' }}>쇼핑몰 별점</span>
-            <span style={{ color: '#64748b' }}>Message</span>
+            <span className="text-xs" style={{ color: '#64748b' }}>Message</span>
           </summary>
-          <div className="px-4 pb-4 pt-0 text-base leading-relaxed">
-            <div className="flex items-center gap-3">
-              <Rating initialRating={Math.round(shopRating.averageRating ?? 0)} readonly size="small" />
-              <span className="text-sm" style={{ color: '#64748b' }}>{(shopRating.averageRating ?? 0).toFixed(1)} / 5 · {shopRating.totalRatings ?? 0}명</span>
+          <div className="px-3 pb-3 pt-2 text-sm leading-relaxed">
+            {/* 별점 요약 섹션 */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-3 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div style={{ display: 'flex', alignItems: 'center', overflow: 'visible' }}>
+                  <Rating initialRating={shopRating.averageRating ?? 0} readonly size="medium" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl font-bold" style={{ 
+                      color: shopRating.averageRating >= 4 ? '#10b981' : 
+                             shopRating.averageRating >= 3 ? '#f59e0b' : 
+                             shopRating.averageRating >= 2 ? '#f97316' : '#ef4444'
+                    }}>
+                      {(shopRating.averageRating ?? 0).toFixed(1)}
+                    </span>
+                    <span className="text-sm font-medium" style={{ color: '#64748b' }}>/ 5</span>
+                  </div>
+                  <span className="text-xs font-medium" style={{ color: '#64748b' }}>
+                    {shopRating.totalRatings ?? 0}명 평가
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="mt-4">
+
+            {/* 평점 분포 섹션 */}
+            <div className="mt-3">
               {shopRating.totalRatings > 0 ? (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium" style={{ color: '#1e293b' }}>평점 분포</h4>
-                  {[5, 4, 3, 2, 1].map((star) => (
-                    <div key={star} className="flex items-center gap-2">
-                      <span className="w-10 text-sm" style={{ color: '#64748b' }}>{star}점</span>
-                      <div className="relative h-2 flex-1 overflow-hidden rounded-full" style={{ background: '#f1f5f9' }}>
-                        <div 
-                          className="absolute left-0 top-0 h-2 rounded-full"
-                          style={{ 
-                            width: `${(shopRating.ratingDistribution[star] || 0) / (shopRating.totalRatings || 1) * 100}%`,
-                            background: '#6366f1'
-                          }}
-                        />
+                  <h4 className="text-sm font-semibold mb-2" style={{ color: '#1e293b' }}>평점 분포</h4>
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = shopRating.ratingDistribution[star] || 0;
+                    const percentage = (count / (shopRating.totalRatings || 1)) * 100;
+                    const getBarColor = (star: number) => {
+                      switch (star) {
+                        case 5: return '#10b981'; // 녹색
+                        case 4: return '#84cc16'; // 연두색
+                        case 3: return '#fbbf24'; // 노란색
+                        case 2: return '#f97316'; // 주황색
+                        case 1: return '#ef4444'; // 빨간색
+                        default: return '#6366f1';
+                      }
+                    };
+                    return (
+                      <div key={star} className="flex items-center gap-2 group">
+                        <div className="flex items-center gap-0.5 w-10">
+                          <span className="text-xs font-medium" style={{ color: '#64748b' }}>{star}</span>
+                          <span className="text-xs" style={{ color: '#94a3b8' }}>점</span>
+                        </div>
+                        <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-gray-100 shadow-inner">
+                          <div 
+                            className="absolute left-0 top-0 h-full rounded-full transition-all duration-500 ease-out group-hover:opacity-90"
+                            style={{ 
+                              width: `${percentage}%`,
+                              background: getBarColor(star),
+                              minWidth: count > 0 ? '3px' : '0px',
+                              boxShadow: count > 0 ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 w-14 justify-end">
+                          <span className="text-xs font-semibold min-w-[20px] text-right" style={{ color: '#1e293b' }}>
+                            {count}
+                          </span>
+                          <span className="text-xs" style={{ color: '#94a3b8' }}>
+                            ({percentage.toFixed(0)}%)
+                          </span>
+                        </div>
                       </div>
-                      <span className="w-8 text-right text-sm" style={{ color: '#1e293b' }}>{shopRating.ratingDistribution[star] || 0}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-sm" style={{ color: '#64748b' }}>아직 평점이 없습니다. 첫 번째 평점을 남겨주세요!</p>
+                <div className="text-center py-4">
+                  <div className="text-2xl mb-2">⭐</div>
+                  <p className="text-sm font-medium mb-1" style={{ color: '#1e293b' }}>
+                    아직 평점이 없습니다
+                  </p>
+                  <p className="text-xs" style={{ color: '#64748b' }}>
+                    첫 번째 평점을 남겨주세요!
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -580,7 +732,7 @@ export function SearchResultPage() {
         ) : (
           <>
             <div className="reports-list-compact">
-              {(Array.isArray(reports) ? reports : []).slice((currentReportPage - 1) * 5, currentReportPage * 5).map((report) => {
+              {sortedReports.slice((currentReportPage - 1) * 5, currentReportPage * 5).map((report) => {
                 const categories = JSON.parse(report.categories);
                 return (
                   <div key={report.id} className="report-card-compact">
@@ -602,7 +754,7 @@ export function SearchResultPage() {
             </div>
             
             {/* 페이지네이션 */}
-            {reports.length > 5 && (
+            {sortedReports.length > 5 && (
               <div className="pagination-container">
                 <button
                   onClick={() => setCurrentReportPage(prev => Math.max(1, prev - 1))}
@@ -612,11 +764,11 @@ export function SearchResultPage() {
                   이전
                 </button>
                 <div className="pagination-info">
-                  {currentReportPage} / {Math.ceil(reports.length / 5)}
+                  {currentReportPage} / {Math.ceil(sortedReports.length / 5)}
                 </div>
                 <button
-                  onClick={() => setCurrentReportPage(prev => Math.min(Math.ceil(reports.length / 5), prev + 1))}
-                  disabled={currentReportPage >= Math.ceil(reports.length / 5)}
+                  onClick={() => setCurrentReportPage(prev => Math.min(Math.ceil(sortedReports.length / 5), prev + 1))}
+                  disabled={currentReportPage >= Math.ceil(sortedReports.length / 5)}
                   className="pagination-button"
                 >
                   다음
@@ -636,30 +788,35 @@ export function SearchResultPage() {
             ratings={[]} // 실제 리뷰 데이터는 백엔드에서 가져옴
             shopUrl={url}
           />
+          <div className="disclaimer-notice" style={{ marginTop: '1rem', padding: '1rem', background: '#e3f2fd', border: '1px solid #2196f3', borderRadius: '8px', fontSize: '0.875rem', color: '#1565c0' }}>
+            <strong>⚠️ 안내사항:</strong> 본 페이지에 표시된 신뢰도 점수, 분석 결과, 평점 등 모든 정보는 참고용이며, 법적 효력은 없습니다. 최종 판단은 사용자 본인의 몫이며, 실제 거래 시 신중한 검토가 필요합니다.
+          </div>
         </div>
       )}
 
       {/* 리뷰 섹션 */}
       {shop && (
-        <div className="reviews-section rounded-lg border bg-white shadow p-6">
+        <div className="reviews-section rounded-lg border bg-white shadow p-4">
           <div className="section-header">
-            <h2 className="text-2xl font-bold text-gray-900">사용자 리뷰</h2>
+            <h2 className="text-xl font-bold text-gray-900">사용자 리뷰</h2>
             {isAuthenticated && (
               <button 
                 className="write-review-button"
                 onClick={handleToggleReviewForm}
               >
-                {showReviewForm ? '리뷰 작성 취소' : '리뷰 작성하기'}
+                {showReviewForm ? '취소' : '리뷰 작성'}
               </button>
             )}
           </div>
 
           {showReviewForm && shop.id > 0 && (
-            <ReviewForm 
-              shopId={shop.id}
-              shopUrl={url}
-              onReviewSubmitted={handleReviewSubmitted}
-            />
+            <div className="review-form-wrapper">
+              <ReviewForm 
+                shopId={shop.id}
+                shopUrl={url}
+                onReviewSubmitted={handleReviewSubmitted}
+              />
+            </div>
           )}
 
           {shop.id > 0 ? (
@@ -669,8 +826,8 @@ export function SearchResultPage() {
               refreshKey={reviewRefreshKey}
             />
           ) : (
-            <div className="text-center py-8 text-gray-600">
-              <p>리뷰를 보려면 쇼핑몰 정보를 먼저 등록해주세요.</p>
+            <div className="text-center py-6 text-gray-600">
+              <p className="text-sm">리뷰를 보려면 쇼핑몰 정보를 먼저 등록해주세요.</p>
             </div>
           )}
         </div>

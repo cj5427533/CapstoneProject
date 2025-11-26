@@ -292,6 +292,12 @@ export const MockShopAnalysis: React.FC<MockShopAnalysisProps> = ({
           AI가 어떻게 가짜 리뷰와 주의 요소를 탐지하는지 학습할 수 있도록 설계되었습니다.
         </p>
       </div>
+
+      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-yellow-800 text-sm">
+          <strong>⚠️ 안내사항:</strong> 본 분석 결과는 참고용이며, 법적 효력은 없습니다. 최종 판단은 사용자 본인의 몫이며, 실제 거래 시 신중한 검토가 필요합니다.
+        </p>
+      </div>
     </div>
   );
 };

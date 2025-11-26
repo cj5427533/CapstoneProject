@@ -465,7 +465,17 @@ export function AdminPage() {
         await loadCommunityComments();
       }
       else if (currentTab === 'security') await loadSecurityAlerts();
-      else if (currentTab === 'stats') await loadAdminStats();
+      else if (currentTab === 'stats') {
+        await loadAdminStats();
+        // 통계 탭에서 각 관리 메뉴의 핵심 정보를 표시하기 위해 데이터 로드
+        await loadShops(1);
+        await loadReports(1);
+        await loadRatings(1);
+        await loadUsers(1);
+        await loadCommunityPosts();
+        await loadCommunityComments();
+        await loadSecurityMockAlerts(); // 목업 데이터로 미리 채우기
+      }
     };
     
     loadTabData();
@@ -1057,10 +1067,199 @@ export function AdminPage() {
             <AdminDashboardCharts
               reportsByDate={stats?.reportsByDate}
               riskDistribution={stats?.riskDistribution}
-              reportsByCategory={stats?.reportsByCategory}
               loginsByDate={stats?.loginsByDate}
               loginsByFailureReason={stats?.loginsByFailureReason}
             />
+            
+            {/* 관리 메뉴 핵심 정보 카드 */}
+            <div className="mt-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">📋 관리 메뉴 핵심 정보</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {/* 피해 사례 제보 관리 */}
+                <Card 
+                  className="rounded-2xl shadow-md border-gray-200 bg-white hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setCurrentTab('reports')}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">⚠️ 피해 사례 제보 관리</h3>
+                      <span className="text-2xl">→</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 제보 수</span>
+                        <span className="text-xl font-bold text-red-600">{reportPagination.total}건</span>
+                      </div>
+                      {reports.length > 0 && (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">대기중</span>
+                            <span className="text-lg font-semibold text-yellow-600">
+                              {reports.filter(r => r.status === 'pending').length}건
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">승인됨</span>
+                            <span className="text-lg font-semibold text-green-600">
+                              {reports.filter(r => r.status === 'approved').length}건
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">거부됨</span>
+                            <span className="text-lg font-semibold text-gray-600">
+                              {reports.filter(r => r.status === 'rejected').length}건
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 평점 관리 */}
+                <Card 
+                  className="rounded-2xl shadow-md border-gray-200 bg-white hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setCurrentTab('ratings')}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">⭐ 평점 관리</h3>
+                      <span className="text-2xl">→</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 평점 수</span>
+                        <span className="text-xl font-bold text-gray-900">{ratingPagination.total}건</span>
+                      </div>
+                      {ratings.length > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">평균 평점</span>
+                          <span className="text-lg font-semibold text-blue-600">
+                            {(ratings.reduce((sum, r) => sum + (r.rating || 0), 0) / ratings.length).toFixed(1)}점
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 사용자 관리 */}
+                <Card 
+                  className="rounded-2xl shadow-md border-gray-200 bg-white hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setCurrentTab('users')}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">👥 사용자 관리</h3>
+                      <span className="text-2xl">→</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 사용자 수</span>
+                        <span className="text-xl font-bold text-gray-900">{userPagination.total}명</span>
+                      </div>
+                      {users.length > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">관리자</span>
+                          <span className="text-lg font-semibold text-purple-600">
+                            {users.filter(u => u.role === 'admin').length}명
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 쇼핑몰 관리 */}
+                <Card 
+                  className="rounded-2xl shadow-md border-gray-200 bg-white hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setCurrentTab('shops')}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">🏪 쇼핑몰 관리</h3>
+                      <span className="text-2xl">→</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 쇼핑몰 수</span>
+                        <span className="text-xl font-bold text-blue-600">{shopPagination.total}개</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 커뮤니티 관리 */}
+                <Card 
+                  className="rounded-2xl shadow-md border-gray-200 bg-white hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setCurrentTab('community')}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">💬 커뮤니티 관리</h3>
+                      <span className="text-2xl">→</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 게시글 수</span>
+                        <span className="text-xl font-bold text-green-600">{communityPosts.length}개</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 댓글 수</span>
+                        <span className="text-xl font-bold text-blue-600">{communityComments.length}개</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 보안 모니터링 */}
+                <Card 
+                  className="rounded-2xl shadow-md border-gray-200 bg-white hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => setCurrentTab('security')}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">🔒 보안 모니터링</h3>
+                      <span className="text-2xl">→</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">총 알림 수</span>
+                        <span className="text-xl font-bold text-red-600">{securityAlerts.length}개</span>
+                      </div>
+                      {securitySummary && (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">높음</span>
+                            <span className="text-lg font-semibold text-red-600">{securitySummary.high}개</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">중간</span>
+                            <span className="text-lg font-semibold text-yellow-600">{securitySummary.medium}개</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">낮음</span>
+                            <span className="text-lg font-semibold text-gray-600">{securitySummary.low}개</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         )}
 

@@ -201,12 +201,61 @@ export const FakeReviewAnalysis: React.FC<FakeReviewAnalysisProps> = ({
                             <p className="analysis-detail-content">{result.review.content}</p>
                             
                             <div className="analysis-patterns">
-                              <h6 className="analysis-patterns-title">발견된 패턴:</h6>
-                              <ul className="analysis-patterns-list">
+                              <div className="mb-3">
+                                <h6 className="text-sm font-semibold text-red-600 mb-2 flex items-center gap-2">
+                                  <span>⚠️</span>
+                                  <span>이 리뷰가 의심스러운 이유</span>
+                                </h6>
+                                <p className="text-xs text-gray-500 mb-3">
+                                  AI가 분석한 결과, 다음과 같은 패턴이 발견되어 의심 리뷰로 분류되었습니다.
+                                </p>
+                              </div>
+                              
+                              {/* 패턴 점수 요약 */}
+                              <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-100">
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                  <div className="text-center">
+                                    <div className="font-semibold text-gray-700">텍스트 패턴</div>
+                                    <div className="text-red-600 font-bold text-sm mt-1">
+                                      {Math.round(result.patterns.textPattern * 100)}%
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="font-semibold text-gray-700">시간적 패턴</div>
+                                    <div className="text-red-600 font-bold text-sm mt-1">
+                                      {Math.round(result.patterns.temporalPattern * 100)}%
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="font-semibold text-gray-700">행동 패턴</div>
+                                    <div className="text-red-600 font-bold text-sm mt-1">
+                                      {Math.round(result.patterns.behaviorPattern * 100)}%
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 상세 근거 */}
+                              <div className="space-y-2">
+                                <h6 className="text-xs font-semibold text-gray-700 mb-2">
+                                  📋 상세 근거:
+                                </h6>
                                 {result.reasons.map((reason, reasonIndex) => (
-                                  <li key={reasonIndex}>{reason}</li>
+                                  <div 
+                                    key={reasonIndex} 
+                                    className="p-3 bg-white border border-red-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold mt-0.5">
+                                        {reasonIndex + 1}
+                                      </span>
+                                      <p className="text-sm text-gray-700 leading-relaxed flex-1">
+                                        {reason}
+                                      </p>
+                                    </div>
+                                  </div>
                                 ))}
-                              </ul>
+                              </div>
                             </div>
                           </div>
                         ))}

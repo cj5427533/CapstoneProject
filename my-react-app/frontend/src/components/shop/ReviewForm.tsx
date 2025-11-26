@@ -102,22 +102,22 @@ export function ReviewForm({ shopId, shopUrl, onReviewSubmitted }: ReviewFormPro
 
   return (
     <div className="review-form">
-      <h3>리뷰 작성하기</h3>
+      <h3 className="review-form-title">리뷰 작성</h3>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label>평점 *</label>
+          <label className="form-label">평점 *</label>
           <StarRating />
         </div>
 
         <div className="form-group">
-          <label htmlFor="reviewText">리뷰 내용 *</label>
+          <label htmlFor="reviewText" className="form-label">리뷰 내용 *</label>
           <textarea
             id="reviewText"
             value={reviewText}
             onChange={(e) => setReviewText(e.target.value)}
             placeholder="쇼핑몰 이용 경험을 자세히 작성해주세요. 상품 품질, 배송, 고객서비스 등에 대해 솔직한 의견을 남겨주세요."
             className="review-textarea"
-            rows={6}
+            rows={4}
             maxLength={1000}
             disabled={isSubmitting}
             required
@@ -133,7 +133,7 @@ export function ReviewForm({ shopId, shopUrl, onReviewSubmitted }: ReviewFormPro
             className="submit-button"
             disabled={isSubmitting || rating === 0 || !reviewText.trim()}
           >
-            {isSubmitting ? '등록 중...' : '리뷰 등록하기'}
+            {isSubmitting ? '등록 중...' : '등록하기'}
           </button>
         </div>
       </form>

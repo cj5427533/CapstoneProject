@@ -54,6 +54,9 @@ export function DangerousPage() {
               <span className="update-hint"> (30초마다 자동 업데이트)</span>
             </div>
           )}
+          <div className="disclaimer-notice" style={{ marginTop: '1rem', padding: '1rem', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', fontSize: '0.9rem', color: '#856404' }}>
+            <strong>⚠️ 안내사항:</strong> 본 목록에 표시된 정보는 참고용이며, 법적 효력은 없습니다. 최종 판단은 사용자 본인의 몫이며, 실제 거래 시 신중한 검토가 필요합니다.
+          </div>
         </div>
 
         <div className="dangerous-list">

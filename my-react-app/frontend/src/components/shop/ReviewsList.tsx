@@ -21,7 +21,7 @@ export function ReviewsList({ shopId, onReviewAdded, refreshKey }: ReviewsListPr
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'rating'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
-  const reviewsPerPage = 5;
+  const reviewsPerPage = 3;
 
   useEffect(() => {
     console.log('ReviewsList useEffect 실행, shopId:', shopId, 'refreshKey:', refreshKey);
@@ -128,11 +128,10 @@ export function ReviewsList({ shopId, onReviewAdded, refreshKey }: ReviewsListPr
   return (
     <div className="reviews-list">
       <div className="reviews-header">
-        <h3>사용자 리뷰 ({reviews.length}개)</h3>
+        <h3 className="reviews-count">리뷰 {reviews.length}개</h3>
         
         {reviews.length > 0 && (
           <div className="sort-controls">
-            <label>정렬:</label>
             <select 
               value={sortBy} 
               onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'rating')}
@@ -174,7 +173,7 @@ export function ReviewsList({ shopId, onReviewAdded, refreshKey }: ReviewsListPr
                 
                 {review.review_text && review.review_text.trim() !== '' && (
                   <div className="review-content">
-                    <p style={{
+                    <p className="review-text" style={{
                       color: review.review_text.includes('[테스트 데이터]') ? '#ff9800' : 'inherit',
                       fontWeight: review.review_text.includes('[테스트 데이터]') ? 'bold' : 'normal'
                     }}>

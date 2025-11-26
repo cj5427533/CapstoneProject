@@ -139,6 +139,9 @@ export function RecommendedShopsPage() {
               검색된 쇼핑몰 중 고객들의 높은 평가를 받은 신뢰할 수 있는 쇼핑몰들을 평점 순서대로 확인하세요. 
               안전하고 만족스러운 온라인 쇼핑 경험을 제공합니다.
             </p>
+            <div className="disclaimer-notice" style={{ marginTop: '1.5rem', padding: '1rem', background: '#e8f5e9', border: '1px solid #4caf50', borderRadius: '8px', fontSize: '0.9rem', color: '#2e7d32', maxWidth: '800px', marginLeft: 'auto', marginRight: 'auto' }}>
+              <strong>⚠️ 안내사항:</strong> 본 목록에 표시된 추천 정보와 평점은 참고용이며, 법적 효력은 없습니다. 최종 판단은 사용자 본인의 몫이며, 실제 거래 시 신중한 검토가 필요합니다.
+            </div>
           </div>
         </div>
       </div>

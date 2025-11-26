@@ -168,6 +168,43 @@ function generateRandomPhone() {
   return `${prefix}-${middle}-${last}`;
 }
 
+// 사용 가능한 카테고리 목록
+const availableCategories = [
+  '사기/피싱',
+  '배송 문제',
+  '상품 불일치',
+  '환불 문제',
+  '고객 서비스',
+  '품질 문제',
+  '기타'
+];
+
+// 랜덤 카테고리 선택 (사기/피싱이 약간 더 많이 나오도록 가중치 적용)
+function selectRandomCategory() {
+  // 가중치: 사기/피싱 30%, 나머지 각 10-15%
+  const weights = {
+    '사기/피싱': 30,
+    '배송 문제': 15,
+    '상품 불일치': 12,
+    '환불 문제': 15,
+    '고객 서비스': 12,
+    '품질 문제': 10,
+    '기타': 6
+  };
+  
+  const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const category of availableCategories) {
+    random -= weights[category];
+    if (random <= 0) {
+      return category;
+    }
+  }
+  
+  return availableCategories[0]; // 기본값
+}
+
 // 쇼핑몰 생성 또는 업데이트
 async function createOrUpdateShop(name, url) {
   const normalizedUrl = normalizeUrl(url);
@@ -224,6 +261,7 @@ async function createReport(shopId, description, anonymousUserId, rank) {
   const reporterName = generateRandomId();
   const reporterPhone = generateRandomPhone();
   const createdAt = generateRandomDate();
+  const category = selectRandomCategory(); // 랜덤 카테고리 선택
   
   // 이미 신고가 많은 경우 중복 체크 스킵 (성능상 이유)
   const { data: newReport, error } = await supabase
@@ -231,7 +269,7 @@ async function createReport(shopId, description, anonymousUserId, rank) {
     .insert({
       shop_id: shopId,
       user_id: anonymousUserId,
-      categories: JSON.stringify(['사기/피싱']),
+      categories: JSON.stringify([category]),
       description: description,
       reporter_name: reporterName,
       reporter_phone: reporterPhone,
@@ -251,7 +289,7 @@ async function createReport(shopId, description, anonymousUserId, rank) {
     return { success: false, error: error.message };
   }
   
-  return { success: true, report: newReport };
+  return { success: true, report: newReport, category: category };
 }
 
 // 낮은 별점 생성 (평균 평점에 맞춰)
@@ -399,7 +437,7 @@ async function main() {
       if (result.success) {
         stats.reportsCreated++;
         if ((i + 1) % 5 === 0 || i === needToCreate - 1) {
-          console.log(`    ✅ 신고 생성 중... (${i + 1}/${needToCreate})`);
+          console.log(`    ✅ 신고 생성 중... (${i + 1}/${needToCreate}, 카테고리: ${result.category})`);
         }
       } else {
         stats.errors++;
