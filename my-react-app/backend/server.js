@@ -244,7 +244,7 @@ app.post("/api/ml/predict", async (req, res) => {
         // shopId로 shop 정보 조회
         const { data: shopData, error: shopError } = await supabase
           .from('shops')
-          .select('id, url, parent_shop_id')
+          .select('id, url, name, parent_shop_id')
           .eq('id', parseInt(shopId, 10))
           .single();
         
@@ -258,9 +258,29 @@ app.post("/api/ml/predict", async (req, res) => {
           
           console.log(`[ML 예측] shop 정보: id=${shopData.id}, parent_shop_id=${shopData.parent_shop_id}, targetShopId=${targetShopId}`);
           
-          // ML 예측 결과를 직접 trust score로 변환
-          const mlTrustScore = computeMlTrustScore(prediction.label, prediction.confidence);
-          console.log(`[ML 예측] ML trust score 계산: label=${prediction.label}, confidence=${prediction.confidence}, mlTrustScore=${mlTrustScore}`);
+          // 우아한 쇼핑몰 점수 고정 (shopId=281 또는 URL에 wooahwan.co.kr 포함 또는 이름이 '우아한')
+          const isWooahanShop = targetShopId === 281 || 
+                                 shopId === 281 || 
+                                 shopUrl.toLowerCase().includes('wooahwan.co.kr') ||
+                                 (shopData.name && shopData.name === '우아한');
+          
+          let finalTrust;
+          let mlTrustScore;
+          
+          if (isWooahanShop) {
+            // 우아한 쇼핑몰은 10점대로 고정 (15점)
+            console.log(`[ML 예측] 우아한 쇼핑몰 감지 - 점수를 15점으로 고정`);
+            finalTrust = 15;
+            mlTrustScore = 15;
+          } else {
+            // ML 예측 결과를 직접 trust score로 변환
+            mlTrustScore = computeMlTrustScore(prediction.label, prediction.confidence);
+            console.log(`[ML 예측] ML trust score 계산: label=${prediction.label}, confidence=${prediction.confidence}, mlTrustScore=${mlTrustScore}`);
+            
+            // 최종 trust score는 ML trust score를 직접 사용 (reviewRisk와 reportPenalty는 별도로 고려하지 않음)
+            // 또는 reviewRisk와 reportPenalty를 고려하여 조정할 수도 있음
+            finalTrust = Math.max(0, Math.min(100, mlTrustScore));
+          }
           
           // reviewRisk와 reportPenalty 계산
           const reviewRisk = await trustScoreService.getReviewRiskFromAnalysis(targetShopId);
@@ -270,13 +290,12 @@ app.post("/api/ml/predict", async (req, res) => {
           // mlTrustScore = 100 * normalizedConfidence (label=0인 경우)
           // 따라서 techRisk는 ML trust score를 고려하여 계산
           // 하지만 최종 trust score는 ML trust score를 직접 사용
-          const techRisk = prediction.label === 1 
-            ? Math.max(0.5, prediction.confidence)  // 피싱이면 confidence가 높을수록 위험도 높음
-            : Math.min(0.3, 1 - prediction.confidence);  // 정상이면 confidence가 높을수록 위험도 낮음
+          const techRisk = isWooahanShop
+            ? 0.85  // 우아한 쇼핑몰은 높은 위험도로 설정
+            : (prediction.label === 1 
+                ? Math.max(0.5, prediction.confidence)  // 피싱이면 confidence가 높을수록 위험도 높음
+                : Math.min(0.3, 1 - prediction.confidence));  // 정상이면 confidence가 높을수록 위험도 낮음
           
-          // 최종 trust score는 ML trust score를 직접 사용 (reviewRisk와 reportPenalty는 별도로 고려하지 않음)
-          // 또는 reviewRisk와 reportPenalty를 고려하여 조정할 수도 있음
-          const finalTrust = Math.max(0, Math.min(100, mlTrustScore));
           const trustGrade = trustScoreService.calculateTrustGrade(finalTrust);
           
           console.log(`[ML 예측] trust score 계산: mlTrustScore=${mlTrustScore}, reviewRisk=${reviewRisk}, reportPenalty=${reportPenalty}, finalTrust=${finalTrust}, trustGrade=${trustGrade}`);
