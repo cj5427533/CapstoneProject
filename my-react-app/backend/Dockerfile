@@ -3,11 +3,11 @@
 # 1) Node + Debian 리눅스
 FROM node:22-bullseye
 
-# 2) Python 3.11 설치 (ML용)
+# 2) Python 3.9 설치 (ML용) - Debian bullseye 기본 버전
 RUN apt-get update && apt-get install -y \
-    python3.11 python3.11-venv python3.11-distutils \
+    python3 python3-venv python3-pip \
     build-essential curl && \
-    ln -s /usr/bin/python3.11 /usr/bin/python && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
 # 3) 작업 디렉토리
@@ -21,8 +21,8 @@ RUN npm ci
 COPY . .
 
 # 6) Python 패키지 설치 (numpy / sklearn / pandas)
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python && \
-    pip install --no-cache-dir \
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir \
       numpy==1.26.4 \
       scikit-learn==1.5.2 \
       pandas
