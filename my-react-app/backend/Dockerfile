@@ -15,7 +15,13 @@ WORKDIR /app
 
 # 4) Node 의존성 설치
 COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN if [ -f package-lock.json ]; then \
+      echo "package-lock.json found, running npm ci..." && \
+      npm ci || (echo "npm ci failed, falling back to npm install..." && npm install); \
+    else \
+      echo "package-lock.json not found, running npm install..." && \
+      npm install; \
+    fi
 
 # 5) 전체 백엔드 코드 복사 (ml 폴더 포함)
 COPY . .
