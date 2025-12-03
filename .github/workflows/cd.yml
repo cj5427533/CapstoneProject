@@ -29,6 +29,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Validate Docker secrets
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "::error::DOCKER_USERNAME secret is not set. Please configure it in repository settings."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "::error::DOCKER_PASSWORD secret is not set. Please configure it in repository settings."
+            exit 1
+          fi
+          echo "Docker secrets validated"
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
@@ -45,13 +57,9 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/capstone-backend
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=${{ github.ref_name }}-${{ github.sha }}
             type=raw,value=${{ github.ref_name }}-latest
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
