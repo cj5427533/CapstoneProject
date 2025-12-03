@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # 4) Node 의존성 설치
-COPY package*.json ./
+COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then \
       echo "package-lock.json found, running npm ci..." && \
-      npm ci || (echo "npm ci failed, falling back to npm install..." && npm install); \
+      npm ci --legacy-peer-deps || (echo "npm ci failed, falling back to npm install..." && npm install --legacy-peer-deps); \
     else \
       echo "package-lock.json not found, running npm install..." && \
-      npm install; \
+      npm install --legacy-peer-deps; \
     fi
 
 # 5) 전체 백엔드 코드 복사 (ml 폴더 포함)
