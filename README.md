@@ -78,20 +78,9 @@
 
 ## 시스템 구성도
 
-```mermaid
-flowchart TB
-    A["사용자<br/>(브라우저)"] -->|HTTP| B["Frontend<br/>(React + Vite)"]
-    B -->|REST API| C["Backend<br/>(Express.js)"]
-    C -->|SQL| D["PostgreSQL<br/>(Supabase)"]
-    C -->|Python Process| E["ML 모델<br/>(scikit-learn)"]
-    C -->|API Call| F["OpenRouter API<br/>(Claude 3.5 Sonnet)"]
-    C -->|API Call| G["SolAPI<br/>(SMS 인증)"]
-    C -->|HTTP| H["외부 쇼핑몰<br/>(웹 스크래핑)"]
-    
-    E -->|예측 결과| C
-    F -->|AI 분석 결과| C
-    G -->|SMS 발송| A
-```
+![시스템 아키텍처](./시스템 아키텍쳐.png)
+
+시스템은 Google Cloud Platform에 배포되며, Nginx를 통한 리버스 프록시로 프론트엔드와 백엔드를 라우팅합니다. 백엔드는 YGMK ML 모델을 내장하고 있으며, OpenRouter(Claude 3.5 Sonnet), Gmail SMTP, SolAPI 등 외부 서비스와 통신합니다. 데이터는 Supabase가 관리하는 PostgreSQL 데이터베이스에 저장됩니다.
 
 ## 빠른 시작
 
@@ -231,6 +220,19 @@ npm test
 | `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 (선택) | `xxxx xxxx xxxx xxxx` |
 | `PORT` | 서버 포트 | `3001` |
 | `NODE_ENV` | 환경 모드 | `development` |
+
+## 데이터베이스 스키마
+
+![데이터베이스 ERD](./여기몰까 DB ERD.png)
+
+시스템은 총 13개의 주요 테이블로 구성되어 있으며, 사용자 인증, 쇼핑몰 관리, 신고 시스템, 커뮤니티, 웹 분석 등 핵심 기능을 지원합니다. 주요 엔티티는 다음과 같습니다:
+
+- **사용자 관련**: `users`, `password_reset_tokens`, `user_login_logs`
+- **쇼핑몰 관련**: `shops`, `shop_trust_scores`, `business_registrations`
+- **신고/평가**: `reports`, `ratings`, `uploaded_files`
+- **커뮤니티**: `community_posts`, `community_comments`, `community_post_likes`
+- **분석**: `web_analysis`, `ai_analysis_cache`, `ml_prediction_results`
+- **인증**: `sms_verifications`, `sms_request_tracking`
 
 ## 폴더 구조
 
