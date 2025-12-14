@@ -1,201 +1,354 @@
-# 여기몰까 - 포트폴리오 프로젝트 설명
+# 여기몰까
 
-## 프로젝트 헤더
+온라인 쇼핑몰의 신뢰도를 AI와 머신러닝으로 분석하여 소비자 피해를 예방하는 웹 플랫폼
 
-**제목**: 여기몰까 (https://www.ygmk.app/)  
-**기간**: 2025.09.25 ~ 2025.11.27
-**기여도**: 프론트엔드 전체 구현 / 백엔드 API 개발 / AI 분석 시스템 구축 / 데이터베이스 설계 / UI/UX 기획 및 디버깅 주도
+## 데모
 
----
+- **라이브 데모**: https://www.ygmk.app/
+- **GitHub**: [레포지토리 URL]
 
-## 프로젝트 개요
+## 문제 정의 / 목표
 
-온라인 쇼핑몰의 신뢰도를 AI와 머신러닝으로 분석하여 소비자 피해를 예방하는 웹 플랫폼입니다. 사용자가 쇼핑몰 URL을 입력하면 실시간으로 피싱 위험도, 리뷰 신뢰도, 피해 사례를 종합 분석하여 0~100점의 신뢰도 점수를 제공합니다.
+### 문제
+온라인 쇼핑 시 가짜 리뷰, 피싱 사이트, 신뢰할 수 없는 쇼핑몰로 인한 소비자 피해가 증가하고 있습니다.
 
----
+### 목표
+- URL 기반 실시간 피싱 탐지 (ML 모델)
+- 리뷰 신뢰도 AI 분석 (Claude 3.5 Sonnet)
+- 사용자 제보 기반 피해 사례 데이터베이스 구축
+- 0~100점 신뢰도 점수 제공
 
 ## 주요 기능
 
-### 1. 쇼핑몰 신뢰도 분석 시스템
-- **URL 기반 실시간 분석**: 쇼핑몰 URL 입력 시 자동 정규화 및 웹 스크래핑
-- **ML 모델 기반 피싱 탐지**: Random Forest 모델로 자체적으로 학습시켜 URL 특성 분석 (9가지 특징 추출)
-- **기술적 분석**: SSL 인증서 검증, 리다이렉트 체인 추적, 도메인 연령 분석
-- **ML 신뢰도 점수**: ML 모델 예측 결과를 0~100점으로 변환 (기술적 위험도만 반영)
+1. **쇼핑몰 신뢰도 분석**
+   - URL 정규화 및 웹 스크래핑
+   - Random Forest ML 모델 기반 피싱 탐지 (9가지 특징 추출)
+   - SSL 인증서 검증, 리다이렉트 체인 추적, 도메인 연령 분석
+   - 기술적 위험도 0~100점 변환
 
-### 2. 리뷰 신뢰도 AI 분석
-- **Claude 3.5 Sonnet 기반 분석**: OpenRouter API를 통한 고급 AI 모델 활용
-- **6가지 판별 기준**: 균형 없는 평가, 동일 패턴 리뷰, 시간대 편중, 과도한 극단 표현, 구체적 경험 부족, 비정상 평점 분포
-- **프롬프트 엔지니어링**: System Message와 User Message를 통한 정확한 분석 지시
-- **배치 처리 최적화**: 15개씩 묶어서 처리하여 API 호출 효율화 및 비용 절감
-- **캐싱 시스템**: 5분간 분석 결과 캐싱으로 성능 최적화 및 응답 속도 향상
+2. **리뷰 신뢰도 AI 분석**
+   - Claude 3.5 Sonnet (OpenRouter API) 기반 분석
+   - 6가지 판별 기준: 균형 없는 평가, 동일 패턴, 시간대 편중, 과도한 극단 표현, 구체적 경험 부족, 비정상 평점 분포
+   - 배치 처리 (15개씩)로 API 호출 최적화
+   - 5분 캐싱으로 성능 향상
 
-### 3. 피해 사례 제보 시스템
-- **카테고리별 신고**: 배송 문제, 상품 불일치, 환불 문제, 사기/피싱 등 7가지 카테고리
-- **증빙 자료 업로드**: 최대 10개 파일(PNG/JPG, 10MB 이하) 업로드 지원
-- **관리자 승인제**: 신고는 관리자 검토 후 승인되어 신뢰도 점수에 반영
+3. **피해 사례 제보**
+   - 7가지 카테고리 신고 (배송 문제, 상품 불일치, 환불 문제, 사기/피싱 등)
+   - 증빙 자료 업로드 (최대 10개, PNG/JPG, 10MB 이하)
+   - 관리자 승인제
 
-### 4. 커뮤니티 기능
-- **게시판**: 사용자 간 정보 공유 게시판 (게시글 작성/수정/삭제, 좋아요, 댓글)
-- **실시간 상호작용**: 조회수 자동 증가, 좋아요 중복 방지
+4. **커뮤니티**
+   - 게시판 (작성/수정/삭제, 좋아요, 댓글)
+   - 조회수 자동 증가
 
-### 5. 사용자 인증 및 관리
-- **SMS 인증 필수 회원가입**: SolAPI 연동, 6자리 인증번호, 3분 만료
-- **JWT 기반 인증**: 7일 만료 토큰, 비밀번호 재설정 기능
-- **관리자 대시보드**: Recharts 기반 통계 차트, 신고/쇼핑몰/커뮤니티 관리
-- **고성능 검색 시스템**: PostgreSQL Full-Text Search를 활용한 관리자 페이지 검색 기능 (한국어 검색 지원)
+5. **사용자 인증 및 관리**
+   - SMS 인증 필수 회원가입 (SolAPI)
+   - JWT 기반 인증 (7일 만료)
+   - 관리자 대시보드 (Recharts 통계 차트)
+   - PostgreSQL Full-Text Search 기반 검색
 
----
+## 기술 스택
 
-## 시각적 예시 / 스크린샷
+### Frontend
+- React 18.3.1 + TypeScript 5.5.4
+- Vite 5.4.0
+- React Router 6.26.2
+- Tailwind CSS 3.4.1
+- shadcn/ui
+- Recharts 3.4.1
 
-### 1. 쇼핑몰 신뢰도 분석 결과 페이지
-**제목**: "쇼핑몰 신뢰도 분석 및 리포트"
-
-**내용**:
-- 상단: 쇼핑몰 이름, 신뢰도 점수(0~100점), 신뢰도 등급(매우안전/안전/주의/의심) 시각적 표시
-- 피싱 사이트 검사 섹션: 도메인 연령, SSL 인증서 검증, 리다이렉트 체인, 의심 키워드 분석 결과
-- 리뷰 신뢰도 분석 섹션: AI 분석 결과, 의심 리뷰 목록, 전체 신뢰도 레벨
-- 쇼핑몰 위험도 분석 섹션: 신고 건수, 평점 분포, 사업자 정보 분석
-- 하단: 사용자 리뷰 및 평점 목록, 신고하기 버튼
-
-### 2. 리뷰 신뢰도 AI 분석 결과
-**제목**: "Claude 3.5 Sonnet 기반 리뷰 신뢰도 분석"
-
-**내용**:
-- AI 모델 표시: "Claude 3.5 Sonnet을 활용한 분석" 안내
-- 분석 진행 상태: 배치 처리 중 표시 (예: "15개 리뷰 분석 중...", "Claude AI 분석 진행 중")
-- 전체 신뢰도 점수: 0~1 범위의 점수와 HIGH/MEDIUM/LOW 레벨 표시
-- 의심 리뷰 목록: 의심 이유(과도한 긍정 표현, 동일 패턴, 시간대 편중 등)와 함께 표시
-- 통계 정보: 전체 리뷰 수, 의심 리뷰 수, 정상 리뷰 수, 의심 비율
-- 분석 기준 안내: 6가지 판별 기준(균형 없는 평가, 동일 패턴, 시간대 편중 등) 설명
-
-### 3. 관리자 대시보드
-**제목**: "관리자 대시보드"
-
-**내용**:
-- 통계 카드: 쇼핑몰 수, 신고 수, 사용자 수, 커뮤니티 게시글 수
-- 차트 시각화: Recharts를 활용한 신고 건수 추이, 카테고리별 신고 분포, 신뢰도 등급 분포
-- **고성능 검색 기능**: 쇼핑몰/신고/사용자 목록 실시간 검색 (한국어 검색 지원)
-- 신고 관리 테이블: 상태별 필터링(pending/approved/rejected), 승인/거부/삭제 버튼
-- 쇼핑몰 관리: 이름 수정, 삭제, 병합 기능
-- 커뮤니티 관리: 게시글/댓글 조회 및 삭제
-
----
-
-## 사용 기술
-
-### 프론트엔드
-- **React 18.3.1** + **TypeScript 5.5.4**: 타입 안전성과 개발 생산성을 높인 웹 애플리케이션
-- **Vite 5.4.0**: 빠른 개발 환경 및 빌드 도구
-- **React Router 6.26.2**: SPA 라우팅 관리 (18개 페이지)
-- **Tailwind CSS 3.4.1**: 유틸리티 기반 스타일링
-- **shadcn/ui**: 고품질 UI 컴포넌트 라이브러리
-- **Recharts 3.4.1**: 관리자 대시보드 차트 시각화
-
-### 백엔드
-- **Node.js** + **Express.js 5.1.0**: RESTful API 서버
-- **Supabase (PostgreSQL)**: 클라우드 데이터베이스 (14개 테이블, Full-Text Search 지원)
-- **JWT 9.0.2**: 사용자 인증 토큰 관리
-- **Multer 2.0.2**: 파일 업로드 처리
-- **Nodemailer 7.0.9**: 이메일 발송 (비밀번호 재설정)
-- **SolAPI**: SMS 인증 서비스 연동
+### Backend
+- Node.js + Express.js 5.1.0
+- Supabase (PostgreSQL)
+- JWT 9.0.2
+- Multer 2.0.2 (파일 업로드)
+- Nodemailer 7.0.9 (이메일)
+- SolAPI (SMS 인증)
 
 ### AI/ML
-- **OpenRouter API**: Claude 3.5 Sonnet 모델 활용 (리뷰 신뢰도 분석에만 사용)
-- **Python scikit-learn**: 자체 학습 Random Forest ML 모델 (PhishTank, OpenPhish 데이터셋으로 학습한 쇼핑몰 URL 피싱 탐지)
-- **웹 페이지 분석**: Node-Fetch를 활용한 웹사이트 콘텐츠 수집 및 기술적 분석 (SSL 검증, 리다이렉트 추적)
+- OpenRouter API (Claude 3.5 Sonnet)
+- Python scikit-learn (Random Forest)
+- Node-Fetch (웹 스크래핑)
 
-### 배포 및 인프라
-- **GitHub Actions**: 완전한 CI/CD 파이프라인 구축 (자동 빌드, 테스트, 배포)
-- **GCP (Google Cloud Platform)**: 초기 배포 환경
-- **Supabase**: 데이터베이스 및 인증 서비스
-- **Docker**: 컨테이너화 지원
+### Infra/Deploy
+- GitHub Actions (CI/CD)
+- Docker
+- GCP (Google Cloud Platform)
+- Supabase
+
+## 시스템 구성도
+
+```mermaid
+flowchart TB
+    A["사용자<br/>(브라우저)"] -->|HTTP| B["Frontend<br/>(React + Vite)"]
+    B -->|REST API| C["Backend<br/>(Express.js)"]
+    C -->|SQL| D["PostgreSQL<br/>(Supabase)"]
+    C -->|Python Process| E["ML 모델<br/>(scikit-learn)"]
+    C -->|API Call| F["OpenRouter API<br/>(Claude 3.5 Sonnet)"]
+    C -->|API Call| G["SolAPI<br/>(SMS 인증)"]
+    C -->|HTTP| H["외부 쇼핑몰<br/>(웹 스크래핑)"]
+    
+    E -->|예측 결과| C
+    F -->|AI 분석 결과| C
+    G -->|SMS 발송| A
+```
+
+## 빠른 시작
+
+### 요구사항
+
+- Node.js 20 이상
+- Python 3.9 이상
+- PostgreSQL (또는 Supabase 계정)
+- npm 또는 yarn
+
+### 로컬 실행
+
+#### 1. 저장소 클론
+
+```bash
+git clone [레포지토리 URL]
+cd CapstoneProject
+```
+
+#### 2. Backend 설정
+
+```bash
+cd my-react-app/backend
+
+# 의존성 설치
+npm install
+
+# Python ML 환경 설정
+cd ml
+python -m venv .venv-ml
+# Windows
+.venv-ml\Scripts\activate
+# Linux/Mac
+source .venv-ml/bin/activate
+
+# Python 패키지 설치
+pip install -r requirements.txt
+cd ..
+```
+
+#### 3. 환경변수 설정
+
+`my-react-app/backend/.env` 파일 생성:
+
+```env
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# JWT
+JWT_SECRET=your-jwt-secret-key-change-in-production
+JWT_EXPIRES_IN=7d
+
+# SMS (SolAPI)
+SOLAPI_KEY=your-solapi-key
+SOLAPI_SECRET=your-solapi-secret
+SOLAPI_FROM_NUMBER=01012345678
+
+# OpenRouter (AI 분석)
+OPENROUTER_API_KEY=your-openrouter-api-key
+
+# Email (선택)
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=your-app-password
+
+# Server
+PORT=3001
+NODE_ENV=development
+```
+
+#### 4. 데이터베이스 설정
+
+Supabase 대시보드에서 `complete-schema.sql` 실행하거나, 마이그레이션 실행:
+
+```bash
+# 마이그레이션 파일 확인
+ls migrations/
+```
+
+#### 5. Backend 실행
+
+```bash
+cd my-react-app/backend
+npm run dev
+```
+
+서버는 `http://localhost:3001`에서 실행됩니다.
+
+#### 6. Frontend 설정
+
+```bash
+cd my-react-app/frontend
+
+# 의존성 설치
+npm install
+
+# 환경변수 설정 (필요시)
+# .env 파일 생성 (API 엔드포인트 등)
+
+# 개발 서버 실행
+npm run dev
+```
+
+프론트엔드는 `http://localhost:5173`에서 실행됩니다.
+
+### Docker 실행
+
+```bash
+# Backend Docker 빌드 및 실행
+cd my-react-app/backend
+docker build -t ygmk-backend .
+docker run -p 3001:3000 --env-file .env ygmk-backend
+```
+
+### 테스트
+
+```bash
+cd my-react-app/backend
+npm test
+```
+
+## 환경변수
+
+| 변수명 | 설명 | 예시 |
+|--------|------|------|
+| `SUPABASE_URL` | Supabase 프로젝트 URL | `https://xxx.supabase.co` |
+| `SUPABASE_KEY` | Supabase Anon Key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `JWT_SECRET` | JWT 토큰 서명 키 | `your-secret-key-change-in-production` |
+| `JWT_EXPIRES_IN` | JWT 만료 시간 | `7d` |
+| `SOLAPI_KEY` | SolAPI API Key | `your-solapi-key` |
+| `SOLAPI_SECRET` | SolAPI API Secret | `your-solapi-secret` |
+| `SOLAPI_FROM_NUMBER` | 발신 번호 | `01012345678` |
+| `OPENROUTER_API_KEY` | OpenRouter API Key | `sk-or-v1-xxx...` |
+| `GMAIL_USER` | Gmail 계정 (선택) | `your-email@gmail.com` |
+| `GMAIL_APP_PASSWORD` | Gmail 앱 비밀번호 (선택) | `xxxx xxxx xxxx xxxx` |
+| `PORT` | 서버 포트 | `3001` |
+| `NODE_ENV` | 환경 모드 | `development` |
+
+## 폴더 구조
+
+```
+CapstoneProject/
+├── my-react-app/
+│   ├── frontend/          # React + TypeScript
+│   │   ├── src/
+│   │   └── package.json
+│   │
+│   └── backend/           # Express.js
+│       ├── config/        # Supabase 설정
+│       ├── controllers/   # 컨트롤러
+│       ├── middleware/    # 미들웨어
+│       ├── routes/        # 라우터
+│       ├── services/      # 비즈니스 로직
+│       ├── utils/         # 유틸리티
+│       ├── ml/            # Python ML 모델
+│       │   ├── predict.py
+│       │   ├── best_model.pkl
+│       │   └── requirements.txt
+│       ├── migrations/   # DB 마이그레이션
+│       ├── tests/         # 테스트
+│       ├── uploads/       # 업로드 파일
+│       ├── server.js
+│       └── package.json
+│
+└── README.md
+```
+
+## 내 기여 (Contribution)
+
+### 프론트엔드
+- React + TypeScript로 18개 페이지 전체 구현
+- shadcn/ui 기반 컴포넌트 설계 및 다크/라이트 테마 지원
+- Recharts를 활용한 관리자 대시보드 차트 구현
+- 반응형 디자인 (모바일/태블릿/데스크톱)
+
+### 백엔드
+- Express.js 기반 RESTful API 설계 및 구현 (30개 이상 엔드포인트)
+- JWT 인증 시스템 구축
+- 파일 업로드 (Multer) 및 SMS/이메일 서비스 연동
+- PostgreSQL Full-Text Search 기반 검색 시스템 구현
+
+### AI/ML
+- Python scikit-learn Random Forest 모델 학습 및 배포
+- Node.js와 Python 프로세스 간 통신 구현
+- Claude 3.5 Sonnet API 연동 및 프롬프트 엔지니어링
+- 배치 처리 최적화 (15개씩) 및 캐싱 시스템 (5분)
+
+### 데이터베이스
+- PostgreSQL 14개 테이블 설계 및 정규화
+- 인덱싱 최적화 및 관계형 데이터 모델링
+- Full-Text Search 인덱스 설정
+
+### 인프라
+- GitHub Actions CI/CD 파이프라인 구축
+- Docker 컨테이너화
+
+## 트러블슈팅 / 의사결정
+
+### 1. Node.js와 Python 프로세스 간 통신
+
+**이슈**: ML 모델 예측을 위해 Node.js에서 Python 스크립트를 실행해야 함. Windows/Linux 환경 호환성 문제.
+
+**해결**:
+- `spawn`을 사용한 프로세스 통신
+- 가상환경 Python 경로 자동 감지 (`.venv-ml` 우선, 없으면 시스템 Python)
+- JSON 기반 STDIN/STDOUT 통신
+- 타임아웃 및 에러 핸들링
+
+### 2. OpenRouter API 비용 최적화
+
+**이슈**: 리뷰가 많을 때 API 호출 비용이 급증.
+
+**해결**:
+- 리뷰를 15개씩 배치 처리하여 호출 횟수 최소화
+- 분석 결과를 5분간 캐싱 (DB에 저장)
+- 동일 쇼핑몰 재분석 시 캐시 우선 사용
+
+### 3. PostgreSQL Full-Text Search 한국어 지원
+
+**이슈**: 기본 Full-Text Search는 영어 중심, 한국어 검색 품질 저하.
+
+**해결**:
+- `pg_trgm` 확장 사용 (삼각함수 기반 유사도)
+- `to_tsvector('simple', column)` 사용하여 형태소 분석기 우회
+- 인덱스 최적화 (`GIN` 인덱스)
+
+## 라이선스
+
+ISC
 
 ---
 
-## 경험 포인트
+## (부록) 면접 질문 5개 + 답변 초안
 
-### 1. AI/ML 통합 개발 경험
-- **Claude 3.5 Sonnet API 연동**: OpenRouter를 통한 AI 모델 활용, 리뷰 신뢰도 분석을 위한 프롬프트 엔지니어링으로 정확도 향상
-- **6가지 판별 기준 설계**: 균형 없는 평가, 동일 패턴, 시간대 편중 등 가짜 리뷰 탐지를 위한 분석 기준 수립
-- **Python ML 모델 개발**: Random Forest 모델 학습 및 배포, Node.js와 Python 프로세스 간 통신 구현
-- **배치 처리 최적화**: 리뷰 15개씩 묶어서 처리하여 API 호출 횟수 최소화 및 비용 절감, 성능 최적화
+### 1. 이 프로젝트에서 가장 어려웠던 기술적 도전은 무엇이었나요?
 
-### 2. 실무급 풀스택 개발
-- **프론트엔드**: React + TypeScript로 18개 페이지 구성, shadcn/ui 기반 컴포넌트 설계, 다크/라이트 테마 지원
-- **백엔드**: Express.js 기반 RESTful API 설계, JWT 인증, 파일 업로드, SMS/이메일 서비스 연동
-- **데이터베이스**: PostgreSQL 14개 테이블 설계, 정규화, 인덱싱, 관계형 데이터 모델링
-- **Full-Text Search 구현**: PostgreSQL Full-Text Search를 활용한 고성능 검색 시스템 구축
+**답변**: Node.js와 Python ML 모델 간 통신이 가장 어려웠습니다. 특히 Windows/Linux 환경 호환성과 프로세스 에러 핸들링이 까다로웠습니다. 가상환경 Python 경로 자동 감지 로직을 구현하고, JSON 기반 STDIN/STDOUT 통신으로 해결했습니다.
 
-### 3. 사용자 경험 최적화
-- **실시간 분석**: 사용자 입력 즉시 분석 결과 제공, 로딩 상태 및 에러 처리
-- **캐싱 전략**: AI 분석 결과 5분 캐싱, 웹사이트 타이틀 24시간 캐싱으로 성능 향상
-- **반응형 디자인**: 모바일, 태블릿, 데스크톱 최적화, 터치 친화적 UI
+### 2. AI 분석 비용을 어떻게 최적화했나요?
 
-### 4. 보안 및 데이터 관리
-- **인증 시스템**: SMS 인증 필수, JWT 토큰 기반 인증, 레이트 리밋 적용
-- **데이터 검증**: 관리자 승인제 신고 시스템, 증빙 자료 가중치 적용, 악의적 사용자 패턴 추적
-- **보안 강화**: XSS 방지, 파일 업로드 검증, SQL 인젝션 방지
+**답변**: OpenRouter API 호출 비용을 줄이기 위해 배치 처리(15개씩)와 캐싱(5분)을 적용했습니다. 동일 쇼핑몰 재분석 시 DB 캐시를 우선 사용하여 불필요한 API 호출을 방지했습니다.
 
-### 5. 프로젝트 관리 및 협업
-- **버전 관리**: Git을 활용한 코드 관리, 브랜치 전략 수립
-- **문서화**: 상세한 기술 문서 작성, API 명세서, 데이터베이스 스키마 문서화
-- **테스트**: Jest 기반 단위 테스트 작성 (백엔드)
+### 3. 신뢰도 점수 계산 로직을 설명해주세요.
 
----
+**답변**: 기술적 위험도(ML 모델 예측), 리뷰 신뢰도(AI 분석), 피해 사례 제보(관리자 승인 후 가중치)를 종합하여 0~100점으로 변환합니다. 각 요소는 가중치를 두어 최종 점수를 산출합니다.
 
-## 프로젝트 하이라이트
+### 4. 보안 측면에서 어떤 조치를 취했나요?
 
-### 기술적 성과
-- **이중 분석 시스템**: 리뷰 신뢰도 분석(Claude 3.5 Sonnet)과 쇼핑몰 신뢰도 분석(Random Forest ML)을 결합한 종합 분석 시스템 구축
-- **실시간 웹 크롤링**: 쇼핑몰 웹사이트 실시간 분석, SSL 검증, 리다이렉트 체인 추적
-- **고성능 검색 시스템**: PostgreSQL Full-Text Search를 활용한 관리자 페이지 실시간 검색 기능
-- **확장 가능한 아키텍처**: 서비스 레이어 분리, 모듈화된 컴포넌트 설계, RESTful API 설계
+**답변**: JWT 토큰 기반 인증, SMS 인증 필수 회원가입, 파일 업로드 검증(PNG/JPG만, 10MB 제한), XSS/SQL 인젝션 방지, 레이트 리밋 적용을 구현했습니다.
 
-### 비즈니스 가치
-- **소비자 보호**: 온라인 쇼핑 피해 예방, 신뢰도 정보 투명 공개
-- **집단지성 활용**: 사용자 참여를 통한 피해 사례 데이터베이스 구축
-- **데이터 기반 의사결정**: AI 및 통계 분석을 통한 객관적 평가 제공
+### 5. 이 프로젝트를 개선한다면 무엇을 하시겠어요?
 
-### 향후 계획
-- **웹 크롤러 자동화**: 자동 쇼핑몰 정보 수집 및 모니터링 시스템 확장
-- **크롬 확장 프로그램**: 실시간 신뢰도 표시 브라우저 확장 프로그램 개발
-- **모바일 앱**: iOS/Android 네이티브 앱 개발
-- **공공 데이터 연동**: 국가 공공 데이터와 결합하여 더 정확한 피싱 탐지
-
----
-
-## 프로젝트 통계
-
-- **프론트엔드 페이지**: 18개
-- **데이터베이스 테이블**: 14개
-- **API 엔드포인트**: 30개 이상
-- **프론트엔드 컴포넌트**: 50개 이상
-- **개발 기간**: 약 3개월
-- **기술 스택**: 15개 이상
-
----
-
-## 학습한 기술 및 도구
-
-- **프론트엔드**: React, TypeScript, Vite, React Router, Tailwind CSS, shadcn/ui, Recharts
-- **백엔드**: Node.js, Express.js, JWT, Multer, Nodemailer, SolAPI
-- **데이터베이스**: PostgreSQL, Supabase (Full-Text Search, pg_trgm 확장)
-- **AI/ML**: Claude 3.5 Sonnet (OpenRouter API), Python scikit-learn (자체 학습 ML 모델)
-- **CI/CD**: GitHub Actions
-- **인프라**: GCP (Google Cloud Platform), Docker
-- **기타**: Git, Jest, Postman, Figma
-
----
-
-## 프로젝트 링크
-
-- **프로젝트 GitHub**: [GitHub Repository URL]
-- **라이브 데모**: [Live Demo URL]
-- **프로젝트 문서**: [Documentation URL]
-
----
-
-**작성일**: 2025년 12월  03일
-**프로젝트 버전**: 2.0.0
-
+**답변**: 
+1. ML 모델 성능 향상 (더 많은 학습 데이터, 하이퍼파라미터 튜닝)
+2. 실시간 알림 시스템 (WebSocket)
+3. 크롬 확장 프로그램 개발 (브라우저에서 실시간 신뢰도 표시)
+4. 모바일 앱 개발 (React Native)
+5. 공공 데이터 연동 (사업자등록번호 검증 API)
