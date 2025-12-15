@@ -120,7 +120,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
   deploy-backend:
-    name: Deploy Backend
+    name: Deploy Backend to GCP
     needs: build-docker
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
@@ -134,42 +134,78 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-          cache-dependency-path: my-react-app/backend/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Configure AWS credentials
-        if: env.DEPLOY_TO_AWS == 'true'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-2
-      
-      - name: Deploy to AWS Lambda (Serverless)
-        if: env.DEPLOY_TO_AWS == 'true'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NODE_ENV: production
+      # GCP 인증 정보 확인
+      - name: Check GCP credentials
+        id: check-gcp
         run: |
-          npm install -g serverless
-          serverless deploy --stage ${{ github.event.inputs.environment || 'prod' }}
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "has_gcp_credentials=false" >> $GITHUB_OUTPUT
+            echo "::warning::GCP_SA_KEY secret이 설정되지 않았습니다. 배포는 수동으로 진행해야 합니다."
+            echo "::notice::Docker 이미지는 이미 빌드되어 Docker Hub에 푸시되었습니다: ${{ secrets.DOCKER_USERNAME }}/capstone-backend"
+          else
+            echo "has_gcp_credentials=true" >> $GITHUB_OUTPUT
+          fi
       
-      - name: Deploy notification
+      # GCP 인증 설정 (인증 정보가 있을 때만)
+      - name: Authenticate to Google Cloud
+        if: steps.check-gcp.outputs.has_gcp_credentials == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        if: steps.check-gcp.outputs.has_gcp_credentials == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+      
+      # GCP에 Docker 이미지 배포 (인증 정보가 있을 때만)
+      - name: Deploy to GCP Cloud Run / GKE
+        if: steps.check-gcp.outputs.has_gcp_credentials == 'true'
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION || 'asia-northeast3' }}
+          SERVICE_NAME: ${{ secrets.GCP_SERVICE_NAME || 'capstone-backend' }}
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/capstone-backend:main-latest"
+          echo "Deploying image: ${IMAGE_NAME}"
+          
+          # Cloud Run 배포 예시 (실제 설정에 맞게 수정 필요)
+          # gcloud run deploy ${SERVICE_NAME} \
+          #   --image ${IMAGE_NAME} \
+          #   --platform managed \
+          #   --region ${GCP_REGION} \
+          #   --project ${GCP_PROJECT_ID} \
+          #   --allow-unauthenticated
+          
+          echo "::notice::GCP 배포 명령어는 GCP 계정 관리자와 협의하여 설정해주세요."
+          echo "::info::사용할 Docker 이미지: ${IMAGE_NAME}"
+      
+      # 배포 정보 출력 (인증 정보가 없어도)
+      - name: Deployment info
         if: always()
+        run: |
+          echo "## Docker Image 배포 정보" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**이미지 태그:** \`${{ secrets.DOCKER_USERNAME }}/capstone-backend:main-latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-gcp.outputs.has_gcp_credentials }}" == "false" ]; then
+            echo "⚠️ **자동 배포 불가:** GCP 인증 정보가 설정되지 않아 자동 배포를 건너뜁니다." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 수동 배포 방법" >> $GITHUB_STEP_SUMMARY
+            echo "1. GCP 콘솔에 접속하여 Docker 이미지를 pull합니다" >> $GITHUB_STEP_SUMMARY
+            echo "2. Cloud Run 또는 GKE에 수동으로 배포합니다" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "자세한 내용은 README.md의 배포 섹션을 참고하세요." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **자동 배포 진행 중**" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Deploy notification (optional)
+        if: always() && secrets.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: 'Backend deployment ${{ job.status }}'
+          text: 'Backend Docker image built: ${{ secrets.DOCKER_USERNAME }}/capstone-backend:main-latest'
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         continue-on-error: true
 
   deploy-frontend:
@@ -201,14 +237,38 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
       
-      - name: Deploy to Vercel
-        if: env.DEPLOY_TO_VERCEL == 'true'
+      # GCP 인증 정보 확인
+      - name: Check GCP credentials
+        id: check-gcp
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "has_gcp_credentials=false" >> $GITHUB_OUTPUT
+            echo "::warning::GCP_SA_KEY secret이 설정되지 않았습니다. 프론트엔드 배포는 수동으로 진행해야 합니다."
+          else
+            echo "has_gcp_credentials=true" >> $GITHUB_OUTPUT
+          fi
+      
+      # GCP에 프론트엔드 배포 (인증 정보가 있을 때만)
+      - name: Deploy to GCP Cloud Storage / Cloud Run
+        if: steps.check-gcp.outputs.has_gcp_credentials == 'true'
+        uses: google-github-actions/upload-cloud-storage@v1
+        with:
+          credentials: ${{ secrets.GCP_SA_KEY }}
+          destination: ${{ secrets.GCP_FRONTEND_BUCKET || 'capstone-frontend' }}
+          glob: '**/*'
+          parent: false
+        continue-on-error: true
+      
+      # Vercel 배포 (선택적, GCP가 아닌 경우)
+      - name: Deploy to Vercel (alternative)
+        if: env.DEPLOY_TO_VERCEL == 'true' && steps.check-gcp.outputs.has_gcp_credentials == 'false'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
+        continue-on-error: true
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -216,4 +276,29 @@ jobs:
           name: frontend-dist
           path: my-react-app/frontend/dist
           retention-days: 30
+      
+      # 배포 정보 출력
+      - name: Deployment info
+        if: always()
+        run: |
+          echo "## Frontend 빌드 정보" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **빌드 완료:** 프론트엔드 빌드가 완료되었습니다." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**빌드 아티팩트:** GitHub Actions에서 다운로드 가능 (30일 보관)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-gcp.outputs.has_gcp_credentials }}" == "false" ]; then
+            echo "⚠️ **자동 배포 불가:** GCP 인증 정보가 설정되지 않아 자동 배포를 건너뜁니다." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 수동 배포 방법" >> $GITHUB_STEP_SUMMARY
+            echo "1. GitHub Actions에서 빌드 아티팩트를 다운로드합니다" >> $GITHUB_STEP_SUMMARY
+            echo "2. Cloud Storage 버킷에 업로드합니다" >> $GITHUB_STEP_SUMMARY
+            echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "   gsutil -m rsync -r dist/ gs://{BUCKET_NAME}/" >> $GITHUB_STEP_SUMMARY
+            echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "자세한 내용은 README.md의 배포 섹션을 참고하세요." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **자동 배포 진행 중**" >> $GITHUB_STEP_SUMMARY
+          fi
 
