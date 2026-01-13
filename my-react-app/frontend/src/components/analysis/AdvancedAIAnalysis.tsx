@@ -75,14 +75,15 @@ export const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
   ];
 
   const phishingCriteria = [
-    '유명 사이트와 85% 이상 유사한 도메인 (타이포스쿼팅)',
-    '긴급성 강조 표현 3개 이상',
-    '결제 압박 표현 2개 이상',
-    '30일 이내 신규 도메인',
-    'SSL 인증서 없음/무효',
-    '과도한 리다이렉트 (5회 이상)',
-    '연락처 정보 2개 이상 부족',
-    '사업자 정보 2개 이상 부족'
+    'URL 길이: URL이 너무 길면 의심 (일반적으로 100자 이상)',
+    '하이픈 개수: 하이픈이 많을수록 의심 (일반적으로 5개 이상)',
+    '의심 키워드: login, verify, confirm, account, discount, free 등 피싱에 자주 사용되는 단어 포함',
+    '비표준 TLD: .tk, .ml, .ga, .cf, .click, .download 등 의심스러운 도메인 확장자 사용',
+    'HTTPS 미사용: HTTPS 프로토콜을 사용하지 않는 경우',
+    '서브도메인 깊이: 서브도메인이 많을수록 의심 (일반적으로 3단계 이상)',
+    'IP 주소 직접 사용: URL에 IP 주소가 직접 사용되는 경우',
+    '@ 기호 포함: URL에 @ 기호가 포함된 경우',
+    'URL 단축 서비스: bit.ly, tinyurl.com 등 URL 단축 서비스 사용'
   ];
 
   // 특정 쇼핑몰의 수동 신뢰도 점수 조회
